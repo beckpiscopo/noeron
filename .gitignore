@@ -44,6 +44,7 @@ data/papers_collection.json
 data/*.pdf
 data/temp/
 data/pdfs/*.pdf
+data/grobid_fulltext/*.json
 # Logs
 *.log
 
