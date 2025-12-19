@@ -14,8 +14,26 @@ def clean_text(text: str) -> str:
     text = re.sub(r'\s+', ' ', text)
     # Remove common PDF artifacts
     text = re.sub(r'(\w)-\s+(\w)', r'\1\2', text)  # Fix hyphenation
-    text = text.strip()
-    return text
+    return text.strip()
+
+
+def ensure_heading_separator(text: str, heading: str) -> str:
+    """Guarantee there is whitespace between the heading and the body text."""
+    if not text or not heading:
+        return text
+
+    heading = heading.strip()
+    if not heading:
+        return text
+
+    prefix = text[: len(heading)]
+    if prefix.lower() != heading.lower():
+        return text
+
+    rest = text[len(prefix) :]
+    if rest and not rest[0].isspace():
+        rest = " " + rest
+    return prefix + rest
 
 def extract_paper_text(paper_data: Dict) -> Dict:
     """
@@ -34,6 +52,7 @@ def extract_paper_text(paper_data: Dict) -> Dict:
     if isinstance(raw_sections, dict):
         iterator = raw_sections.items()
         for heading, text in iterator:
+            text = ensure_heading_separator(text, heading)
             sections.append({
                 'heading': heading,
                 'text': clean_text(text)
@@ -42,6 +61,7 @@ def extract_paper_text(paper_data: Dict) -> Dict:
         for section in raw_sections:
             heading = section.get('heading') or section.get('name') or ''
             text = section.get('text', '')
+            text = ensure_heading_separator(text, heading)
             sections.append({
                 'heading': heading,
                 'text': clean_text(text)

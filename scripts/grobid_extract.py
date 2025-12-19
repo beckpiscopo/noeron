@@ -15,7 +15,12 @@ import logging
 import sys
 from datetime import datetime
 from pathlib import Path
-from collections import OrderedDict
+from typing import Dict, Iterable, List, Optional
+from xml.etree import ElementTree as ET
+TEI_NS = {"tei": "http://www.tei-c.org/ns/1.0"}
+TEI_PREFIX = TEI_NS["tei"]
+PB_TAG = f"{{{TEI_PREFIX}}}pb"
+DIV_TAG = f"{{{TEI_PREFIX}}}div"
 from typing import Dict, Iterable, Optional
 from xml.etree import ElementTree as ET
 
