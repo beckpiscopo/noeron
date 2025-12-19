@@ -3,7 +3,11 @@ from chromadb.config import Settings
 from sentence_transformers import SentenceTransformer
 from pathlib import Path
 from typing import Dict, List
-from chunk_papers import Chunk, PaperChunker
+
+try:
+    from chunk_papers import Chunk, PaperChunker
+except ModuleNotFoundError:
+    from chunking_papers import Chunk, PaperChunker
 from prepare_texts import process_all_papers
 
 class VectorStore:
@@ -35,6 +39,28 @@ class VectorStore:
             self.collection.delete(delete_all=True)
             print("✓ Cleared collection")
 
+    def _sanitize_value(self, value):
+        """Return a Chroma-safe scalar so metadata has no None references."""
+        if value is None:
+            return ""
+        if isinstance(value, (str, bool, int, float)):
+            return value
+        return str(value)
+
+    def _build_metadata(self, chunk: Chunk) -> Dict[str, str]:
+        """Prepare metadata dict without None entries."""
+        raw = {
+            'paper_id': chunk.paper_id,
+            'paper_title': chunk.paper_title,
+            'section_heading': chunk.section_heading,
+            'chunk_index': chunk.chunk_index,
+            'token_count': chunk.token_count,
+            'year': chunk.metadata.get('year', '') if chunk.metadata else '',
+            'source_path': chunk.metadata.get('source_path', '') if chunk.metadata else ''
+        }
+
+        return {k: self._sanitize_value(v) for k, v in raw.items()}
+
     def add_chunks(self, chunks: List[Chunk], batch_size: int = 100):
         """Add chunks to vector store."""
         print(f"Embedding and storing {len(chunks)} chunks...")
@@ -47,17 +73,7 @@ class VectorStore:
             ids = [f"{c.paper_id}_chunk_{c.chunk_index}" for c in batch]
             
             # Create metadata
-            metadatas = []
-            for c in batch:
-                metadatas.append({
-                    'paper_id': c.paper_id,
-                    'paper_title': c.paper_title,
-                    'section_heading': c.section_heading,
-                    'chunk_index': c.chunk_index,
-                    'token_count': c.token_count,
-                    'year': str(c.metadata.get('year', '')),
-                    'source_path': c.metadata.get('source_path', '')
-                })
+            metadatas = [self._build_metadata(c) for c in batch]
             
             # Generate embeddings
             embeddings = self.model.encode(texts, show_progress_bar=False)
