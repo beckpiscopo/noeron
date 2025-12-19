@@ -46,6 +46,7 @@ data/temp/
 data/pdfs/*.pdf
 data/grobid_fulltext/*.json
 data/cleaned_texts/*.json
+data/chunks/*.json
 # Logs
 *.log
 
