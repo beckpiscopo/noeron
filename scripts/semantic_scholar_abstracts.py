@@ -19,6 +19,9 @@ from pathlib import Path
 from typing import Iterable, List, Optional
 
 import httpx
+from xml.etree import ElementTree as ET
+
+TEI_NS = {"tei": "http://www.tei-c.org/ns/1.0"}
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 DEFAULT_REPORT = ROOT_DIR / "data" / "grobid_quality_report.json"
@@ -42,6 +45,8 @@ def fetch_abstract(
     doi: Optional[str],
     client: httpx.Client,
     api_key: Optional[str],
+    retry_delay: float = 1.0,
+    max_retries: int = 5,
 ) -> Optional[str]:
     identifier = None
     if paper_id:
@@ -56,17 +61,38 @@ def fetch_abstract(
     if api_key:
         headers["x-api-key"] = api_key
 
-    response = client.get(
-        f"https://api.semanticscholar.org/graph/v1/paper/{identifier}",
-        params={"fields": "paperId,abstract"},
-        headers=headers,
-        timeout=httpx.Timeout(20.0),
-    )
-    response.raise_for_status()
-    json_payload = response.json()
-    abstract = json_payload.get("abstract")
-    if abstract:
-        return abstract.strip()
+    url = f"https://api.semanticscholar.org/graph/v1/paper/{identifier}"
+    params = {"fields": "paperId,abstract"}
+
+    for attempt in range(max_retries):
+        try:
+            response = client.get(
+                url,
+                params=params,
+                headers=headers,
+                timeout=httpx.Timeout(20.0),
+            )
+            response.raise_for_status()
+            json_payload = response.json()
+            abstract = json_payload.get("abstract")
+            if abstract:
+                return abstract.strip()
+            return None
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code == 429:
+                wait = retry_delay * (2 ** attempt)
+                logger.warning(
+                    "Semantic Scholar rate limited (attempt %d/%d) for %s; sleeping %.1fs",
+                    attempt + 1,
+                    max_retries,
+                    identifier,
+                    wait,
+                )
+                time.sleep(wait)
+                continue
+            raise
+
+    logger.warning("Exceeded retry limit (%d) for %s", max_retries, identifier)
     return None
 
 
@@ -96,6 +122,41 @@ def update_storage(paper_id: str, abstract: str) -> bool:
     metadata["abstract"] = abstract
     storage.add_paper(paper_id, stored)
     return True
+
+
+def extract_text(element: ET.Element | None) -> str:
+    if element is None:
+        return ""
+    return "".join(element.itertext()).strip()
+
+
+def parse_tei_abstract(raw_tei: Optional[str]) -> Optional[str]:
+    if not raw_tei:
+        return None
+    try:
+        root = ET.fromstring(raw_tei)
+    except ET.ParseError:
+        return None
+
+    abstract_el = root.find(".//tei:abstract", TEI_NS)
+    if abstract_el:
+        abstract = extract_text(abstract_el)
+        if abstract:
+            return abstract
+    return None
+
+
+def find_existing_abstract(payload: dict) -> Optional[str]:
+    metadata = payload.get("metadata", {})
+    abstract = (metadata.get("abstract") or "").strip()
+    if abstract:
+        return abstract
+
+    content_abs = (payload.get("content", {}).get("abstract") or "").strip()
+    if content_abs:
+        return content_abs
+
+    return parse_tei_abstract(payload.get("raw_tei"))
 
 
 def main() -> None:
@@ -139,6 +200,14 @@ def main() -> None:
             metadata = payload.get("metadata", {})
             s2_id = metadata.get("paperId")
             doi = metadata.get("doi")
+            abstract = find_existing_abstract(payload)
+
+            if abstract:
+                if update_payload(json_path, abstract):
+                    updated.append(json_path.stem)
+                    update_storage(json_path.stem, abstract)
+                continue
+
             abstract = fetch_abstract(s2_id, doi, client, args.api_key)
             if not abstract:
                 logger.info("No abstract returned for %s (paper_id=%s doi=%s)", json_path.name, s2_id, doi)
