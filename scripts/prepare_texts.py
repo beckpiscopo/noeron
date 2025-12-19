@@ -55,6 +55,7 @@ def extract_paper_text(paper_data: Dict) -> Dict:
             text = ensure_heading_separator(text, heading)
             sections.append({
                 'heading': heading,
+                'page': None,
                 'text': clean_text(text)
             })
     elif isinstance(raw_sections, list):
@@ -64,6 +65,7 @@ def extract_paper_text(paper_data: Dict) -> Dict:
             text = ensure_heading_separator(text, heading)
             sections.append({
                 'heading': heading,
+                'page': section.get('page'),
                 'text': clean_text(text)
             })
     

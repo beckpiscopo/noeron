@@ -17,12 +17,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional
 from xml.etree import ElementTree as ET
-TEI_NS = {"tei": "http://www.tei-c.org/ns/1.0"}
-TEI_PREFIX = TEI_NS["tei"]
-PB_TAG = f"{{{TEI_PREFIX}}}pb"
-DIV_TAG = f"{{{TEI_PREFIX}}}div"
-from typing import Dict, Iterable, Optional
-from xml.etree import ElementTree as ET
 
 import httpx
 
@@ -32,6 +26,9 @@ sys.path.insert(0, str(ROOT_DIR / "src"))
 from bioelectricity_research.storage import PDF_CACHE_DIR, PaperStorage  # noqa: E402
 
 TEI_NS = {"tei": "http://www.tei-c.org/ns/1.0"}
+TEI_PREFIX = TEI_NS["tei"]
+PB_TAG = f"{{{TEI_PREFIX}}}pb"
+DIV_TAG = f"{{{TEI_PREFIX}}}div"
 
 logger = logging.getLogger("grobid_extractor")
 
@@ -42,21 +39,47 @@ def extract_text(element: ET.Element | None) -> str:
     return "".join(element.itertext()).strip()
 
 
-def tangent_sections(root: ET.Element) -> Dict[str, str]:
-    sections: Dict[str, str] = OrderedDict()
-    for div in root.findall(".//tei:text/tei:body//tei:div", TEI_NS):
-        heading = extract_text(div.find(".//tei:head", TEI_NS))
-        section_label = (heading or div.get("type") or div.get("n") or "section").lower()
-        body_text = extract_text(div)
+def _section_page_from_pb(pb: ET.Element | None) -> Optional[str]:
+    if pb is None:
+        return None
+    for attr in ("n", "id", "facs"):
+        value = pb.get(attr)
+        if value:
+            return value.strip()
+    return None
+
+
+def tangent_sections(root: ET.Element) -> List[Dict[str, Optional[str]]]:
+    sections: List[Dict[str, Optional[str]]] = []
+    body = root.find(".//tei:text/tei:body", TEI_NS)
+    if body is None:
+        return sections
+
+    last_page_break: Optional[ET.Element] = None
+    for elem in body.iter():
+        if elem.tag == PB_TAG:
+            last_page_break = elem
+            continue
+
+        if elem.tag != DIV_TAG:
+            continue
+
+        heading = extract_text(elem.find(".//tei:head", TEI_NS))
+        section_label = (heading or elem.get("type") or elem.get("n") or "section").lower()
+        body_text = extract_text(elem)
         if not body_text:
             continue
 
-        key = section_label
-        suffix = 1
-        while key in sections:
-            suffix += 1
-            key = f"{section_label}_{suffix}"
-        sections[key] = body_text
+        pb_within = elem.find(".//tei:pb", TEI_NS)
+        page = _section_page_from_pb(pb_within) or _section_page_from_pb(last_page_break)
+        sections.append(
+            {
+                "heading": heading or section_label,
+                "text": body_text,
+                "page": page,
+            }
+        )
+
     return sections
 
 
@@ -97,12 +120,16 @@ def iter_pdfs(
 
 
 def call_grobid(
-    pdf_path: Path, grobid_url: str, client: httpx.Client
+    pdf_path: Path,
+    grobid_url: str,
+    client: httpx.Client,
+    params: Optional[Dict[str, str]] = None,
 ) -> str:
     logger.info("Posting %s to GROBID", pdf_path.name)
     with pdf_path.open("rb") as fh:
         response = client.post(
             grobid_url,
+            params=params,
             files={"input": ("document", fh, "application/pdf")},
             timeout=httpx.Timeout(120.0),
             follow_redirects=True,
@@ -179,7 +206,12 @@ def main():
                 continue
 
             try:
-                tei_xml = call_grobid(pdf_path, args.grobid_url, client)
+                tei_xml = call_grobid(
+                    pdf_path,
+                    args.grobid_url,
+                    client,
+                    params={"teiCoordinates": "1"},
+                )
                 parsed = parse_tei(tei_xml)
                 payload = {
                     "paper_id": paper_id,

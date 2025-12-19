@@ -3,7 +3,7 @@ import json
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, Iterable, List
+from typing import Any, Dict, Iterable, List, Optional
 
 import tiktoken
 
@@ -19,6 +19,7 @@ class Chunk:
     chunk_index: int
     token_count: int
     metadata: Dict
+    page: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
         """Serialize the chunk for export."""
@@ -30,6 +31,7 @@ class Chunk:
             "chunk_index": self.chunk_index,
             "token_count": self.token_count,
             "metadata": self.metadata,
+            "page": self.page,
         }
 
 class PaperChunker:
@@ -84,6 +86,7 @@ class PaperChunker:
         for section in paper['sections']:
             section_text = section['text']
             section_heading = section['heading'] or 'Introduction'
+            section_page = section.get('page')
             
             if not section_text.strip():
                 logging.debug(
@@ -94,6 +97,14 @@ class PaperChunker:
             # If section fits in one chunk, use it as-is
             token_count = self.count_tokens(section_text)
             
+            metadata = {
+                'authors': paper['authors'],
+                'year': paper['year'],
+                'source_path': paper['source_path'],
+            }
+            if section_page:
+                metadata['page'] = section_page
+
             if token_count <= self.chunk_size:
                 chunks.append(Chunk(
                     text=section_text,
@@ -102,11 +113,8 @@ class PaperChunker:
                     section_heading=section_heading,
                     chunk_index=chunk_index,
                     token_count=token_count,
-                    metadata={
-                        'authors': paper['authors'],
-                        'year': paper['year'],
-                        'source_path': paper['source_path']
-                    }
+                    metadata=metadata,
+                    page=section_page,
                 ))
                 chunk_index += 1
             else:
@@ -120,11 +128,8 @@ class PaperChunker:
                         section_heading=section_heading,
                         chunk_index=chunk_index,
                         token_count=self.count_tokens(sub_chunk),
-                        metadata={
-                            'authors': paper['authors'],
-                            'year': paper['year'],
-                            'source_path': paper['source_path']
-                        }
+                        metadata=metadata,
+                        page=section_page,
                     ))
                     chunk_index += 1
         
