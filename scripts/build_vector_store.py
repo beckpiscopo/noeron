@@ -1,14 +1,44 @@
+import sys
+from pathlib import Path
+from typing import Dict, List
+
+import json
+
 import chromadb
 from chromadb.config import Settings
 from sentence_transformers import SentenceTransformer
-from pathlib import Path
-from typing import Dict, List
+
+
+SCRIPTS_DIR = Path(__file__).resolve().parent
+if str(SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS_DIR))
 
 try:
     from chunk_papers import Chunk, PaperChunker
 except ModuleNotFoundError:
     from chunking_papers import Chunk, PaperChunker
+
 from prepare_texts import process_all_papers
+
+
+def load_cleaned_papers(cleaned_dir: Path) -> List[Dict]:
+    """Load any pre-cleaned JSON files (transcripts, other manual entries)."""
+    papers = []
+    seen_ids = set()
+    if not cleaned_dir.exists():
+        return papers
+
+    for file in cleaned_dir.glob("*.json"):
+        try:
+            payload = json.loads(file.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        paper_id = payload.get("paper_id")
+        if not paper_id or paper_id in seen_ids:
+            continue
+        seen_ids.add(paper_id)
+        papers.append(payload)
+    return papers
 
 class VectorStore:
     """Manage embedding and retrieval."""
@@ -36,7 +66,12 @@ class VectorStore:
         """Drop existing entries so repeated builds don’t hit duplicate ids."""
         if self.collection.count():
             print("Clearing existing vector store before ingest...")
-            self.collection.delete(delete_all=True)
+            collection_name = self.collection.name
+            self.client.delete_collection(name=collection_name)
+            self.collection = self.client.get_or_create_collection(
+                name=collection_name,
+                metadata={"description": "Michael Levin bioelectricity research papers"},
+            )
             print("✓ Cleared collection")
 
     def _sanitize_value(self, value):
@@ -118,6 +153,11 @@ def build_vectorstore():
     # Step 1: Load and clean papers
     print("Step 1: Loading papers...")
     papers = process_all_papers()
+    cleaned_dir = Path("data/cleaned_papers")
+    cleaned_papers = load_cleaned_papers(cleaned_dir)
+    if cleaned_papers:
+        print(f"✓ Loaded {len(cleaned_papers)} pre-cleaned transcripts from {cleaned_dir}")
+        papers.extend(cleaned_papers)
     print(f"✓ Loaded {len(papers)} papers\n")
     
     # Step 2: Chunk papers
