@@ -4,17 +4,19 @@ An MCP (Model Context Protocol) server for exploring bioelectricity research lit
 
 ## Features
 
-### Phase 1: Core Search (✅ Complete)
+### Phase 1: Core Search (Complete)
 - **Semantic paper search** with year, citation, and open access filters
 - **Detailed paper information** including citations and references
 - **Author-focused search** to explore researchers' work
+- **Gemini question answering prototype** that will pair top vector-search hits with the Gemini API (`google-generativeai`) for more conversational reasoning
 
-### Phase 1.5: Paper Storage (🚧 In Progress)
+### Phase 1.5: Paper Storage (In Progress)
 - **Full paper collection** with comprehensive text extraction
 - **PDF parsing** for open access papers
 - **ArXiv integration** for preprints and better full text
 - **Section detection** (Methods, Results, Discussion, Conclusions)
 - **JSON storage** for ML-ready data export
+- **Transcript ingestion** for interviews and talks (e.g., the Lex Fridman #325 conversation with Michael Levin) that can be chunked and added to the vector store
 
 ### Coming Soon
 - Phase 2: Concept extraction using Claude
@@ -107,6 +109,8 @@ Papers are stored in `data/papers_collection.json` with:
 - Extracted sections (Methods, Results, Discussion)
 - Source tracking (where the full text came from)
 
+Transcripts are staged under `data/podcasts/` (first entry: `Michael Levin： Biology, Life, Aliens, Evolution, Embryogenesis & Xenobots ｜ Lex Fridman Podcast #325 [p3lsYlod5OU].en.vtt`). Use `scripts/transcript_helpers.py` to convert VTT/text transcripts into the cleaned JSON format in `data/cleaned_papers/`, then rebuild the vector store so they participate in similarity search.
+
 ## Project Structure
 
 ```
@@ -131,6 +135,10 @@ bioelectricity-research-mcp/
 - Citation network visualization
 - Concept extraction and clustering
 - Integration with Notion/Obsidian workflows
+
+## Gemini Assistant (prototype)
+
+The Gemini assistant will listen to the vector store (`scripts/build_vector_store.py` → `data/vectorstore`) and stitch the highest- scoring chunks into a single prompt that is fed to Gemini via `google-generativeai`. Configure your Google credentials (e.g. `export GOOGLE_API_KEY=...`) before importing `google.generativeai` and calling `genai.get_response(model="gemini-pro")`. When the assistant is ready, it will be able to reason over both the curated papers and the added interviews/transcripts to answer complex bioelectricity questions.
 
 ## License
 
