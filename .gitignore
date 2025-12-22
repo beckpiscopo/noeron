@@ -41,6 +41,8 @@ htmlcov/
 
 # Data (but keep the directory structure)
 data/papers_collection.json
+data/cleaned_papers/*.json
+data/vectorstore/
 data/*.pdf
 data/temp/
 data/pdfs/*.pdf
