@@ -15,7 +15,7 @@ from .storage import PaperStorage, fetch_and_store_paper
 scripts_dir = Path(__file__).resolve().parent.parent / "scripts"
 sys.path.insert(0, str(scripts_dir))
 
-from build_vector_store import VectorStore
+from .vector_store import VectorStore
 
 mcp = FastMCP("bioelectricity-research")
 

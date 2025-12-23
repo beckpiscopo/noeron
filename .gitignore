@@ -49,6 +49,8 @@ data/pdfs/*.pdf
 data/grobid_fulltext/*.json
 data/cleaned_texts/*.json
 data/chunks/*.json
+data/podcasts/raw/*.mp3
+data/podcaasts/raw/*webm
 # Logs
 *.log
 

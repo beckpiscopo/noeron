@@ -15,7 +15,12 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from textwrap import shorten
-from typing import Iterable, List, Optional, Tuple, Dict
+from typing import Iterable, List, Optional, Tuple, Dict, Any
+
+try:
+    import google.generativeai as genai  # type: ignore[import]
+except ImportError:  # pragma: no cover - cleaned up via requirements
+    genai = None
 
 # The helper script runs in environments that may not have an `.env` file or
 # the `pypdf`/`arxiv` dependencies installed. We register minimal stubs before
@@ -104,12 +109,35 @@ CLAIM_KEYWORDS = {
 }
 MAX_CLAIMS_PER_SEGMENT = 5
 MIN_SENTENCE_LENGTH = 40
+GEMINI_API_KEY_ENV = "GEMINI_API_KEY"
+GEMINI_MODEL_DEFAULT = os.environ.get("GEMINI_MODEL", "gemini-1.5-pro")
+GEMINI_MAX_OUTPUT_TOKENS = 1024
+_GEMINI_CONFIGURED = False
+GEMINI_PROMPT_TEMPLATE = """You are an expert scientific research analyst reviewing podcast transcripts.
+You should:
+1. Identify up to {max_claims} factual claims that require research evidence to feel trustworthy.
+2. Keep `claim_text` as an explicit quote from the transcript.
+3. Craft a concise `research_query` that would surface supporting literature via a RAG search.
+4. Explain `needs_backing_because` to justify why the claim requires evidence.
+5. Assign `confidence_score` between 0 and 1 representing how strongly the claim is unsupported.
+
+Include the transcript segment under "Transcript" and any note or focus area below.
+Respond with a strict JSON array containing objects that have the keys `claim_text`, `research_query`, `needs_backing_because`, and `confidence_score`.
+Avoid commentary outside of the JSON array.
+Transcript:
+{segment_text}
+
+User note: {user_note}
+"""
 
 
 @dataclass
 class ClaimCandidate:
     text: str
     note_matched: bool
+    research_query: Optional[str] = None
+    needs_backing_because: Optional[str] = None
+    confidence_score: Optional[float] = None
 
 
 @dataclass
@@ -121,6 +149,130 @@ class ContextCard:
     section: str
     rationale: str
     source_link: str
+    needs_backing_because: Optional[str] = None
+    confidence_score: Optional[float] = None
+
+
+def _ensure_braces_escaped(value: str) -> str:
+    return value.replace("{", "{{").replace("}", "}}")
+
+
+def _ensure_gemini_client_ready() -> None:
+    global _GEMINI_CONFIGURED
+    if _GEMINI_CONFIGURED:
+        return
+    if genai is None:
+        raise RuntimeError("google.generativeai is not installed in this environment.")
+    api_key = os.environ.get(GEMINI_API_KEY_ENV)
+    if not api_key:
+        raise RuntimeError(f"{GEMINI_API_KEY_ENV} is required to call Gemini.")
+    genai.configure(api_key=api_key)
+    _GEMINI_CONFIGURED = True
+
+
+def _build_gemini_prompt(
+    segment_text: str, user_note: Optional[str], max_claims: int
+) -> str:
+    cleaned_segment = segment_text.strip()
+    note_text = user_note.strip() if user_note else "None"
+    return GEMINI_PROMPT_TEMPLATE.format(
+        max_claims=max_claims,
+        segment_text=_ensure_braces_escaped(cleaned_segment),
+        user_note=_ensure_braces_escaped(note_text),
+    )
+
+
+def _extract_response_text(response: object) -> str:
+    candidate = getattr(response, "text", None)
+    if candidate:
+        return candidate
+    output_text = getattr(response, "output_text", None)
+    if output_text:
+        return output_text
+    fragments: List[str] = []
+    for element in getattr(response, "output", []) or []:
+        for content in getattr(element, "content", []) or []:
+            text = getattr(content, "text", None)
+            if text:
+                fragments.append(text)
+    return "\n".join(fragments).strip()
+
+
+def _extract_json_array(raw: str) -> str:
+    start = raw.find("[")
+    end = raw.rfind("]")
+    if start == -1 or end == -1 or end <= start:
+        raise ValueError("Gemini response did not contain a JSON array.")
+    return raw[start : end + 1]
+
+
+def _normalize_confidence(value: Any) -> float:
+    try:
+        confidence = float(value)
+    except (TypeError, ValueError):
+        return 1.0
+    return min(1.0, max(0.0, confidence))
+
+
+def _normalize_gemini_entry(entry: dict) -> dict:
+    if not isinstance(entry, dict):
+        raise ValueError("Gemini entry must be an object.")
+    claim_text = entry.get("claim_text")
+    research_query = entry.get("research_query")
+    needs_backing = entry.get("needs_backing_because")
+    confidence = entry.get("confidence_score")
+    if not claim_text:
+        raise ValueError("Gemini entry missing `claim_text`.")
+    if not research_query:
+        research_query = claim_text
+    return {
+        "claim_text": str(claim_text).strip(),
+        "research_query": str(research_query).strip(),
+        "needs_backing_because": str(needs_backing).strip()
+        if needs_backing
+        else None,
+        "confidence_score": _normalize_confidence(confidence),
+    }
+
+
+def _parse_gemini_claims(raw_text: str, max_claims: int) -> List[Dict[str, Any]]:
+    payload = _extract_json_array(raw_text)
+    data = json.loads(payload)
+    if not isinstance(data, list):
+        raise ValueError("Gemini response was not a JSON array.")
+    normalized: List[Dict[str, Any]] = []
+    for entry in data[:max_claims]:
+        normalized.append(_normalize_gemini_entry(entry))
+    return normalized
+
+
+def _call_gemini_claim_detector(
+    segment_text: str, user_note: Optional[str], max_claims: int
+) -> List[Dict[str, Any]]:
+    _ensure_gemini_client_ready()
+    prompt = _build_gemini_prompt(segment_text, user_note, max_claims)
+    response = genai.get_response(
+        model=GEMINI_MODEL_DEFAULT,
+        prompt=prompt,
+        temperature=0.2,
+        max_output_tokens=GEMINI_MAX_OUTPUT_TOKENS,
+    )
+    text = _extract_response_text(response)
+    if not text:
+        raise ValueError("Empty response from Gemini.")
+    return _parse_gemini_claims(text, max_claims)
+
+
+async def identify_claims_with_gemini(
+    segment_text: str, user_note: Optional[str], max_claims: int = 5
+) -> List[Dict[str, Any]]:
+    """
+    Returns list of dicts with keys `claim_text`, `research_query`,
+    `needs_backing_because`, and `confidence_score`.
+    """
+    return await asyncio.to_thread(
+        _call_gemini_claim_detector, segment_text, user_note, max_claims
+    )
 
 
 def split_sentences(text: str) -> List[str]:
@@ -131,8 +283,16 @@ def split_sentences(text: str) -> List[str]:
     ]
 
 
-def detect_claims(segment_text: str, user_note: Optional[str]) -> List[ClaimCandidate]:
-    note_terms = {token for token in re.split(r"\s+", user_note.lower()) if token} if user_note else set()
+def _build_note_terms(note: Optional[str]) -> set[str]:
+    if not note:
+        return set()
+    return {token for token in re.split(r"\s+", note.lower()) if token}
+
+
+def detect_claims(
+    segment_text: str, user_note: Optional[str], assume_all_claims: bool = False
+) -> List[ClaimCandidate]:
+    note_terms = _build_note_terms(user_note)
     seen: set[str] = set()
     candidates: List[ClaimCandidate] = []
 
@@ -155,8 +315,15 @@ def detect_claims(segment_text: str, user_note: Optional[str]) -> List[ClaimCand
         if note_terms and any(term in lower for term in note_terms):
             score += 1
 
-        if score >= 2:
-            candidates.append(ClaimCandidate(text=sentence, note_matched=bool(note_terms & set(re.split(r"\s+", lower)))))
+        consider_claim = assume_all_claims or score >= 2
+        if consider_claim:
+            candidates.append(
+                ClaimCandidate(
+                    text=sentence,
+                    note_matched=bool(note_terms & set(re.split(r"\s+", lower))),
+                    research_query=sentence,
+                )
+            )
 
     candidates.sort(key=lambda candidate: (-int(candidate.note_matched), -len(candidate.text)))
     return candidates[:MAX_CLAIMS_PER_SEGMENT]
@@ -197,9 +364,10 @@ def parse_rag_output(raw: str) -> Tuple[Optional[List[dict]], Optional[str]]:
     return parsed.get("results", []), None
 
 
-async def query_rag_for_claim(claim_text: str) -> Tuple[Optional[List[dict]], Optional[str]]:
+async def query_rag_for_claim(query_text: str) -> Tuple[Optional[List[dict]], Optional[str]]:
+    rag_fn = getattr(rag_search, "fn", rag_search)
     try:
-        raw = await rag_search(claim_text, n_results=3, response_format="json")
+        raw = await rag_fn(query_text, n_results=3, response_format="json")
     except Exception as exc:
         return None, f"rag_search raised an exception: {exc}"
 
@@ -232,6 +400,8 @@ def build_context_card(
         section=section,
         rationale=rationale,
         source_link=source_link,
+        needs_backing_because=claim.needs_backing_because,
+        confidence_score=claim.confidence_score,
     )
 
 
@@ -244,7 +414,8 @@ async def enrich_claims(
     misses: List[Tuple[str, str]] = []
 
     for claim in claims:
-        hits, error = await query_rag_for_claim(claim.text)
+        query_input = claim.research_query or claim.text
+        hits, error = await query_rag_for_claim(query_input)
         if hits:
             cards.append(build_context_card(timestamp, heading, claim, hits[0]))
         else:
@@ -266,6 +437,10 @@ def print_cards(cards: List[ContextCard], note: Optional[str]) -> None:
             print(f"User note: {note}")
         print(f"Claim: {card.claim_text}")
         print(f"Source: {card.paper_title} — {card.section}")
+        if card.needs_backing_because:
+            print(f"Reason to back: {card.needs_backing_because}")
+        if card.confidence_score is not None:
+            print(f"Confidence needing support: {card.confidence_score:.2f}")
         print(f"Rationale: {card.rationale}")
         print(f"Link: {card.source_link}")
     print("-" * 60)
@@ -307,9 +482,19 @@ def main() -> None:
         help="Optional user note describing where to focus.",
     )
     parser.add_argument(
+        "--assume-all-claims",
+        action="store_true",
+        help="Treat every sentence in the segment as a claim regardless of heuristics.",
+    )
+    parser.add_argument(
         "--redo",
         action="store_true",
         help="Re-run even when a card already exists for the same timestamp/heading.",
+    )
+    parser.add_argument(
+        "--use-gemini",
+        action="store_true",
+        help="Use Gemini-powered claim identification instead of the heuristic detector.",
     )
 
     args = parser.parse_args()
@@ -341,7 +526,43 @@ def main() -> None:
         )
         return
 
-    claims = detect_claims(segment["text"], note)
+    note_terms = _build_note_terms(note)
+    claims: List[ClaimCandidate] = []
+
+    if args.use_gemini:
+        logging.info("Identifying claims via Gemini model %s.", GEMINI_MODEL_DEFAULT)
+        try:
+            gemini_results = asyncio.run(
+                identify_claims_with_gemini(
+                    segment["text"], note or None, max_claims=MAX_CLAIMS_PER_SEGMENT
+                )
+            )
+        except Exception:
+            logging.exception("Gemini claim detection failed; falling back to heuristics.")
+        else:
+            if gemini_results:
+                claims = [
+                    ClaimCandidate(
+                        text=entry["claim_text"],
+                        note_matched=bool(
+                            note_terms
+                            & set(re.split(r"\s+", entry["claim_text"].lower()))
+                        ),
+                        research_query=entry["research_query"],
+                        needs_backing_because=entry.get("needs_backing_because"),
+                        confidence_score=entry.get("confidence_score"),
+                    )
+                    for entry in gemini_results
+                ]
+                logging.info("Gemini returned %d claims.", len(claims))
+            else:
+                logging.info("Gemini returned no claims; falling back to heuristics.")
+
+    if not claims:
+        logging.info("Using heuristic claim detection.")
+        claims = detect_claims(
+            segment["text"], note, assume_all_claims=args.assume_all_claims
+        )
     if not claims:
         print("No under-contextualized claims detected in this segment.")
         registry["segments"][segment_key] = {
