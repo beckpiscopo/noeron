@@ -42,15 +42,13 @@ htmlcov/
 # Data (but keep the directory structure)
 data/papers_collection.json
 data/cleaned_papers/*.json
-data/vectorstore/
 data/*.pdf
 data/temp/
 data/pdfs/*.pdf
 data/grobid_fulltext/*.json
 data/cleaned_texts/*.json
 data/chunks/*.json
-data/podcasts/raw/*.mp3
-data/podcaasts/raw/*webm
+data/podcasts/raw/
 # Logs
 *.log
 
