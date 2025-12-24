@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from difflib import SequenceMatcher
 from pathlib import Path
 from textwrap import shorten
-from typing import Iterable, List, Optional
+from typing import Iterable, List, Optional, Dict, Any, Mapping, Tuple
 
 SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+")
 
@@ -31,6 +31,32 @@ class SegmentMatch:
     chunk: str
     sentence: str
     score: float
+
+
+def _normalize_context_tags(raw: Optional[Mapping[str, Any]]) -> Dict[str, str]:
+    if not raw or not isinstance(raw, Mapping):
+        return {}
+    normalized: Dict[str, str] = {}
+    for key, value in raw.items():
+        key_str = str(key).strip()
+        if not key_str:
+            continue
+        value_str = str(value).strip()
+        if not value_str:
+            continue
+        normalized[key_str] = value_str
+    return normalized
+
+
+def _parse_context_tag_argument(arg: str) -> Tuple[str, str]:
+    if "=" not in arg:
+        raise ValueError("must use KEY=VALUE format")
+    key, value = arg.split("=", 1)
+    key_str = key.strip()
+    value_str = value.strip()
+    if not key_str or not value_str:
+        raise ValueError("key and value cannot be empty")
+    return key_str, value_str
 
 
 def load_cleaned_segments(cleaned_dir: Path) -> Iterable[dict]:
@@ -142,11 +168,41 @@ def main() -> None:
         type=Path,
         help="Write the highest-scoring segment to JSON for `context_card_builder.py`.",
     )
+    parser.add_argument(
+        "--context-tag",
+        action="append",
+        help="Attach context metadata as KEY=VALUE when exporting JSON.",
+    )
+    parser.add_argument(
+        "--context-tags-json",
+        type=Path,
+        help="JSON file that provides a `context_tags` object for the exported segment.",
+    )
 
     args = parser.parse_args()
 
     if not args.cleaned_dir.exists():
         parser.error(f"{args.cleaned_dir} does not exist.")
+
+    context_tags: Dict[str, str] = {}
+    if args.context_tags_json:
+        if not args.context_tags_json.exists():
+            parser.error(f"{args.context_tags_json} does not exist.")
+        try:
+            raw_tags = json.loads(args.context_tags_json.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as exc:
+            parser.error(f"Invalid context-tags JSON: {exc}")
+        if not isinstance(raw_tags, dict):
+            parser.error("Context tags JSON must contain an object.")
+        context_tags.update(_normalize_context_tags(raw_tags))
+
+    if args.context_tag:
+        for raw_tag in args.context_tag:
+            try:
+                key, value = _parse_context_tag_argument(raw_tag)
+            except ValueError as exc:
+                parser.error(f"--context-tag {exc}")
+            context_tags[key] = value
 
     segments = load_cleaned_segments(args.cleaned_dir)
     matches = find_best_matches(args.claim, segments, args.context_size, args.top_k)
@@ -167,6 +223,8 @@ def main() -> None:
             "heading": best.heading or "",
             "text": best.chunk,
         }
+        if context_tags:
+            payload["context_tags"] = context_tags
         args.output_json.parent.mkdir(parents=True, exist_ok=True)
         args.output_json.write_text(json.dumps(payload, ensure_ascii=False, indent=2))
         print(f"\nSaved best segment to {args.output_json}")

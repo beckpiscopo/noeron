@@ -134,6 +134,10 @@ await rag_search(
 
 Use `rag_stats()` to check how many chunks are indexed and where the store is persisted.
 
+### Claim context cards
+
+`python scripts/context_card_builder.py` ingests a transcript segment, asks Gemini for factual claims, and runs each claim through `rag_search`. Pass `--segment-json <path>` plus `--use-gemini` (and `--redo` to refresh) to generate fresh context cards from a transcript slice. The helper now logs `INFO: RAG search query:` before every vector lookup, so you can monitor the exact query Gemini produced for each claim when the script runs with the default logging level.
+
 ## Data Storage
 
 Papers and transcripts drive everything downstream. The metadata-rich collection lives in `data/papers_collection.json` (authors, citations, DOI/ArXiv IDs, etc.), while cleaned, chunkable JSON lives under `data/cleaned_papers/` after `scripts/prepare_texts.py` and the AssemblyAI helpers run. Every cleaned file records the original `source_path`, sections, and `full_text`, so the chunking + embedding scripts can trace the provenance of each chunk.
