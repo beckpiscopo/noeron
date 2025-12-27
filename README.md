@@ -136,7 +136,22 @@ Use `rag_stats()` to check how many chunks are indexed and where the store is pe
 
 ### Claim context cards
 
-`python scripts/context_card_builder.py` ingests a transcript segment, asks Gemini for factual claims, and runs each claim through `rag_search`. Pass `--segment-json <path>` plus `--use-gemini` (and `--redo` to refresh) to generate fresh context cards from a transcript slice. The helper now logs `INFO: RAG search query:` before every vector lookup, so you can monitor the exact query Gemini produced for each claim when the script runs with the default logging level.
+`python scripts/context_card_builder.py` ingests a transcript segment, asks Gemini for factual claims, and runs each claim through `rag_search`, persisting the results in `data/context_card_registry.json` with timestamps, window IDs, transcript text, Gemini metadata, and the serialized `rag_results`. Pass `--segment-json <path>` plus `--use-gemini` (and `--redo` to refresh) to generate fresh context cards from a transcript slice while seeing `INFO: RAG search query:` logs for every vector lookup.
+
+When you want to run through every window (e.g., `data/window_segments.json`), use the new batch helper:
+
+```
+python scripts/run_context_card_builder_batch.py \
+  --podcast-id lex_325 \
+  --episode-title "Lex Fridman #325" \
+  --use-gemini \
+  --redo \
+  --abort-on-error
+```
+
+It iterates through each window, writes it to a temp file, and invokes `context_card_builder.py` so you get the same logging/output/caching that a single segment run would produce.
+
+After completing a round of runs (per-window or through the batch helper), run `python scripts/validate_context_card_registry.py` (optionally with `--podcast-id <id>`) to ensure you have no duplicate segments, malformed timestamps, or empty claims before downstream consumers read the registry entries.
 
 ## Data Storage
 

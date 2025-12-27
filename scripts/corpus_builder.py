@@ -33,6 +33,69 @@ FIELDS = "paperId,title,abstract,authors,year,citationCount,venue,journal,openAc
 logger = logging.getLogger("corpus_builder")
 
 
+class CrossRefEnricher:
+    """Enrich metadata via CrossRef when Semantic Scholar misses."""
+
+    def __init__(self, email: str):
+        self.base_url = "https://api.crossref.org/works"
+        self.user_agent = f"BioelectricityCorpus/1.0 (mailto:{email})"
+
+    async def get_metadata_by_doi(
+        self,
+        doi: str,
+        client: httpx.AsyncClient,
+    ) -> Optional[Dict[str, Any]]:
+        try:
+            url = f"{self.base_url}/{quote(doi, safe='')}"
+            headers = {"User-Agent": self.user_agent}
+            response = await client.get(url, headers=headers, timeout=10.0)
+            if response.status_code == 404:
+                logger.warning("DOI not found in CrossRef: %s", doi)
+                return None
+            response.raise_for_status()
+            message = response.json().get("message", {})
+            return self._normalize(message, doi)
+        except httpx.HTTPError as exc:
+            logger.error("CrossRef lookup failed for %s: %s", doi, exc)
+            return None
+
+    def _normalize(self, data: Dict[str, Any], doi: str) -> Dict[str, Any]:
+        authors = []
+        for author in data.get("author", []):
+            name = " ".join(filter(None, [author.get("given"), author.get("family")])).strip()
+            if name:
+                authors.append({"name": name})
+
+        published = data.get("published-print") or data.get("published-online") or {}
+        year = None
+        parts = published.get("date-parts") or []
+        if parts and parts[0]:
+            year = parts[0][0]
+
+        titles = data.get("title", [])
+        title = titles[0] if titles else "Untitled"
+
+        pdf_url = None
+        for link in data.get("link", []):
+            if link.get("content-type") == "application/pdf":
+                pdf_url = link.get("URL")
+                break
+
+        return {
+            "paperId": f"crossref:{doi}",
+            "title": title,
+            "abstract": data.get("abstract"),
+            "authors": authors,
+            "year": year,
+            "venue": data.get("container-title", [""])[0] if data.get("container-title") else None,
+            "journal": {},
+            "openAccessPdf": {"url": pdf_url} if pdf_url else None,
+            "externalIds": {"DOI": doi},
+            "citationCount": None,
+            "source": "crossref",
+        }
+
+
 def slugify(text: str) -> str:
     slug = re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")
     return slug or "publication"
@@ -89,6 +152,7 @@ async def enrich_entry(
     force: bool,
     rate_limit_delay: float,
     rate_limit_backoff: float,
+    crossref_enricher: Optional[CrossRefEnricher] = None,
 ) -> Optional[str]:
     title = entry.get("title")
     if not title:
@@ -121,6 +185,10 @@ async def enrich_entry(
                 await asyncio.sleep(rate_limit_backoff)
                 return None
             raise
+
+    if not paper_metadata and doi and crossref_enricher:
+        logger.info("Trying CrossRef for DOI %s", doi)
+        paper_metadata = await crossref_enricher.get_metadata_by_doi(doi, client)
 
     if not paper_metadata:
         logger.warning("No Semantic Scholar match for '%s'", title)
@@ -181,6 +249,12 @@ async def main():
         default=10.0,
         help="Seconds to wait after a 429 rate limit (default: 10.0)",
     )
+    parser.add_argument(
+        "--crossref-email",
+        type=str,
+        default="your.email@example.com",
+        help="Email to identify CrossRef API requests",
+    )
     args = parser.parse_args()
 
     logging.basicConfig(
@@ -199,6 +273,7 @@ async def main():
         entries = entries[: args.limit]
 
     storage = PaperStorage()
+    crossref_enricher = CrossRefEnricher(args.crossref_email)
 
     async with httpx.AsyncClient() as client:
         for idx, entry in enumerate(entries, 1):
@@ -210,7 +285,8 @@ async def main():
                     entry,
                     args.force,
                     rate_limit_delay=args.delay,
-                    rate_limit_backoff=args.backoff,
+                rate_limit_backoff=args.backoff,
+                crossref_enricher=crossref_enricher,
                 )
             except httpx.HTTPStatusError as exc:
                 logger.error("Semantic Scholar error for '%s': %s", entry.get("title"), exc)

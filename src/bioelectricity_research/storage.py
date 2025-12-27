@@ -10,10 +10,13 @@ Handles:
 """
 
 import json
+import os
 import re
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
+from urllib.parse import quote
+
 import httpx
 import pypdf
 import arxiv
@@ -112,84 +115,129 @@ class PaperStorage:
         return papers
 
 
+class MultiSourcePDFGetter:
+    """Resolve PDF URLs from multiple providers."""
+
+    def __init__(self, email: str):
+        self.unpaywall_base = "https://api.unpaywall.org/v2"
+        self.email = email
+
+    async def get_pdf_url(self, paper_metadata: dict, client: httpx.AsyncClient) -> Optional[str]:
+        open_access = paper_metadata.get("openAccessPdf")
+        if open_access and open_access.get("url"):
+            return open_access["url"]
+
+        doi = paper_metadata.get("externalIds", {}).get("DOI")
+        if doi:
+            pdf = await self._check_unpaywall(doi, client)
+            if pdf:
+                return pdf
+
+        arxiv_id = paper_metadata.get("externalIds", {}).get("ArXiv")
+        if arxiv_id:
+            arxiv_url = f"https://arxiv.org/pdf/{arxiv_id}.pdf"
+            if await self._verify_url(arxiv_url, client):
+                return arxiv_url
+
+        pmc_id = paper_metadata.get("externalIds", {}).get("PubMedCentral")
+        if pmc_id:
+            pmc_url = f"https://www.ncbi.nlm.nih.gov/pmc/articles/{pmc_id}/pdf/"
+            if await self._verify_url(pmc_url, client):
+                return pmc_url
+
+        doi_url = f"https://doi.org/{doi}" if doi else None
+        if doi_url and await self._verify_url(doi_url, client):
+            return doi_url
+
+        return None
+
+    async def _check_unpaywall(self, doi: str, client: httpx.AsyncClient) -> Optional[str]:
+        try:
+            url = f"{self.unpaywall_base}/{quote(doi, safe='')}"
+            response = await client.get(
+                url,
+                params={"email": self.email},
+                timeout=10.0,
+            )
+            if response.status_code == 404:
+                return None
+            response.raise_for_status()
+            data = response.json()
+            best_oa = data.get("best_oa_location")
+            if best_oa and best_oa.get("url_for_pdf"):
+                return best_oa["url_for_pdf"]
+            for location in data.get("oa_locations", []):
+                if location.get("url_for_pdf"):
+                    return location["url_for_pdf"]
+            return None
+        except httpx.HTTPError:
+            return None
+
+    async def _verify_url(self, url: str, client: httpx.AsyncClient) -> bool:
+        try:
+            response = await client.head(url, timeout=5.0, follow_redirects=True)
+            return response.status_code == 200
+        except httpx.HTTPError:
+            return False
+
+
 class PDFParser:
     """Handles PDF downloading and text extraction."""
     
-    @staticmethod
-    async def download_pdf(url: str, paper_id: str) -> Optional[Path]:
+    def __init__(self):
+        email = os.getenv("UNPAYWALL_EMAIL", "your.email@example.com")
+        self.multi_source = MultiSourcePDFGetter(email)
+    
+    async def download_pdf(self, url: str, paper_id: str) -> Optional[Path]:
         """Download PDF to cache directory."""
         try:
             pdf_path = PDF_CACHE_DIR / f"{paper_id}.pdf"
-            
-            # Skip if already downloaded
             if pdf_path.exists():
                 return pdf_path
-            
             async with httpx.AsyncClient(timeout=30.0) as client:
                 response = await client.get(url, follow_redirects=True)
                 response.raise_for_status()
-                
                 pdf_path.write_bytes(response.content)
                 return pdf_path
-        
-        except Exception as e:
-            print(f"Failed to download PDF: {e}")
+        except Exception:
             return None
-    
+
     @staticmethod
     def extract_text(pdf_path: Path) -> Optional[str]:
-        """Extract text from PDF file."""
         try:
             reader = pypdf.PdfReader(pdf_path)
             text = ""
-            
             for page in reader.pages:
-                text += page.extract_text() + "\n\n"
-            
+                text += (page.extract_text() or "") + "\n\n"
             return text.strip()
-        
-        except Exception as e:
-            print(f"Failed to extract text from PDF: {e}")
+        except Exception:
             return None
-    
+
     @staticmethod
     def detect_sections(text: str) -> dict[str, str]:
-        """
-        Attempt to detect common paper sections.
-        This is a basic implementation - can be improved with ML later.
-        """
         sections = {
             "introduction": "",
             "methods": "",
             "results": "",
             "discussion": "",
-            "conclusion": ""
+            "conclusion": "",
         }
-        
-        # Common section headers (case-insensitive)
         patterns = {
             "introduction": r"(?i)\n\s*(introduction|background)\s*\n",
             "methods": r"(?i)\n\s*(methods?|materials?\s+and\s+methods?|methodology)\s*\n",
             "results": r"(?i)\n\s*(results?|findings?)\s*\n",
             "discussion": r"(?i)\n\s*(discussion)\s*\n",
-            "conclusion": r"(?i)\n\s*(conclusions?|summary)\s*\n"
+            "conclusion": r"(?i)\n\s*(conclusions?|summary)\s*\n",
         }
-        
-        # Find section boundaries
         boundaries = {}
         for section, pattern in patterns.items():
             match = re.search(pattern, text)
             if match:
                 boundaries[section] = match.start()
-        
-        # Extract sections between boundaries
         sorted_sections = sorted(boundaries.items(), key=lambda x: x[1])
-        
         for i, (section, start) in enumerate(sorted_sections):
-            # End is either the next section or end of text
             end = sorted_sections[i + 1][1] if i + 1 < len(sorted_sections) else len(text)
             sections[section] = text[start:end].strip()
-        
         return sections
 
 
@@ -272,7 +320,7 @@ async def fetch_and_store_paper(
                 for a in paper_metadata.get("authors", [])
             ],
             "venue": paper_metadata.get("venue", ""),
-            "journal": paper_metadata.get("journal", {}).get("name", ""),
+        "journal": (paper_metadata.get("journal") or {}).get("name", ""),
             "doi": paper_metadata.get("externalIds", {}).get("DOI"),
             "arxiv": paper_metadata.get("externalIds", {}).get("ArXiv"),
         },
@@ -295,17 +343,17 @@ async def fetch_and_store_paper(
     pdf_parser = PDFParser()
     arxiv_client = ArxivClient()
     
-    # Try open access PDF first
-    open_access = paper_metadata.get("openAccessPdf")
-    if open_access and open_access.get("url"):
-        pdf_path = await pdf_parser.download_pdf(open_access["url"], paper_id)
-        if pdf_path:
-            full_text = pdf_parser.extract_text(pdf_path)
-            if full_text:
-                paper_data["content"]["full_text"] = full_text
-                paper_data["content"]["full_text_available"] = True
-                paper_data["content"]["source"] = "open_access_pdf"
-                paper_data["sections"] = pdf_parser.detect_sections(full_text)
+    async with httpx.AsyncClient() as http_client:
+        pdf_url = await pdf_parser.multi_source.get_pdf_url(paper_metadata, http_client)
+        if pdf_url:
+            pdf_path = await pdf_parser.download_pdf(pdf_url, paper_id)
+            if pdf_path:
+                full_text = pdf_parser.extract_text(pdf_path)
+                if full_text:
+                    paper_data["content"]["full_text"] = full_text
+                    paper_data["content"]["full_text_available"] = True
+                    paper_data["content"]["source"] = "open_access_pdf"
+                    paper_data["sections"] = pdf_parser.detect_sections(full_text)
     
     # Try ArXiv if no full text yet
     if not paper_data["content"]["full_text_available"]:

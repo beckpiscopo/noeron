@@ -1,0 +1,408 @@
+{
+  "summary": {
+    "total_entries": 50,
+    "has_doi": 47,
+    "has_title_only": 3,
+    "doi_found": 23,
+    "doi_not_found": 24,
+    "title_found": 13,
+    "title_not_found": 14,
+    "has_pdf": 13,
+    "no_pdf": 23
+  },
+  "failed_entries": [
+    {
+      "title": "Identification of brain-like complex information architectures in embryonic tissue of Xenopus laevis organoids",
+      "detail_url": null,
+      "pdf_url": null,
+      "meta_text": "Varley, T. F., Pai, V. P., Grasso, C., Lunshof, J., Levin, M., & Bongard, J. (2025) Identification of brain-like complex information architectures in embryonic tissue of Xenopus laevis organoids . Communicative & Integrative Biology , 18(1), doi: 10.1080/19420889.2025.2568307 PDF",
+      "authors": [
+        "Varley",
+        "T"
+      ],
+      "year": 2025,
+      "venue": "Communicative & Integrative Biology",
+      "identifiers": {
+        "DOI": "10.1080/19420889.2025.2568307"
+      },
+      "related_links": [
+        "https://www.tandfonline.com/doi/full/10.1080/19420889.2025.2568307?scroll=top&needAccess=true"
+      ],
+      "source": "drmichaellevin.org",
+      "local_id": "10-1080-19420889-2025-2568307"
+    },
+    {
+      "title": "Field-mediated bioelectric basis of morphogenetic prepatterning",
+      "detail_url": null,
+      "pdf_url": null,
+      "meta_text": "Manicka, S., Levin, M. (2025) Field-mediated bioelectric basis of morphogenetic prepatterning . Cell Reports Physical Science , doi: 10.1016/j.xcrp.2025.102865 PDF",
+      "authors": [
+        "Manicka",
+        "S"
+      ],
+      "year": 2025,
+      "venue": "Cell Reports Physical Science",
+      "identifiers": {
+        "DOI": "10.1016/j.xcrp.2025.102865"
+      },
+      "related_links": [
+        "https://www.cell.com/cell-reports-physical-science/fulltext/S2666-3864(25)00464-3"
+      ],
+      "source": "drmichaellevin.org",
+      "local_id": "10-1016-j-xcrp-2025-102865"
+    },
+    {
+      "title": "Sustained Serotonergic Stimulation Platform for Peripheral Axonal Regeneration",
+      "detail_url": null,
+      "pdf_url": null,
+      "meta_text": "Chaker, S.C., Yan, L., Sahoo, J.K., Acikel, C.H., Manzanera Esteve, I.V., Kaplan, D.L., Levin, M., Gorantla, V.S., Thayer, W.P., Karagoz, H. (2025) Sustained Serotonergic Stimulation Platform for Peripheral Axonal Regeneration . Journal of Hand Surgery Global Online , 7(6), doi: 10.1016/j.jhsg.2025.100811 PDF",
+      "authors": [
+        "Chaker",
+        "S"
+      ],
+      "year": 2025,
+      "venue": "Journal of Hand Surgery Global Online",
+      "identifiers": {
+        "DOI": "10.1016/j.jhsg.2025.100811"
+      },
+      "related_links": [
+        "https://www.sciencedirect.com/science/article/pii/S2589514125001318"
+      ],
+      "source": "drmichaellevin.org",
+      "local_id": "10-1016-j-jhsg-2025-100811"
+    },
+    {
+      "title": "Cases of Unconventional Information Flow Across the Mind-Body Interface",
+      "detail_url": null,
+      "pdf_url": null,
+      "meta_text": "Kofman, K., Levin, M. (2025) Cases of Unconventional Information Flow Across the Mind-Body Interface , Mind and Matter , 23(1), doi: 10.5376/mm2025.13  *** Best Paper Award 2025, Society for Mind-Matter Research PDF",
+      "authors": [
+        "Kofman",
+        "K"
+      ],
+      "year": 2025,
+      "venue": "Mind and Matter",
+      "identifiers": {
+        "DOI": "10.5376/mm2025.13"
+      },
+      "related_links": [
+        "https://www.ingentaconnect.com/content/imp/mm/2025/00000023/00000001/art00003"
+      ],
+      "source": "drmichaellevin.org",
+      "local_id": "10-5376-mm2025-13"
+    },
+    {
+      "title": "Extending Iterated, Spatialized Prisoner\u2019s Dilemma to Understand Multicellularity: Game Theory With Self-Scaling Players",
+      "detail_url": null,
+      "pdf_url": null,
+      "meta_text": "Shreesha, L., Pigozzi, F., Goldstein, A., Levin, M. (2025), Extending Iterated, Spatialized Prisoner\u2019s Dilemma to Understand Multicellularity: Game Theory With Self-Scaling Players , IEEE Transactions on Molecular, Biological, and Multi-Scale Communications , 11(2), doi: 10.1109/TMBMC.2025.3562358 PDF",
+      "authors": [
+        "Shreesha",
+        "L"
+      ],
+      "year": 2025,
+      "venue": "IEEE Transactions on Molecular, Biological, and Multi-Scale Communications",
+      "identifiers": {
+        "DOI": "10.1109/TMBMC.2025.3562358"
+      },
+      "related_links": [
+        "https://ieeexplore.ieee.org/document/10970107"
+      ],
+      "source": "drmichaellevin.org",
+      "local_id": "10-1109-tmbmc-2025-3562358"
+    },
+    {
+      "title": "Artificial Intelligences: A Bridge Toward Diverse Intelligence and Humanity's Future",
+      "detail_url": null,
+      "pdf_url": null,
+      "meta_text": "Levin, M. (2025), Artificial Intelligences: A Bridge Toward Diverse Intelligence and Humanity's Future , Advanced Intelligent Systems , doi: 10.1002/aisy.202401034 PDF",
+      "authors": [
+        "Levin",
+        "M"
+      ],
+      "year": 2025,
+      "venue": "Advanced Intelligent Systems",
+      "identifiers": {
+        "DOI": "10.1002/aisy.202401034"
+      },
+      "related_links": [
+        "https://advanced.onlinelibrary.wiley.com/doi/10.1002/aisy.202401034"
+      ],
+      "source": "drmichaellevin.org",
+      "local_id": "10-1002-aisy-202401034"
+    },
+    {
+      "title": "Reversals of bodies, brains, and behavior: quantitative analysis of laterality and its disturbance in model species, in L. J. Rogers and G. Vallortigara (Eds.), Lateralized Brain Functions: Methods in Human and Non-human Species",
+      "detail_url": null,
+      "pdf_url": null,
+      "meta_text": "Blackiston, D. J., Levin, M. (2025), Reversals of bodies, brains, and behavior: quantitative analysis of laterality and its disturbance in model species, in L. J. Rogers and G. Vallortigara (Eds.), Lateralized Brain Functions: Methods in Human and Non-human Species , Springer Protocols , Neuromethods 217, 20: 707-739 doi: 10.1007/978-1-0716-4240-5_20 PDF",
+      "authors": [
+        "Blackiston",
+        "D"
+      ],
+      "year": 2025,
+      "venue": "Springer Protocols",
+      "identifiers": {
+        "DOI": "10.1007/978-1-0716-4240-5_20"
+      },
+      "related_links": [
+        "https://link.springer.com/protocol/10.1007/978-1-0716-4240-5_20#citeas"
+      ],
+      "source": "drmichaellevin.org",
+      "local_id": "10-1007-978-1-0716-4240-5-20"
+    },
+    {
+      "title": "Uncertainty minimization and pattern recognition in Volvox carteri and V. aureus",
+      "detail_url": null,
+      "pdf_url": null,
+      "meta_text": "Kuchling, F., Singh,  I., Daga, M., Zec, S., Kunen, A., Levin, M. (2025), Uncertainty minimization and pattern recognition in Volvox carteri and V. aureus , Journal of the Royal Society Interface, 22(223) doi: 10.1098/rsif.2024.0645 PDF",
+      "authors": [
+        "Kuchling",
+        "F"
+      ],
+      "year": 2025,
+      "venue": "Journal of the Royal Society Interface,",
+      "identifiers": {
+        "DOI": "10.1098/rsif.2024.0645"
+      },
+      "related_links": [
+        "https://royalsocietypublishing.org/doi/10.1098/rsif.2024.0645"
+      ],
+      "source": "drmichaellevin.org",
+      "local_id": "10-1098-rsif-2024-0645"
+    },
+    {
+      "title": "Diffusion Models are Evolutionary Algorithms",
+      "detail_url": null,
+      "pdf_url": null,
+      "meta_text": "Zhang, Y., Hartl, B., Hazan, H., Levin, M. (2025), Diffusion Models are Evolutionary Algorithms , ICLR 2025 conference paper (peer-reviewed) PDF",
+      "authors": [
+        "Zhang",
+        "Y"
+      ],
+      "year": 2025,
+      "venue": "ICLR 2025 conference paper (peer-reviewed)",
+      "identifiers": {},
+      "related_links": [
+        "https://openreview.net/forum?id=xVefsBbG2O"
+      ],
+      "source": "drmichaellevin.org",
+      "local_id": "diffusion-models-are-evolutionary-algorithms-2025"
+    },
+    {
+      "title": "Bioelectricity is a universal multifaced signaling cue in living organisms",
+      "detail_url": null,
+      "pdf_url": null,
+      "meta_text": "Zhang, G., Levin, M. (2025), Bioelectricity is a universal multifaced signaling cue in living organisms , Molecular Biology of the Cell, 36(2) doi: 10.1016/j.plrev.2025.01.008 PDF",
+      "authors": [
+        "Zhang",
+        "G"
+      ],
+      "year": 2025,
+      "venue": "Molecular Biology of the Cell,",
+      "identifiers": {
+        "DOI": "10.1016/j.plrev.2025.01.008"
+      },
+      "related_links": [
+        "https://www.molbiolcell.org/doi/epdf/10.1091/mbc.E23-08-0312"
+      ],
+      "source": "drmichaellevin.org",
+      "local_id": "10-1016-j-plrev-2025-01-008"
+    },
+    {
+      "title": "Discussions of machine versus living intelligence need more clarity",
+      "detail_url": null,
+      "pdf_url": null,
+      "meta_text": "Rouleau, N., Levin, M. (2024), Discussions of machine versus living intelligence need more clarity , Nature Machine Intelligence , doi:10.31219/osf.io/gz3km PDF",
+      "authors": [
+        "Rouleau",
+        "N"
+      ],
+      "year": 2024,
+      "venue": "Nature Machine Intelligence",
+      "identifiers": {
+        "DOI": "10.31219/osf.io/gz3km"
+      },
+      "related_links": [
+        "https://www.nature.com/articles/s42256-024-00955-y"
+      ],
+      "source": "drmichaellevin.org",
+      "local_id": "10-31219-osf-io-gz3km"
+    },
+    {
+      "title": "Classical sorting algorithms as a model of morphogenesis: Self-sorting arrays reveal unexpected competencies in a minimal model of basal intelligence",
+      "detail_url": null,
+      "pdf_url": null,
+      "meta_text": "Zhang, T., Goldstein, A., Levin M. (2024), Classical sorting algorithms as a model of morphogenesis: Self-sorting arrays reveal unexpected competencies in a minimal model of basal intelligence , Adaptive Behavior , doi: 10.1177/10597123241269740 PDF",
+      "authors": [
+        "Zhang",
+        "T"
+      ],
+      "year": 2024,
+      "venue": "Adaptive Behavior",
+      "identifiers": {
+        "DOI": "10.1177/10597123241269740"
+      },
+      "related_links": [
+        "https://journals.sagepub.com/doi/10.1177/10597123241269740"
+      ],
+      "source": "drmichaellevin.org",
+      "local_id": "10-1177-10597123241269740"
+    },
+    {
+      "title": "Self-Amputating and Interfusing Machines",
+      "detail_url": null,
+      "pdf_url": null,
+      "meta_text": "Yang, B., Nasab, A. M., Woodman, S.J., Thomas, E., Tilton, L.G., Levin, M., Kramer-Bottiglio, R. (2024), Self-Amputating and Interfusing Machines , Advanced Materials , 2400241; doi:10.1002/adma.202400241 PDF",
+      "authors": [
+        "Yang",
+        "B"
+      ],
+      "year": 2024,
+      "venue": "Advanced Materials",
+      "identifiers": {
+        "DOI": "10.1002/adma.202400241"
+      },
+      "related_links": [
+        "https://onlinelibrary.wiley.com/doi/10.1002/adma.202400241"
+      ],
+      "source": "drmichaellevin.org",
+      "local_id": "10-1002-adma-202400241"
+    },
+    {
+      "title": "Electroceuticals: emerging applications beyond the nervous system and excitable tissues",
+      "detail_url": null,
+      "pdf_url": null,
+      "meta_text": "Balasubramanian, S., Weston, D., Levin, M., Davidian, D. C. C. (2024), Electroceuticals: emerging applications beyond the nervous system and excitable tissues , Trends Pharmacol Sci , 2109 PDF",
+      "authors": [
+        "Balasubramanian",
+        "S"
+      ],
+      "year": 2024,
+      "venue": "Trends Pharmacol Sci",
+      "identifiers": {},
+      "related_links": [
+        "https://www.sciencedirect.com/science/article/pii/S016561472400049X"
+      ],
+      "source": "drmichaellevin.org",
+      "local_id": "electroceuticals-emerging-applications-beyond-the-nervous-system-and-excitable-tissues-2024"
+    }
+  ],
+  "no_pdf_entries": [
+    {
+      "title": "Atavistic Genetic Expression Dissociation (AGED) During Aging: Meta-Phylostratigraphic Evidence of Cellular and Tissue-Level Phylogenetic Dissociation",
+      "year": 2025,
+      "paperId": "302c1aee72e7fc6d9840e4c969848a8346aa862f"
+    },
+    {
+      "title": "Neural cellular automata: Applications to biology and beyond classical AI",
+      "year": 2025,
+      "paperId": "95189fb6065cff6d666b80ada35789e52cd971f6"
+    },
+    {
+      "title": "Free Lunch? Low-Cost Intelligence Through Pattern-Guided Exploration",
+      "year": 2025,
+      "paperId": "95dc62d4b7bb40cd01a5c0333d1d803d919bb9ca"
+    },
+    {
+      "title": "Cognition all the way down 2.0: neuroscience beyond neurons in the diverse intelligence era",
+      "year": 2025,
+      "paperId": "62381e3364e87482eb747c77428f0f9d2b4c82c9"
+    },
+    {
+      "title": "New\u00a0insights in the gut\u2013brain axis: the role of bioelectrical microbiome",
+      "year": 2025,
+      "paperId": "c12de04e4a560e025ebd94460cc2a97cacda8c6e"
+    },
+    {
+      "title": "Temporal depth in a coherent self and in depersonalization: theoretical model",
+      "year": 2025,
+      "paperId": "2afbf7b26be9f68351262a08c5310d05330c8e05"
+    },
+    {
+      "title": "The Role of Bioelectrical Patterns in Regulative Morphogenesis: an Evolutionary Simulation and Validation in Planarian Regeneration",
+      "year": 2025,
+      "paperId": "9a33e85d7d9c57b9a3bf03aa46c7c053a563572d"
+    },
+    {
+      "title": "Giving Simulated Cells a Voice: Evolving Prompt-to-Intervention Models for Cellular Control",
+      "year": 2025,
+      "paperId": "37d1e607e2c7228439acff8004a62ede5a771142"
+    },
+    {
+      "title": "Exploring the role of large language models in the scientific method: from hypothesis to discovery",
+      "year": 2025,
+      "paperId": "52b6d5416af1208e2c75dc86c7d82c3b255b2088"
+    },
+    {
+      "title": "Associative conditioning in gene regulatory network models increases integrative causal emergence",
+      "year": 2025,
+      "paperId": "e08d846c8fb0464f21aa315e596bfa97ab490bbc"
+    },
+    {
+      "title": "The Bioelectrics of Immortality and Mortality in Cold-Sensitive Hydra oligactis",
+      "year": 2025,
+      "paperId": "110f692b97271d003e8e30761a1c19c5c31d7d52"
+    },
+    {
+      "title": "Universal multilayer network embedding reveals a causal link between GABA neurotransmitter and cancer",
+      "year": 2025,
+      "paperId": "8366f0cac925221657afbde040faa0a28276e51a"
+    },
+    {
+      "title": "Harnessing the analog computing power of regulatory networks with the Regulatory Network Machine",
+      "year": 2025,
+      "paperId": "f74dc93536564df6ad4fd727040fba76535f62c0"
+    },
+    {
+      "title": "What does evolution make? Learning in living lineages and machines",
+      "year": 2025,
+      "paperId": "01a51a5b5fdc9ce8874167fb8ce5bf753906808b"
+    },
+    {
+      "title": "AI-enabled drug prediction and gene network analysis reveal therapeutic use of vorinostat for Rett Syndrome in preclinical models",
+      "year": 2025,
+      "paperId": "1ea6ff2dfa6febbec5d6933beb4eb4a407b06236"
+    },
+    {
+      "title": "Neuroevolution of decentralized decision-making in N-bead swimmers leads to scalable and robust collective locomotion",
+      "year": 2024,
+      "paperId": "ea151f32c18443b3695d24f1071b758fa470381a"
+    },
+    {
+      "title": "Basal Xenobot transcriptomics reveals changes and novel control modality in cells freed from organismal influence",
+      "year": 2025,
+      "paperId": "38dfa56884228d910fb0cbf4e8dff454338ef5f9"
+    },
+    {
+      "title": "Revealing non-trivial information structures in aneural biological tissues via functional connectivity",
+      "year": 2024,
+      "paperId": "bec88702139e4aeb9b60463eba15ac619422f187"
+    },
+    {
+      "title": "Electrical Impedance Correlated to Flow Rate in Elastomeric Valves:An Analog Material Memory",
+      "year": 2025,
+      "paperId": "f3a6e81406136ab16ad2b68805fe6df6cb768f80"
+    },
+    {
+      "title": "\u201cBioelectricity in Development, Regeneration, and Cancers\u201d Cell Bio 2023: A Joint Meeting of the American Society of Cell Biology and European Molecular Biology Organization",
+      "year": 2024,
+      "paperId": "14e6712807efe4c0fedaefeb4c0298c39c8b8851"
+    },
+    {
+      "title": "Potential Shortcomings of Genomic Database: The Case of Nav1.5 Expression in Breast Cancer",
+      "year": 2024,
+      "paperId": "0484514d2e1035f488bce58dbc07732763116c42"
+    },
+    {
+      "title": "Snakes and ladders in the evolution of language",
+      "year": 2024,
+      "paperId": "ba7a7ecf06167b0239ccb0f4c9d056f96e47eb05"
+    },
+    {
+      "title": "Aging as a loss of morphostatic information: a developmental bioelectricity perspective",
+      "year": 2024,
+      "paperId": "70550a4a66f2183a62c8ed999392dfa78519a4fa"
+    }
+  ]
+}

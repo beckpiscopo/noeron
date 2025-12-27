@@ -132,6 +132,16 @@ Transcript:
 User note: {user_note}
 """
 
+DEFAULT_PROMPT_VERSION = "v1"
+CACHE_DIR = REPO_ROOT / "cache"
+CACHE_DIR.mkdir(parents=True, exist_ok=True)
+VTT_TIMESTAMP_RE = re.compile(r"(\d{2}:\d{2}:\d{2}(?:\.\d+)?)")
+REGISTRY_BASE = {
+    "podcast_id": "",
+    "episode_title": "",
+    "processed_date": "",
+    "segments": {},
+}
 
 @dataclass
 class ClaimCandidate:
@@ -303,6 +313,53 @@ def _build_gemini_prompt(
     )
 
 
+TOKEN_FIELDS = (
+    "token_count",
+    "total_tokens",
+    "usage_token_count",
+    "prompt_token_count",
+    "input_token_count",
+    "output_token_count",
+)
+
+
+def _extract_token_value(source: Any) -> Optional[int]:
+    if source is None:
+        return None
+
+    if isinstance(source, dict):
+        for key in TOKEN_FIELDS:
+            value = source.get(key)
+            if isinstance(value, (int, float)):
+                return int(value)
+        return None
+
+    for key in TOKEN_FIELDS:
+        value = getattr(source, key, None)
+        if isinstance(value, (int, float)):
+            return int(value)
+
+    to_dict = getattr(source, "to_dict", None)
+    if callable(to_dict):
+        try:
+            converted = to_dict()
+        except Exception:
+            return None
+        if isinstance(converted, dict):
+            return _extract_token_value(converted)
+
+    return None
+
+
+def _extract_gemini_metadata(response: Any) -> Dict[str, Any]:
+    token_count = _extract_token_value(response)
+    if token_count is None:
+        token_count = _extract_token_value(getattr(response, "metadata", None))
+    if token_count is None:
+        token_count = _extract_token_value(getattr(response, "usage", None))
+    return {"token_count": token_count}
+
+
 def _extract_response_text(response: object) -> str:
     candidate = getattr(response, "text", None)
     if candidate:
@@ -390,28 +447,37 @@ def _parse_gemini_claims(
 
 
 def _call_gemini_claim_detector(
-    segment_text: str, user_note: Optional[str], max_claims: int
-) -> Tuple[List[Dict[str, Any]], Dict[str, str]]:
+    segment_text: str, user_note: Optional[str], max_claims: int, model_name: str
+) -> Tuple[List[Dict[str, Any]], Dict[str, str], Dict[str, Any]]:
     _ensure_gemini_client_ready()
     prompt = _build_gemini_prompt(segment_text, user_note, max_claims)
     response = _GENAI_CLIENT.models.generate_content(
-        model=GEMINI_MODEL_DEFAULT,
+        model=model_name,
         contents=prompt,
     )
+    metadata = _extract_gemini_metadata(response)
     text = _extract_response_text(response)
     if not text:
         raise ValueError("Empty response from Gemini.")
-    return _parse_gemini_claims(text, max_claims)
+    claims, context_tags = _parse_gemini_claims(text, max_claims)
+    return claims, context_tags, metadata
 
 
 async def identify_claims_with_gemini(
-    segment_text: str, user_note: Optional[str], max_claims: int = 5
-) -> Tuple[List[Dict[str, Any]], Dict[str, str]]:
+    segment_text: str,
+    user_note: Optional[str],
+    max_claims: int = 5,
+    model_name: str = GEMINI_MODEL_DEFAULT,
+) -> Tuple[List[Dict[str, Any]], Dict[str, str], Dict[str, Any]]:
     """
-    Returns tuple containing the claims list and any inferred context tags.
+    Returns tuple containing the claims list, any inferred context tags, and metadata.
     """
     return await asyncio.to_thread(
-        _call_gemini_claim_detector, segment_text, user_note, max_claims
+        _call_gemini_claim_detector,
+        segment_text,
+        user_note,
+        max_claims,
+        model_name,
     )
 
 
@@ -472,14 +538,76 @@ def detect_claims(
     return candidates[:MAX_CLAIMS_PER_SEGMENT]
 
 
-def load_registry(path: Path) -> Dict[str, dict]:
+def _default_registry() -> Dict[str, Any]:
+    return {
+        "podcast_id": "",
+        "episode_title": "",
+        "processed_date": "",
+        "segments": {},
+    }
+
+
+def _sanitize_timestamp(value: Optional[str]) -> str:
+    if not value:
+        return "unknown_timestamp"
+    cleaned = value.strip()
+    if " --> " in cleaned:
+        cleaned = cleaned.split(" --> ", 1)[0].strip()
+    match = VTT_TIMESTAMP_RE.match(cleaned)
+    if match:
+        return match.group(1)
+    return cleaned
+
+
+def _sanitize_window_id(value: Optional[str]) -> str:
+    if not value:
+        return "unknown_window"
+    cleaned = value.strip()
+    if not cleaned:
+        return "unknown_window"
+    for delimiter in ("-->", "align:start", "|", "#"):
+        if delimiter in cleaned:
+            cleaned = cleaned.split(delimiter, 1)[0].strip()
+    if not cleaned:
+        return "unknown_window"
+    return cleaned
+
+
+def _first_nonempty_str(*values: Optional[str], default: str = "") -> str:
+    for value in values:
+        if isinstance(value, str):
+            normalized = value.strip()
+            if normalized:
+                return normalized
+    return default
+
+
+def load_registry(path: Path) -> Dict[str, Any]:
     if not path.exists():
-        return {"segments": {}}
+        return _default_registry()
     try:
-        return json.loads(path.read_text(encoding="utf-8"))
+        raw = json.loads(path.read_text(encoding="utf-8"))
     except json.JSONDecodeError:
         logging.warning("Registry file corrupted. Recreating a clean one.")
-        return {"segments": {}}
+        return _default_registry()
+
+    if not isinstance(raw, dict):
+        logging.warning("Registry data invalid; resetting to empty registry.")
+        return _default_registry()
+
+    normalized = _default_registry()
+    for key in ("podcast_id", "episode_title", "processed_date"):
+        value = raw.get(key)
+        if isinstance(value, str):
+            normalized[key] = value
+
+    segments = raw.get("segments")
+    if isinstance(segments, dict):
+        normalized["segments"] = segments
+    else:
+        normalized["segments"] = {}
+
+    return normalized
 
 
 def save_registry(path: Path, data: Dict[str, dict]) -> None:
@@ -487,8 +615,58 @@ def save_registry(path: Path, data: Dict[str, dict]) -> None:
     path.write_text(json.dumps(data, indent=2), encoding="utf-8")
 
 
-def build_segment_key(timestamp: str, heading: str) -> str:
-    return f"{timestamp or 'unknown'}|{heading or 'general'}"
+def _podcast_cache_path(podcast_id: str) -> Path:
+    safe_id = podcast_id.strip() or "unknown_podcast"
+    return CACHE_DIR / f"podcast_{safe_id}_claims.json"
+
+
+def _load_cache(path: Path) -> Dict[str, Any]:
+    if not path.exists():
+        return {}
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return {}
+
+
+def _write_cache(path: Path, data: Dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+
+
+def _update_podcast_cache(
+    podcast_id: str,
+    episode_title: str,
+    segment_key: str,
+    entry: Dict[str, Any],
+) -> None:
+    cache_path = _podcast_cache_path(podcast_id)
+    cache = _load_cache(cache_path)
+    cache.setdefault("segments", {})
+    cache["podcast_id"] = podcast_id
+    cache["episode_title"] = episode_title
+    cache["processed_date"] = entry.get("last_processed", cache.get("processed_date"))
+    cache["segments"][segment_key] = {
+        "timestamp": entry.get("timestamp", ""),
+        "window_id": entry.get("window_id", ""),
+        "speaker": entry.get("speaker", ""),
+        "transcript_text": entry.get("transcript_text", ""),
+        "note": entry.get("note", ""),
+        "claims": entry.get("claims", []),
+        "research_queries": entry.get("research_queries", []),
+        "rag_results": entry.get("rag_results", []),
+        "context_tags": entry.get("context_tags", {}),
+        "gemini_metadata": entry.get("gemini_metadata"),
+        "last_processed": entry.get("last_processed"),
+    }
+    _write_cache(cache_path, cache)
+
+
+def build_segment_key(podcast_id: str, timestamp: str, window_id: str) -> str:
+    normalized_podcast = podcast_id.strip() or "unknown_podcast"
+    normalized_timestamp = timestamp or "unknown_timestamp"
+    normalized_window = window_id.strip() or "unknown_window"
+    return f"{normalized_podcast}|{normalized_timestamp}|{normalized_window}"
 
 
 def parse_rag_output(raw: str) -> Tuple[Optional[List[dict]], Optional[str]]:
@@ -552,18 +730,36 @@ def build_context_card(
     )
 
 
+def _serialize_context_card(card: ContextCard) -> dict:
+    return {
+        "timestamp": card.timestamp,
+        "heading": card.heading,
+        "claim_text": card.claim_text,
+        "paper_title": card.paper_title,
+        "section": card.section,
+        "rationale": card.rationale,
+        "source_link": card.source_link,
+        "needs_backing_because": card.needs_backing_because,
+        "confidence_score": card.confidence_score,
+        "context_tags": card.context_tags,
+        "claim_type": card.claim_type,
+    }
+
+
 async def enrich_claims(
     timestamp: str,
     heading: str,
     claims: Iterable[ClaimCandidate],
     context_tags: Optional[Dict[str, str]] = None,
-) -> Tuple[List[ContextCard], List[Tuple[str, str]]]:
+) -> Tuple[List[ContextCard], List[Tuple[str, str]], List[str]]:
     cards: List[ContextCard] = []
     misses: List[Tuple[str, str]] = []
 
+    queries: List[str] = []
     for claim in claims:
         raw_query = claim.research_query or ""
         generated_query = build_rag_query(claim, context_tags)
+        queries.append(generated_query)
         print("\n" + "=" * 60)
         print(f"CLAIM: {claim.text[:80]}...")
         print(f"TAGS: {claim.context_tags or context_tags}")
@@ -594,7 +790,7 @@ async def enrich_claims(
         else:
             misses.append((claim.text, error or "No matching literature found."))
 
-    return cards, misses
+    return cards, misses, queries
 
 
 def print_cards(
@@ -694,10 +890,47 @@ def main() -> None:
         action="store_true",
         help="Use Gemini-powered claim identification instead of the heuristic detector.",
     )
+    parser.add_argument(
+        "--podcast-id",
+        default="",
+        help="Optional identifier for the podcast/episode to tag in the registry.",
+    )
+    parser.add_argument(
+        "--episode-title",
+        default="",
+        help="Optional human-readable episode title for registry metadata.",
+    )
+    parser.add_argument(
+        "--window-id",
+        default="",
+        help="Override the window identifier used in the registry key.",
+    )
+    parser.add_argument(
+        "--speaker",
+        default="",
+        help="Speaker name associated with this transcript window.",
+    )
+    parser.add_argument(
+        "--gemini-model",
+        default="",
+        help="Override the Gemini model name for this run.",
+    )
+    parser.add_argument(
+        "--gemini-prompt-version",
+        default=DEFAULT_PROMPT_VERSION,
+        help="Label for the Gemini prompt version or template.",
+    )
 
     args = parser.parse_args()
 
     context_tags: Dict[str, str] = {}
+    payload: Dict[str, Any] = {}
+    payload_metadata: Dict[str, Any] = {}
+    payload_podcast_id = ""
+    payload_episode_title = ""
+    payload_window_id = ""
+    payload_speaker = ""
+
     if args.segment_json:
         payload = json.loads(args.segment_json.read_text(encoding="utf-8"))
         segment = {
@@ -707,6 +940,14 @@ def main() -> None:
         }
         note = args.note or payload.get("note", "")
         context_tags.update(_normalize_context_tags(payload.get("context_tags")))
+        metadata_candidate = payload.get("metadata")
+        if isinstance(metadata_candidate, dict):
+            payload_metadata = metadata_candidate
+            context_tags.update(_normalize_context_tags(payload_metadata.get("context_tags")))
+        payload_podcast_id = payload.get("podcast_id", "")
+        payload_episode_title = payload.get("episode_title", "")
+        payload_window_id = payload.get("window_id", "") or payload.get("heading", "")
+        payload_speaker = payload.get("speaker", "")
     else:
         segment = {"timestamp": args.timestamp, "heading": args.heading, "text": args.text}
         note = args.note
@@ -734,7 +975,42 @@ def main() -> None:
         parser.error("Transcript text is required via --text or --segment-json.")
 
     registry = load_registry(REGISTRY_PATH)
-    segment_key = build_segment_key(str(segment["timestamp"]), str(segment["heading"]))
+    existing_podcast_id = registry.get("podcast_id", "")
+    existing_episode_title = registry.get("episode_title", "")
+
+    podcast_id = _first_nonempty_str(
+        args.podcast_id,
+        payload_podcast_id,
+        payload_metadata.get("podcast_id"),
+        existing_podcast_id,
+        default="unknown_podcast",
+    )
+    episode_title = _first_nonempty_str(
+        args.episode_title,
+        payload_episode_title,
+        payload_metadata.get("episode_title"),
+        existing_episode_title,
+    )
+    window_id = _first_nonempty_str(
+        payload_window_id,
+        payload_metadata.get("window_id"),
+        args.window_id,
+        segment.get("heading"),
+        default="general",
+    )
+    speaker = _first_nonempty_str(
+        payload_speaker,
+        payload_metadata.get("speaker"),
+        args.speaker,
+    )
+    normalized_timestamp = _sanitize_timestamp(str(segment.get("timestamp", "")))
+    normalized_window_id = _sanitize_window_id(window_id)
+
+    segment_key = build_segment_key(
+        podcast_id,
+        normalized_timestamp,
+        normalized_window_id,
+    )
 
     if segment_key in registry["segments"] and not args.redo:
         once = registry["segments"][segment_key]
@@ -747,20 +1023,33 @@ def main() -> None:
 
     note_terms = _build_note_terms(note)
     claims: List[ClaimCandidate] = []
+    active_gemini_model = args.gemini_model or GEMINI_MODEL_DEFAULT
+    gemini_prompt_version = args.gemini_prompt_version or DEFAULT_PROMPT_VERSION
+    gemini_metadata: Optional[Dict[str, Any]] = None
 
     if args.use_gemini:
-        logging.info("Identifying claims via Gemini model %s.", GEMINI_MODEL_DEFAULT)
+        gemini_metadata = {
+            "model": active_gemini_model,
+            "prompt_version": gemini_prompt_version,
+            "token_count": None,
+        }
+        logging.info("Identifying claims via Gemini model %s.", active_gemini_model)
         try:
-            gemini_results, gemini_tags = asyncio.run(
+            gemini_results, gemini_tags, gemini_usage = asyncio.run(
                 identify_claims_with_gemini(
-                    segment["text"], note or None, max_claims=MAX_CLAIMS_PER_SEGMENT
+                    segment["text"],
+                    note or None,
+                    max_claims=MAX_CLAIMS_PER_SEGMENT,
+                    model_name=active_gemini_model,
                 )
             )
         except Exception:
             logging.exception("Gemini claim detection failed; falling back to heuristics.")
         else:
-            if gemini_results:
+            gemini_metadata["token_count"] = gemini_usage.get("token_count")
+            if gemini_tags:
                 context_tags.update(gemini_tags)
+            if gemini_results:
                 claims = []
                 for entry in gemini_results:
                     cleaned_text = clean_claim_text(entry["claim_text"])
@@ -789,19 +1078,30 @@ def main() -> None:
         )
     if not claims:
         print("No under-contextualized claims detected in this segment.")
-        registry["segments"][segment_key] = {
-            "timestamp": segment["timestamp"],
-            "heading": segment["heading"],
+        processed_at = datetime.utcnow().isoformat()
+        registry["podcast_id"] = podcast_id
+        registry["episode_title"] = episode_title
+        registry["processed_date"] = processed_at
+        segment_entry = {
+            "timestamp": normalized_timestamp,
+            "window_id": normalized_window_id,
+            "speaker": speaker,
+            "transcript_text": segment["text"],
             "note": note,
             "claims": [],
+            "research_queries": [],
+            "rag_results": [],
             "card_count": 0,
             "context_tags": context_tags,
-            "last_processed": datetime.utcnow().isoformat(),
+            "gemini_metadata": gemini_metadata,
+            "last_processed": processed_at,
         }
+        registry["segments"][segment_key] = segment_entry
+        _update_podcast_cache(podcast_id, episode_title, segment_key, segment_entry)
         save_registry(REGISTRY_PATH, registry)
         return
 
-    cards, misses = asyncio.run(
+    cards, misses, research_queries = asyncio.run(
         enrich_claims(
             timestamp=str(segment["timestamp"]),
             heading=str(segment["heading"]),
@@ -813,15 +1113,28 @@ def main() -> None:
     print_cards(cards, note, context_tags)
     print_misses(misses)
 
-    registry["segments"][segment_key] = {
-        "timestamp": segment["timestamp"],
-        "heading": segment["heading"],
+    processed_at = datetime.utcnow().isoformat()
+    rag_results = [_serialize_context_card(card) for card in cards]
+
+    registry["podcast_id"] = podcast_id
+    registry["episode_title"] = episode_title
+    registry["processed_date"] = processed_at
+    segment_entry = {
+        "timestamp": normalized_timestamp,
+        "window_id": normalized_window_id,
+        "speaker": speaker,
+        "transcript_text": segment["text"],
         "note": note,
         "claims": [claim.text for claim in claims],
+        "research_queries": research_queries,
+        "rag_results": rag_results,
         "card_count": len(cards),
         "context_tags": context_tags,
-        "last_processed": datetime.utcnow().isoformat(),
+        "gemini_metadata": gemini_metadata,
+        "last_processed": processed_at,
     }
+    registry["segments"][segment_key] = segment_entry
+    _update_podcast_cache(podcast_id, episode_title, segment_key, segment_entry)
     save_registry(REGISTRY_PATH, registry)
 
 
