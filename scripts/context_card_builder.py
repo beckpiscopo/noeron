@@ -29,6 +29,15 @@ except ImportError:  # pragma: no cover - cleaned up via requirements
 os.environ.setdefault("FASTMCP_ENV_FILE", "/dev/null")
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
+
+# Load .env file for API keys (GEMINI_API_KEY, etc.)
+_env_file = REPO_ROOT / ".env"
+if _env_file.exists():
+    for line in _env_file.read_text().splitlines():
+        line = line.strip()
+        if line and not line.startswith("#") and "=" in line:
+            key, value = line.split("=", 1)
+            os.environ.setdefault(key.strip(), value.strip())
 sys.path.insert(0, str(REPO_ROOT))
 
 
@@ -114,25 +123,33 @@ GEMINI_MODEL_DEFAULT = os.environ.get("GEMINI_MODEL", "gemini-3-pro-preview")
 GEMINI_MAX_OUTPUT_TOKENS = 1024
 _GEMINI_CONFIGURED = False
 GEMINI_PROMPT_TEMPLATE = """You are an expert scientific research analyst reviewing podcast transcripts.
-You should:
-1. Identify up to {max_claims} factual claims that require research evidence to feel trustworthy.
-2. Keep `claim_text` as an explicit quote from the transcript.
-3. Craft a concise `research_query` that would surface supporting literature via a RAG search; structure it as 5–8 keywords or short phrases (no sentences, no question words).
-   Avoid framing statements (e.g., "what else is wrong," "you can infer").
-4. Explain `needs_backing_because` to justify why the claim requires evidence.
-5. Assign `confidence_score` between 0 and 1 representing how strongly the claim is unsupported.
-6. Optionally tag each claim with `claim_type` and contextual metadata (e.g., `context_tags.organism`, `context_tags.phenomenon`, `context_tags.mechanism`).
 
-Include the transcript segment under "Transcript" and any note or focus area below.
-Respond with a strict JSON array where each element has the keys `claim_text`, `research_query`, `needs_backing_because`, and `confidence_score`. You can also include `claim_type` and `context_tags` for each claim.
-A top-level `context_tags` object is also acceptable if you prefer to describe the segment-level metadata that way. Avoid commentary outside of the JSON array/object.
+CRITICAL: Only extract claims the speaker is making as their OWN BELIEF. Skip claims where the speaker is:
+- Describing someone else's view ("some people say...", "others argue...", "the traditional view is...")
+- Critiquing or rejecting an idea ("that's simplistic", "I think it's weird to say...", "I don't do it that way")
+- Asking a question or speculating without asserting
+
+For each valid claim:
+1. Extract `claim_text` as an explicit quote, PRESERVING rhetorical framing (keep "I think", "I believe" if present)
+2. Set `speaker_stance` to one of:
+   - "assertion" = speaker states this as fact or their firm belief
+   - "hypothesis" = speaker proposes this tentatively ("maybe", "perhaps", "I wonder if")
+   - "prediction" = speaker makes a future prediction ("will be", "in the future")
+3. Craft a concise `research_query` (5-8 keywords, no sentences)
+4. Explain `needs_backing_because` to justify why evidence is needed
+5. Assign `confidence_score` (0-1) for how strongly the claim needs backing
+6. Optionally add `claim_type` and `context_tags` (organism, phenomenon, mechanism, field)
+
+Respond with a JSON array. Each element must have: `claim_text`, `speaker_stance`, `research_query`, `needs_backing_because`, `confidence_score`.
+Optional: `claim_type`, `context_tags`.
+
 Transcript:
 {segment_text}
 
 User note: {user_note}
 """
 
-DEFAULT_PROMPT_VERSION = "v1"
+DEFAULT_PROMPT_VERSION = "v2"
 CACHE_DIR = REPO_ROOT / "cache"
 CACHE_DIR.mkdir(parents=True, exist_ok=True)
 VTT_TIMESTAMP_RE = re.compile(r"(\d{2}:\d{2}:\d{2}(?:\.\d+)?)")
@@ -152,6 +169,7 @@ class ClaimCandidate:
     confidence_score: Optional[float] = None
     claim_type: Optional[str] = None
     context_tags: Optional[Dict[str, str]] = None
+    speaker_stance: str = "assertion"  # assertion, hypothesis, or prediction
 
 
 @dataclass
@@ -174,9 +192,10 @@ CLAIM_FILLER_PREFIXES = [
 CLAIM_CLEANUP_PATTERNS = [
     (r"\byou can (?:make|draw|gain)(?: some)? inferences about\b", "it implies"),
     (r"\byou can infer\b", "it implies"),
-    (r"\bI think\b", ""),
-    (r"\bI believe\b", ""),
-    (r"\bIt seems\b", ""),
+    # NOTE: Removed patterns that strip rhetorical markers - these are needed for verification
+    # (r"\bI think\b", ""),      # KEEP - needed for speaker stance detection
+    # (r"\bI believe\b", ""),    # KEEP - needed for speaker stance detection
+    # (r"\bIt seems\b", ""),     # KEEP - needed for speaker stance detection
 ]
 
 def clean_claim_text(text: str) -> str:
@@ -408,13 +427,19 @@ def _normalize_gemini_entry(
     needs_backing = entry.get("needs_backing_because")
     confidence = entry.get("confidence_score")
     claim_type = entry.get("claim_type")
+    speaker_stance = entry.get("speaker_stance", "assertion")  # default to assertion for backwards compat
     context_tags = _normalize_context_tags(entry.get("context_tags")) or default_context_tags
     if not claim_text:
         raise ValueError("Gemini entry missing `claim_text`.")
     if not research_query:
         research_query = claim_text
+    # Validate speaker_stance
+    valid_stances = ("assertion", "hypothesis", "prediction")
+    if speaker_stance not in valid_stances:
+        speaker_stance = "assertion"
     return {
         "claim_text": str(claim_text).strip(),
+        "speaker_stance": speaker_stance,
         "research_query": str(research_query).strip(),
         "needs_backing_because": str(needs_backing).strip()
         if needs_backing
@@ -1065,6 +1090,7 @@ def main() -> None:
                             confidence_score=entry.get("confidence_score"),
                             claim_type=entry.get("claim_type"),
                             context_tags=entry.get("context_tags") or context_tags or None,
+                            speaker_stance=entry.get("speaker_stance", "assertion"),
                         )
                     )
                 logging.info("Gemini returned %d claims.", len(claims))
@@ -1119,13 +1145,27 @@ def main() -> None:
     registry["podcast_id"] = podcast_id
     registry["episode_title"] = episode_title
     registry["processed_date"] = processed_at
+    # Serialize claims with full metadata (speaker_stance, claim_type, etc.)
+    serialized_claims = []
+    for claim in claims:
+        claim_data = {
+            "claim_text": claim.text,
+            "speaker_stance": getattr(claim, "speaker_stance", "assertion"),
+            "research_query": claim.research_query,
+            "needs_backing_because": claim.needs_backing_because,
+            "confidence_score": claim.confidence_score,
+            "claim_type": claim.claim_type,
+            "context_tags": claim.context_tags,
+        }
+        serialized_claims.append(claim_data)
+
     segment_entry = {
         "timestamp": normalized_timestamp,
         "window_id": normalized_window_id,
         "speaker": speaker,
         "transcript_text": segment["text"],
         "note": note,
-        "claims": [claim.text for claim in claims],
+        "claims": serialized_claims,
         "research_queries": research_queries,
         "rag_results": rag_results,
         "card_count": len(cards),
