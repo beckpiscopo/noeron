@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Play, Pause, Paperclip, Mic, ArrowUp, Lock } from "lucide-react"
 import { NoeronHeader } from "./noeron-header"
@@ -16,6 +16,7 @@ export interface ListeningEpisode {
   durationSeconds: number
   durationLabel: string
   currentTime: number
+  audioUrl?: string
 }
 
 export interface Claim {
@@ -54,6 +55,8 @@ export function ListeningView({
   const [isPlaying, setIsPlaying] = useState(false)
   const [question, setQuestion] = useState("")
   const [selectedClaimId, setSelectedClaimId] = useState<string | null>(null)
+  const [isAudioReady, setIsAudioReady] = useState(false)
+  const audioRef = useRef<HTMLAudioElement | null>(null)
 
   const handlePlayPause = () => {
     setIsPlaying(!isPlaying)
@@ -64,6 +67,10 @@ export function ListeningView({
     const x = e.clientX - rect.left
     const percentage = x / rect.width
     const newTime = percentage * episode.durationSeconds
+    const audio = audioRef.current
+    if (audio) {
+      audio.currentTime = newTime
+    }
     onTimeUpdate(newTime)
   }
 
@@ -84,11 +91,66 @@ export function ListeningView({
   const safeDuration = Math.max(episode.durationSeconds, 1)
   const progressPercentage = Math.min(100, Math.max(0, (episode.currentTime / safeDuration) * 100))
 
+  useEffect(() => {
+    const audio = audioRef.current
+    if (!audio) {
+      return
+    }
+
+    const handleLoadedMetadata = () => {
+      setIsAudioReady(true)
+    }
+    const handleTimeUpdate = () => {
+      onTimeUpdate(audio.currentTime)
+    }
+    const handleEnded = () => {
+      setIsPlaying(false)
+    }
+
+    audio.addEventListener("loadedmetadata", handleLoadedMetadata)
+    audio.addEventListener("timeupdate", handleTimeUpdate)
+    audio.addEventListener("ended", handleEnded)
+
+    return () => {
+      audio.removeEventListener("loadedmetadata", handleLoadedMetadata)
+      audio.removeEventListener("timeupdate", handleTimeUpdate)
+      audio.removeEventListener("ended", handleEnded)
+    }
+  }, [onTimeUpdate])
+
+  useEffect(() => {
+    const audio = audioRef.current
+    if (!audio) {
+      return
+    }
+
+    audio.src = episode.audioUrl ?? ""
+    audio.load()
+    setIsAudioReady(false)
+    setIsPlaying(false)
+  }, [episode.audioUrl])
+
+  useEffect(() => {
+    const audio = audioRef.current
+    if (!audio) {
+      return
+    }
+
+    if (isPlaying) {
+      audio.play().catch(() => {
+        setIsPlaying(false)
+      })
+    } else {
+      audio.pause()
+    }
+  }, [isPlaying])
+
   return (
     <div className="flex min-h-screen flex-col bg-[#102216] text-white font-sans">
       <NoeronHeader />
 
       <header className="sticky top-14 z-40 flex-none border-b border-[#28392e] bg-[#102216]/95 backdrop-blur-sm">
+        <audio ref={audioRef} preload="metadata" className="hidden" />
         <div className="mx-auto max-w-7xl px-6 py-4">
           <div className="grid grid-cols-2 gap-8 items-center">
             {/* Left Half: Play Button + Episode Info */}

@@ -11,15 +11,15 @@ import type { Claim, ListeningEpisode } from "@/components/listening-view"
 import type { Episode as EpisodeMetadata } from "@/components/episode-library"
 
 const fallbackEpisode: EpisodeMetadata = {
-  id: "default",
-  title: "Deep Dive: Mitochondrial Efficiency",
-  podcast: "The Energy Crisis",
-  host: "Dr. David Sinclair",
-  guest: "Dr. Sabine Hossenfelder",
-  duration: "43m",
-  date: "2025-06-18",
-  papersLinked: 8,
-  description: "Exploring cellular energy and longevity interventions.",
+  id: "lex_325",
+  title: "Biology, Life, Aliens, Evolution, Embryogenesis & Xenobots",
+  podcast: "Lex Fridman Podcast #325",
+  host: "Lex Fridman",
+  guest: "Michael Levin",
+  duration: "3h 42m",
+  date: "2022-10-12",
+  papersLinked: 12,
+  description: "Microscale control, bioelectricity, and collective intelligence converging with robotic biology.",
 }
 
 const fallbackClaims: Claim[] = [
@@ -130,6 +130,7 @@ export default function Home() {
     durationSeconds,
     durationLabel: activeEpisode.duration,
     currentTime,
+    audioUrl: `/api/audio/${activeEpisode.id}`,
   }
   const explorationEpisode = {
     title: activeEpisode.title,

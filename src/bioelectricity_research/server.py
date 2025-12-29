@@ -38,6 +38,18 @@ EPISODES_FILE_PATH = Path(__file__).resolve().parent.parent / "data" / "episodes
 CLAIMS_CACHE_PATH = Path(__file__).resolve().parent.parent / "cache" / "podcast_lex_325_claims.json"
 
 
+class EpisodeMetadata(BaseModel):
+    id: str
+    title: str
+    podcast: str
+    host: str
+    guest: str
+    duration: str
+    date: str
+    papersLinked: int
+    description: Optional[str] = None
+
+
 def load_episode_catalog() -> list[EpisodeMetadata]:
     if not EPISODES_FILE_PATH.exists():
         return []
