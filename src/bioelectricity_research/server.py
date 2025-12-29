@@ -6,7 +6,7 @@ import sys
 import httpx
 import json as json_module
 from enum import Enum
-from typing import Literal, Optional
+from typing import Any, Literal, Optional, Sequence
 from pydantic import BaseModel, Field
 from fastmcp import FastMCP
 
@@ -32,6 +32,71 @@ def get_vectorstore():
     if vectorstore is None:
         vectorstore = VectorStore()
     return vectorstore
+
+
+EPISODES_FILE_PATH = Path(__file__).resolve().parent.parent / "data" / "episodes.json"
+CLAIMS_CACHE_PATH = Path(__file__).resolve().parent.parent / "cache" / "podcast_lex_325_claims.json"
+
+
+def load_episode_catalog() -> list[EpisodeMetadata]:
+    if not EPISODES_FILE_PATH.exists():
+        return []
+
+    try:
+        with EPISODES_FILE_PATH.open() as fh:
+            raw_episodes = json_module.load(fh)
+    except json_module.JSONDecodeError as exc:
+        raise RuntimeError(f"Failed to parse episodes catalog: {exc}") from exc
+
+    episodes = []
+    for entry in raw_episodes:
+        try:
+            episodes.append(EpisodeMetadata(**entry))
+        except Exception:
+            continue
+
+    return episodes
+
+
+def _parse_timestamp_seconds(timestamp: str) -> float:
+    if not timestamp:
+        return 0.0
+
+    timestamp = timestamp.strip()
+    decimal = 0.0
+
+    if "." in timestamp:
+        main, frac = timestamp.split(".", 1)
+        try:
+            decimal = float(f"0.{frac}")
+        except ValueError:
+            decimal = 0.0
+        timestamp = main
+
+    parts = [part for part in timestamp.split(":") if part]
+    numeric_parts = []
+    for part in parts:
+        try:
+            numeric_parts.append(int(part))
+        except ValueError:
+            numeric_parts.append(0)
+
+    while len(numeric_parts) < 3:
+        numeric_parts.insert(0, 0)
+
+    hours, minutes, seconds = numeric_parts[-3], numeric_parts[-2], numeric_parts[-1]
+    return hours * 3600 + minutes * 60 + seconds + decimal
+
+
+def _load_claims_cache() -> dict[str, Any]:
+    if not CLAIMS_CACHE_PATH.exists():
+        return {}
+
+    try:
+        with CLAIMS_CACHE_PATH.open() as fh:
+            return json_module.load(fh)
+    except json_module.JSONDecodeError:
+        return {}
 
 class ResponseFormat(str, Enum):
     markdown = "markdown"
@@ -76,6 +141,17 @@ class ListSavedPapersInput(BaseModel):
     year_to: Optional[int] = Field(default=None)
     has_full_text: Optional[bool] = Field(default=None)
     response_format: ResponseFormat = Field(default=ResponseFormat.markdown)
+
+class EpisodeMetadata(BaseModel):
+    id: str
+    title: str
+    podcast: str
+    host: str
+    guest: str
+    duration: str
+    date: str
+    papersLinked: int
+    description: Optional[str] = None
 
 # Phase 1 Tools
 @mcp.tool()
@@ -415,6 +491,68 @@ async def get_saved_paper(paper_id: str) -> str:
         return json_module.dumps(paper, indent=2)
     except Exception as e:
         return f"Error retrieving paper: {str(e)}"
+
+
+@mcp.tool()
+async def list_episodes() -> Sequence[EpisodeMetadata]:
+    """Return a catalog of curated episodes for the UI."""
+    return load_episode_catalog()
+
+
+@mcp.tool()
+async def get_episode_claims(episode_id: str, limit: int = 30) -> Sequence[dict[str, Any]]:
+    """
+    Return the contextual claims associated with a specific episode.
+    """
+    cache = _load_claims_cache()
+    segments = cache.get("segments", {})
+    parsed_segments: list[tuple[float, str, dict[str, Any]]] = []
+
+    for segment_key, segment_data in segments.items():
+        if not segment_key.startswith(f"{episode_id}|"):
+            continue
+        timestamp = _parse_timestamp_seconds(segment_data.get("timestamp", ""))
+        parsed_segments.append((timestamp, segment_key, segment_data))
+
+    parsed_segments.sort(key=lambda item: item[0])
+    claims: list[dict[str, Any]] = []
+
+    for timestamp_seconds, segment_key, segment_data in parsed_segments:
+        for idx, claim_data in enumerate(segment_data.get("claims", [])):
+            if len(claims) >= limit:
+                break
+
+            claim_id = f"{segment_key}-{idx}"
+            title = claim_data.get("claim_text") or "Insight"
+            description = (
+                claim_data.get("rationale")
+                or claim_data.get("needs_backing_because")
+                or claim_data.get("claim_text")
+                or ""
+            )
+            category = claim_data.get("claim_type") or claim_data.get("speaker_stance") or "Insight"
+            source = (
+                claim_data.get("paper_title")
+                or claim_data.get("source_link")
+                or f"Segment {segment_key}"
+            )
+
+            claims.append(
+                {
+                    "id": claim_id,
+                    "timestamp": timestamp_seconds,
+                    "category": category,
+                    "title": title,
+                    "description": description,
+                    "source": source,
+                    "status": "past",
+                }
+            )
+
+        if len(claims) >= limit:
+            break
+
+    return claims
 
 
 @mcp.tool()

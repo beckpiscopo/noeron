@@ -56,6 +56,11 @@ data/podcasts/raw/
 .DS_Store
 Thumbs.db
 
+
+frontend/node_modules/
+frontend/.next/
+frontend/.turbo/
+
 node_modules/
 .next/
 
