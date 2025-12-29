@@ -34,8 +34,8 @@ def get_vectorstore():
     return vectorstore
 
 
-EPISODES_FILE_PATH = Path(__file__).resolve().parent.parent / "data" / "episodes.json"
-CLAIMS_CACHE_PATH = Path(__file__).resolve().parent.parent / "cache" / "podcast_lex_325_claims.json"
+EPISODES_FILE_PATH = Path(__file__).resolve().parent.parent.parent / "data" / "episodes.json"
+CLAIMS_CACHE_PATH = Path(__file__).resolve().parent.parent.parent / "cache" / "podcast_lex_325_claims.json"
 
 
 class EpisodeMetadata(BaseModel):
