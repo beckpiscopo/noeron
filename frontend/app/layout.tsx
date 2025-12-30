@@ -1,12 +1,18 @@
 import type React from "react"
 import type { Metadata } from "next"
-import { Lexend } from "next/font/google"
+import { Cardo, Manrope } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import "./globals.css"
 
-const lexend = Lexend({
+const cardo = Cardo({
   subsets: ["latin"],
-  variable: "--font-lexend",
+  weight: ["400", "700"],
+  variable: "--font-cardo",
+})
+
+const manrope = Manrope({
+  subsets: ["latin"],
+  variable: "--font-manrope",
 })
 
 export const metadata: Metadata = {
@@ -39,7 +45,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark">
-      <body className={`${lexend.variable} font-sans antialiased`}>
+      <body className={`${cardo.variable} ${manrope.variable} font-sans antialiased`}>
         {children}
         <Analytics />
       </body>

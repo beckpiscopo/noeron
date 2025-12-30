@@ -4,7 +4,7 @@ import type React from "react"
 
 import { useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Play, Pause, SkipBack, SkipForward } from "lucide-react"
+import { Play, Pause, RotateCcw, RotateCw } from "lucide-react"
 import { NoeronHeader } from "./noeron-header"
 
 export interface ListeningEpisode {
@@ -19,6 +19,24 @@ export interface ListeningEpisode {
   audioUrl?: string
 }
 
+export interface WordTiming {
+  text: string
+  start_ms: number
+  end_ms: number
+  confidence?: number
+  speaker?: string
+}
+
+export interface ClaimTiming {
+  start_ms: number
+  end_ms: number
+  match_confidence: number
+  fallback?: boolean
+  word_count?: number
+  words?: WordTiming[]
+  note?: string
+}
+
 export interface Claim {
   id: string
   timestamp: number
@@ -27,6 +45,7 @@ export interface Claim {
   description: string
   source: string
   status: "past" | "current" | "future"
+  timing?: ClaimTiming | null
 }
 
 interface ListeningViewProps {
@@ -114,14 +133,17 @@ export function ListeningView({
   const progressPercentage = Math.min(100, Math.max(0, (episode.currentTime / safeDuration) * 100))
 
   // Dynamically determine claim status based on current playback time
-  // Sort claims by timestamp
-  const sortedClaims = [...claims].sort((a, b) => a.timestamp - b.timestamp)
+  // Sort claims by timestamp (use timing data if available, otherwise use claim timestamp)
+  const sortedClaims = [...claims].sort((a, b) => {
+    const aTime = a.timing?.start_ms ? a.timing.start_ms / 1000 : a.timestamp
+    const bTime = b.timing?.start_ms ? b.timing.start_ms / 1000 : b.timestamp
+    return aTime - bTime
+  })
   
-  // Apply timing offset to current time for comparison
-  const adjustedCurrentTime = episode.currentTime + TIMING_OFFSET
+  const currentTimeMs = episode.currentTime * 1000
   
   // Find the current claim based on playback position
-  // A claim is "current" when it's actively being discussed (tight window for precision)
+  // Use timing data if available, otherwise fall back to offset + thresholds
   const CURRENT_THRESHOLD_BEFORE = 2 // seconds before claim timestamp (very tight)
   const CURRENT_THRESHOLD_AFTER = 30 // seconds after claim timestamp (when it's being discussed)
   
@@ -132,19 +154,40 @@ export function ListeningView({
   // Find the claim that best matches the current time
   for (let i = 0; i < sortedClaims.length; i++) {
     const claim = sortedClaims[i]
-    const timeDiff = adjustedCurrentTime - claim.timestamp
     
-    // Check if we're in the active discussion window for this claim
-    if (timeDiff >= -CURRENT_THRESHOLD_BEFORE && timeDiff <= CURRENT_THRESHOLD_AFTER) {
-      // This claim is actively being discussed
-      currentClaimIndex = i
-      break
-    }
-    
-    // Track the closest claim we've passed (for when between claims)
-    if (timeDiff > 0 && timeDiff < bestMatchScore) {
-      bestMatchScore = timeDiff
-      bestMatch = i
+    // Use enriched timing data if available
+    if (claim.timing) {
+      const claimStartMs = claim.timing.start_ms
+      const claimEndMs = claim.timing.end_ms
+      
+      // Check if current time is within the claim's timing window
+      if (currentTimeMs >= claimStartMs && currentTimeMs <= claimEndMs) {
+        currentClaimIndex = i
+        break
+      }
+      
+      // Track closest claim we've passed
+      if (currentTimeMs > claimEndMs) {
+        const diff = currentTimeMs - claimEndMs
+        if (diff < bestMatchScore) {
+          bestMatchScore = diff
+          bestMatch = i
+        }
+      }
+    } else {
+      // Fallback to old logic with offset
+      const adjustedCurrentTime = episode.currentTime + TIMING_OFFSET
+      const timeDiff = adjustedCurrentTime - claim.timestamp
+      
+      if (timeDiff >= -CURRENT_THRESHOLD_BEFORE && timeDiff <= CURRENT_THRESHOLD_AFTER) {
+        currentClaimIndex = i
+        break
+      }
+      
+      if (timeDiff > 0 && timeDiff < bestMatchScore) {
+        bestMatchScore = timeDiff
+        bestMatch = i
+      }
     }
   }
   
@@ -165,12 +208,13 @@ export function ListeningView({
     return `${mins} MIN AGO`
   }
   
-  // Debug logging (can remove later)
+  // Debug logging
   useEffect(() => {
     if (currentClaim) {
-      console.log(`[Sync Debug] Raw time: ${episode.currentTime.toFixed(1)}s, Adjusted: ${adjustedCurrentTime.toFixed(1)}s, Claim timestamp: ${currentClaim.timestamp}s, Diff: ${(adjustedCurrentTime - currentClaim.timestamp).toFixed(1)}s`)
+      const claimTime = currentClaim.timing?.start_ms ? `${(currentClaim.timing.start_ms / 1000).toFixed(1)}s (enriched)` : `${currentClaim.timestamp}s (fallback)`
+      console.log(`[Sync Debug] Current: ${episode.currentTime.toFixed(1)}s, Claim: ${claimTime}, Has word-timing: ${currentClaim.timing?.words ? 'yes' : 'no'}`)
     }
-  }, [currentClaim?.id, episode.currentTime, adjustedCurrentTime])
+  }, [currentClaim?.id, episode.currentTime])
 
   useEffect(() => {
     const audio = audioRef.current
@@ -307,10 +351,11 @@ export function ListeningView({
                 size="icon"
                 variant="ghost"
                 onClick={handleSkipBack}
-                className="size-10 text-gray-400 hover:bg-[#1e2e24] hover:text-white"
+                className="relative size-12 text-gray-400 hover:bg-[#1e2e24] hover:text-white"
                 title="Skip back 15 seconds"
               >
-                <SkipBack className="size-5" />
+                <RotateCcw className="size-7" />
+                <span className="absolute text-[10px] font-bold">15</span>
               </Button>
 
               <Button
@@ -329,10 +374,11 @@ export function ListeningView({
                 size="icon"
                 variant="ghost"
                 onClick={handleSkipForward}
-                className="size-10 text-gray-400 hover:bg-[#1e2e24] hover:text-white"
+                className="relative size-12 text-gray-400 hover:bg-[#1e2e24] hover:text-white"
                 title="Skip forward 15 seconds"
               >
-                <SkipForward className="size-5" />
+                <RotateCw className="size-7" />
+                <span className="absolute text-[10px] font-bold">15</span>
               </Button>
             </div>
           </div>
@@ -353,43 +399,89 @@ export function ListeningView({
             </div>
 
             {/* Current Topic - Always at Top */}
-            {currentClaim && (
-              <div className="mb-8" ref={currentClaimRef}>
-                <div className="mb-3 flex items-center gap-2 text-xs font-bold text-[#FDA92B] uppercase tracking-wider">
-                  <span>JUST NOW</span>
-                </div>
-
-                <div className="bg-gradient-to-br from-[#1e2e24] to-[#182d21] border border-[#FDA92B]/30 rounded-xl p-6 shadow-[0_0_30px_rgba(253,169,43,0.1)]">
-                  <div className="mb-3">
-                    <span className="inline-block rounded-full bg-[#FDA92B]/20 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-[#FDA92B]">
-                      {currentClaim.category}
+            {currentClaim && (() => {
+              // Check if we have word-level timing
+              const hasWordTiming = currentClaim.timing && currentClaim.timing.words && currentClaim.timing.words.length > 0
+              const currentTimeMs = episode.currentTime * 1000
+              
+              // Function to render text with word-level highlighting
+              const renderWithWordHighlighting = (text: string, words: WordTiming[]) => {
+                return (
+                  <span>
+                    {words.map((word, idx) => {
+                      const isHighlighted = currentTimeMs >= word.start_ms && currentTimeMs <= word.end_ms
+                      const hasPassed = currentTimeMs > word.end_ms
+                      
+                      return (
+                        <span
+                          key={idx}
+                          className={`transition-colors duration-200 ${
+                            isHighlighted ? 'text-[#FDA92B] font-semibold' :
+                            hasPassed ? 'text-[#FDA92B]' : 'text-white'
+                          }`}
+                        >
+                          {word.text}{' '}
+                        </span>
+                      )
+                    })}
+                  </span>
+                )
+              }
+              
+              return (
+                <div className="mb-8" ref={currentClaimRef}>
+                  <div className="mb-3 flex items-center gap-2 text-xs font-bold text-[#FDA92B] uppercase tracking-wider">
+                    <span>JUST NOW</span>
+                    <span className="relative flex size-2">
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#FDA92B] opacity-75"></span>
+                      <span className="relative inline-flex size-2 rounded-full bg-[#FDA92B]"></span>
                     </span>
+                    {hasWordTiming && (
+                      <span className="text-xs text-gray-400 font-normal">• Word-level sync</span>
+                    )}
                   </div>
 
-                  <h3 className="text-2xl font-bold text-white mb-4">{currentClaim.title}</h3>
+                  <div className="bg-gradient-to-br from-[#1e2e24] to-[#182d21] border border-[#FDA92B]/30 rounded-xl p-6 shadow-[0_0_30px_rgba(253,169,43,0.1)] transition-all duration-300">
+                    <div className="mb-3">
+                      <span className="inline-block rounded-full bg-[#FDA92B]/20 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-[#FDA92B]">
+                        {currentClaim.category}
+                      </span>
+                    </div>
 
-                  <p className="text-base text-gray-300 leading-relaxed mb-4">{currentClaim.description}</p>
+                    {/* Title with word-level highlighting if available */}
+                    <h3 className="text-2xl font-bold mb-4 leading-relaxed">
+                      {hasWordTiming ? 
+                        renderWithWordHighlighting(currentClaim.title, currentClaim.timing!.words!) :
+                        <span className="text-[#FDA92B] transition-colors duration-500">{currentClaim.title}</span>
+                      }
+                    </h3>
 
-                  <p className="text-sm text-gray-500 mb-6 italic">"{currentClaim.source}"</p>
+                    {/* Keep description in light color for readability */}
+                    <p className="text-base text-gray-300 leading-relaxed mb-4">
+                      {currentClaim.description}
+                    </p>
 
-                  <div className="flex gap-3">
-                    <Button
-                      onClick={() => onDiveDeeper(currentClaim.id)}
-                      className="bg-[#FDA92B] text-[#102216] hover:bg-[#FDA92B]/90 font-semibold shadow-[0_4px_14px_rgba(253,169,43,0.2)]"
-                    >
-                      Dive Deeper
-                    </Button>
-                    <Button
-                      onClick={() => onViewSource(currentClaim.id)}
-                      variant="outline"
-                      className="border-[#28392e] bg-[#1e2e24] text-white hover:border-[#FDA92B]/30 hover:bg-[#28392e]"
-                    >
-                      Read Source
-                    </Button>
+                    <p className="text-sm text-gray-500 mb-6 italic">"{currentClaim.source}"</p>
+
+                    <div className="flex gap-3">
+                      <Button
+                        onClick={() => onDiveDeeper(currentClaim.id)}
+                        className="bg-[#FDA92B] text-[#102216] hover:bg-[#FDA92B]/90 font-semibold shadow-[0_4px_14px_rgba(253,169,43,0.2)]"
+                      >
+                        Dive Deeper
+                      </Button>
+                      <Button
+                        onClick={() => onViewSource(currentClaim.id)}
+                        variant="outline"
+                        className="border-[#28392e] bg-[#1e2e24] text-white hover:border-[#FDA92B]/30 hover:bg-[#28392e]"
+                      >
+                        Read Source
+                      </Button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
+              )
+            })()}
 
             {/* Past Claims */}
             <div className="space-y-8">

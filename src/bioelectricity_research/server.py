@@ -35,7 +35,7 @@ def get_vectorstore():
 
 
 EPISODES_FILE_PATH = Path(__file__).resolve().parent.parent.parent / "data" / "episodes.json"
-CLAIMS_CACHE_PATH = Path(__file__).resolve().parent.parent.parent / "cache" / "podcast_lex_325_claims.json"
+CLAIMS_CACHE_PATH = Path(__file__).resolve().parent.parent.parent / "cache" / "podcast_lex_325_claims_with_timing.json"
 
 
 class EpisodeMetadata(BaseModel):
@@ -548,16 +548,24 @@ async def get_episode_claims(episode_id: str, limit: int = 30) -> Sequence[dict[
                 or claim_data.get("source_link")
                 or f"Segment {segment_key}"
             )
+            
+            # Get timing data if available
+            timing_data = claim_data.get("timing", {})
+            claim_timestamp = timestamp_seconds
+            if timing_data:
+                # Convert milliseconds to seconds for timestamp
+                claim_timestamp = timing_data.get("start_ms", 0) / 1000.0
 
             claims.append(
                 {
                     "id": claim_id,
-                    "timestamp": timestamp_seconds,
+                    "timestamp": claim_timestamp,
                     "category": category,
                     "title": title,
                     "description": description,
                     "source": source,
                     "status": "past",
+                    "timing": timing_data if timing_data else None,
                 }
             )
 

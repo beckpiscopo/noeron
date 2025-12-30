@@ -62,42 +62,38 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
 
   return (
     <div className="relative flex min-h-screen w-full flex-col bg-[#102216] text-white">
-      {/* Fixed Header */}
-      <header className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between border-b border-[#28392e] bg-[#102216]/80 backdrop-blur-md px-6 py-4 md:px-10 lg:px-40">
+      {/* Fixed Header - Transparent on hero */}
+      <header className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between border-b border-white/0 bg-transparent backdrop-blur-sm px-6 py-5 md:px-10 lg:px-40 transition-all">
         <div className="flex items-center gap-3">
-          <div className="flex items-center justify-center size-8 rounded bg-[#FDA92B]/20 text-[#FDA92B]">
-            <Brain className="size-5" />
-          </div>
-          <h2 className="text-xl font-bold tracking-tight">Noeron</h2>
+          <h2 className="text-xl font-bold tracking-tight text-white">Noeron</h2>
         </div>
 
-        {/* Desktop Navigation */}
-        <nav className="hidden md:flex flex-1 justify-center gap-8">
-          <a href="#features" className="text-gray-400 hover:text-[#FDA92B] transition-colors text-sm font-medium">
-            Features
-          </a>
-          <a href="#how-it-works" className="text-gray-400 hover:text-[#FDA92B] transition-colors text-sm font-medium">
-            How it Works
-          </a>
-          <a href="#demo" className="text-gray-400 hover:text-[#FDA92B] transition-colors text-sm font-medium">
-            Demo
-          </a>
-        </nav>
-
-        {/* CTA Button */}
-        <div className="flex items-center gap-4">
+        {/* Desktop Navigation - Moved to right */}
+        <div className="hidden md:flex items-center gap-8">
+          <nav className="flex gap-8">
+            <a href="#features" className="text-white/80 hover:text-white transition-colors text-sm font-medium">
+              Features
+            </a>
+            <a href="#how-it-works" className="text-white/80 hover:text-white transition-colors text-sm font-medium">
+              How it Works
+            </a>
+            <a href="#demo" className="text-white/80 hover:text-white transition-colors text-sm font-medium">
+              Demo
+            </a>
+          </nav>
+          
           <button
             onClick={onGetStarted}
-            className="hidden sm:flex items-center justify-center rounded-lg h-9 px-4 bg-[#FDA92B] hover:bg-[#583D32] transition-colors text-[#102216] text-sm font-bold"
+            className="flex items-center justify-center rounded-lg h-9 px-4 bg-white/90 hover:bg-white transition-colors text-[#102216] text-sm font-bold"
           >
             Try Live Demo
           </button>
-
-          {/* Mobile Menu Button */}
-          <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="md:hidden text-white">
-            {mobileMenuOpen ? <X className="size-6" /> : <Menu className="size-6" />}
-          </button>
         </div>
+
+        {/* Mobile Menu Button */}
+        <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="md:hidden text-white">
+          {mobileMenuOpen ? <X className="size-6" /> : <Menu className="size-6" />}
+        </button>
       </header>
 
       {/* Mobile Menu */}
@@ -129,69 +125,59 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
         </div>
       )}
 
-      <main className="flex-grow pt-20">
-        {/* Hero Section */}
-        <section className="relative pt-20 pb-16 md:pt-32 md:pb-24 px-6 md:px-10 lg:px-40 overflow-hidden">
-          {/* Ambient Background Glow */}
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-[#FDA92B]/10 rounded-full blur-[120px] pointer-events-none" />
+      <main className="flex-grow w-full">
+        {/* Hero Section with Watercolor Background */}
+        <section className="relative w-screen min-h-[100vh] flex items-center overflow-hidden left-1/2 right-1/2 -ml-[50vw] -mr-[50vw]">
+          {/* Background Image */}
+          <div className="absolute inset-0 w-full h-full">
+            <img
+              src="/images/hero-watercolor.jpg"
+              alt="Contemplative watercolor space"
+              className="w-full h-full object-cover object-center"
+              loading="eager"
+            />
+            {/* Darkening overlay for better text contrast */}
+            <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/30 to-black/50" />
+            {/* Additional gradient for text area */}
+            <div className="absolute inset-0 bg-gradient-to-r from-black/40 via-transparent to-transparent md:from-black/30" />
+          </div>
 
-          <div className="relative z-10 mx-auto max-w-[960px] flex flex-col items-center text-center gap-8">
-            {/* Badge */}
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-xs font-medium text-[#FDA92B]">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#FDA92B] opacity-75" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-[#FDA92B]" />
-              </span>
-              v2.0 Now Available
-            </div>
+          {/* Content Container */}
+          <div className="relative z-10 w-full px-6 py-20 md:py-32 md:px-10 lg:px-40">
+            <div className="mx-auto max-w-[960px] flex flex-col items-start md:items-center text-left md:text-center gap-8">
 
-            {/* Headline */}
-            <div className="flex flex-col gap-4">
-              <h1 className="text-5xl md:text-7xl font-black leading-tight tracking-tight">
-                The knowledge layer for{" "}
-                <span className="text-[#FDA92B] drop-shadow-[0_0_20px_rgba(88,61,50,0.3)]">Podcasts</span>
-              </h1>
-              <p className="text-gray-400 text-lg md:text-xl max-w-2xl mx-auto font-light leading-relaxed">
-              Noeron enriches podcast episodes with contextual research, letting you explore the evidence and ideas behind every claim.
-              </p>
-            </div>
-
-            {/* CTA Buttons */}
-            <div className="flex flex-wrap gap-4 justify-center w-full">
-              <button
-                onClick={onGetStarted}
-                className="flex min-w-[160px] h-12 items-center justify-center rounded-lg bg-[#FDA92B] hover:bg-[#583D32] transition-all text-[#102216] text-base font-bold shadow-[0_0_20px_-5px_rgba(88,61,50,0.4)]"
-              >
-                Try Live Demo
-              </button>
-              <button className="flex min-w-[160px] h-12 items-center justify-center rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 hover:border-white/20 transition-all text-white text-base font-medium">
-                <Play className="size-5 mr-2" />
-                Watch Video
-              </button>
-            </div>
-
-            {/* Hero Mockup */}
-            <div className="mt-12 w-full relative group">
-              <div className="absolute -inset-1 bg-gradient-to-b from-[#FDA92B]/20 to-transparent rounded-xl blur opacity-20 group-hover:opacity-40 transition duration-1000" />
-              <div className="relative rounded-xl border border-white/10 bg-[#1a261f] overflow-hidden shadow-[0_0_80px_-20px_rgba(88,61,50,0.15)] aspect-[16/10]">
-                <img
-                  src="/images/screen.png"
-                  alt="Noeron dashboard interface"
-                  className="w-full h-full object-cover opacity-90 hover:scale-[1.01] transition-transform duration-700"
-                />
-
-                {/* Overlay UI Elements */}
-                <div className="absolute bottom-6 left-6 right-6 p-4 bg-[#1a261f]/60 backdrop-blur-xl border border-white/10 rounded-lg flex items-center gap-4">
-                  <div className="size-10 rounded-full bg-[#FDA92B]/20 flex items-center justify-center text-[#FDA92B]">
-                    <Zap className="size-5" />
-                  </div>
-                  <div className="flex-1">
-                    <div className="h-2 w-3/4 bg-white/20 rounded mb-2" />
-                    <div className="h-2 w-1/2 bg-white/10 rounded" />
-                  </div>
-                  <div className="text-xs text-[#FDA92B] font-mono">Processing...</div>
-                </div>
+              {/* Headline */}
+              <div className="flex flex-col gap-6">
+                <h1 className="text-5xl md:text-6xl lg:text-7xl font-black leading-[1.1] tracking-tight text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.3)]">
+                  Thoughtful exploration<br className="hidden md:block" />
+                  of <span className="text-[#FDA92B]"> big ideas</span>
+                </h1>
+                <p className="text-white/90 text-lg md:text-xl lg:text-2xl max-w-2xl mx-auto md:mx-auto font-light leading-relaxed drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)]">
+                  The knowledge layer for podcasts.
+                </p>
               </div>
+
+              {/* CTA Buttons */}
+              <div className="flex flex-col sm:flex-row gap-4 justify-center w-full sm:w-auto mt-4">
+                <button
+                  onClick={onGetStarted}
+                  className="flex min-w-[180px] h-14 items-center justify-center rounded-lg bg-white hover:bg-[#F5E6D3] transition-all text-[#102216] text-base font-bold shadow-[0_4px_20px_rgba(0,0,0,0.3)] hover:shadow-[0_6px_30px_rgba(0,0,0,0.4)] hover:scale-[1.02]"
+                >
+                  Try Live Demo
+                </button>
+                <button className="flex min-w-[180px] h-14 items-center justify-center rounded-lg border-2 border-white/30 bg-white/10 backdrop-blur-md hover:bg-white/20 hover:border-white/50 transition-all text-white text-base font-semibold shadow-[0_4px_20px_rgba(0,0,0,0.2)]">
+                  <Play className="size-5 mr-2" />
+                  Watch Video
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Scroll indicator */}
+          <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 hidden md:block">
+            <div className="flex flex-col items-center gap-2 text-white/60 text-xs uppercase tracking-widest">
+              <span>Explore</span>
+              <div className="w-px h-12 bg-gradient-to-b from-white/40 to-transparent animate-pulse" />
             </div>
           </div>
         </section>

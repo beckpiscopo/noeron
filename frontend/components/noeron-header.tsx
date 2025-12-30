@@ -14,7 +14,7 @@ export function NoeronHeader({ onLogoClick }: NoeronHeaderProps) {
           <div className="flex size-7 items-center justify-center rounded-full bg-[#FDA92B]">
             <FlaskConical className="size-4 text-[#102216]" />
           </div>
-          <span className="text-xl font-bold tracking-tight text-white">Noeron</span>
+          <span className="text-xl font-bold tracking-tight text-white">noeron</span>
         </button>
       </div>
     </header>

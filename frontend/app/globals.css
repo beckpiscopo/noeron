@@ -75,9 +75,11 @@
 }
 
 @theme inline {
-  /* Added Lexend font variable for podcast interface */
-  --font-lexend: var(--font-lexend);
-  --font-sans: var(--font-lexend), "Geist", "Geist Fallback";
+  /* Typography: Cardo for headings, Manrope for body */
+  --font-cardo: var(--font-cardo);
+  --font-manrope: var(--font-manrope);
+  --font-sans: var(--font-manrope), system-ui, sans-serif;
+  --font-serif: var(--font-cardo), Georgia, serif;
   --font-mono: "Geist Mono", "Geist Mono Fallback";
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -123,5 +125,109 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family: var(--font-manrope), system-ui, sans-serif;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-cardo), Georgia, serif;
+  }
+}
+
+/* Global color override: Replace all white with cream #EBE2D2 */
+@layer utilities {
+  /* Override white text colors */
+  .text-white {
+    color: #EBE2D2 !important;
+  }
+  
+  /* Override white backgrounds */
+  .bg-white {
+    background-color: #EBE2D2 !important;
+  }
+  
+  /* Override white borders */
+  .border-white {
+    border-color: #EBE2D2 !important;
+  }
+  
+  /* Override white with opacity variations */
+  .text-white\/90 {
+    color: rgba(235, 226, 210, 0.9) !important;
+  }
+  
+  .text-white\/80 {
+    color: rgba(235, 226, 210, 0.8) !important;
+  }
+  
+  .text-white\/60 {
+    color: rgba(235, 226, 210, 0.6) !important;
+  }
+  
+  .bg-white\/90 {
+    background-color: rgba(235, 226, 210, 0.9) !important;
+  }
+  
+  .bg-white\/10 {
+    background-color: rgba(235, 226, 210, 0.1) !important;
+  }
+  
+  .bg-white\/5 {
+    background-color: rgba(235, 226, 210, 0.05) !important;
+  }
+  
+  .bg-white\/20 {
+    background-color: rgba(235, 226, 210, 0.2) !important;
+  }
+  
+  .border-white\/10 {
+    border-color: rgba(235, 226, 210, 0.1) !important;
+  }
+  
+  .border-white\/20 {
+    border-color: rgba(235, 226, 210, 0.2) !important;
+  }
+  
+  .border-white\/30 {
+    border-color: rgba(235, 226, 210, 0.3) !important;
+  }
+  
+  .border-white\/50 {
+    border-color: rgba(235, 226, 210, 0.5) !important;
+  }
+  
+  .hover\:text-white:hover {
+    color: #EBE2D2 !important;
+  }
+  
+  .hover\:bg-white:hover {
+    background-color: #EBE2D2 !important;
+  }
+  
+  .hover\:border-white\/50:hover {
+    border-color: rgba(235, 226, 210, 0.5) !important;
+  }
+  
+  .hover\:border-white\/20:hover {
+    border-color: rgba(235, 226, 210, 0.2) !important;
+  }
+}
+
+/* Hero Section Optimizations */
+@layer utilities {
+  /* Smooth image loading for hero */
+  .hero-image-container {
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+  }
+  
+  /* Ensure smooth transitions on mobile */
+  @media (max-width: 768px) {
+    .hero-image-container img {
+      object-position: center 30%;
+    }
+  }
+  
+  /* Prevent layout shift during image load */
+  .hero-section {
+    min-height: 100vh;
   }
 }
