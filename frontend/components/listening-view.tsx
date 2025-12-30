@@ -281,29 +281,31 @@ export function ListeningView({
   }, [currentClaim?.id])
 
   return (
-    <div className="flex min-h-screen flex-col bg-[#102216] text-white font-sans">
+    <div className="flex min-h-screen flex-col bg-background text-foreground font-sans">
       <NoeronHeader />
       <audio ref={audioRef} preload="metadata" className="hidden" />
 
       {/* Two Column Layout */}
-      <div className="flex flex-1 pt-14">
+      <div className="flex flex-1">
         {/* LEFT COLUMN - Sticky Podcast Player */}
-        <aside className="w-[380px] shrink-0 border-r border-[#28392e] bg-[#0d1912] sticky top-14 h-[calc(100vh-3.5rem)] overflow-y-auto">
-          <div className="p-6">
+        <aside className="w-[380px] shrink-0 border-r border-border bg-card sticky top-0 min-h-screen overflow-y-auto flex items-center">
+          <div className="p-6 w-full">
             {/* Episode Artwork */}
             <div className="mb-6">
-              <div className="aspect-square w-full rounded-lg bg-gradient-to-br from-[#1a4d3a] via-[#2a5d4a] to-[#1a3d2a] shadow-lg overflow-hidden border border-[#28392e]">
-                <div className="h-full w-full flex items-center justify-center">
-                  <div className="text-6xl">🧠</div>
-                </div>
+              <div className="aspect-square w-full rounded-lg shadow-lg overflow-hidden border border-border">
+                <img 
+                  src="/images/green_watercolor.jpg" 
+                  alt={episode.title}
+                  className="h-full w-full object-cover"
+                />
               </div>
             </div>
 
             {/* Episode Info */}
             <div className="mb-6">
-              <h1 className="text-xl font-bold text-white mb-2">{episode.title}</h1>
-              <p className="text-sm text-[#FDA92B] mb-1">EPISODE {episode.id.split('_')[1] || '325'}</p>
-              <p className="text-sm text-gray-400 italic">Host: {episode.host}</p>
+              <h1 className="text-xl font-bold text-foreground mb-2">{episode.title}</h1>
+              <p className="text-sm text-accent mb-1">EPISODE {episode.id.split('_')[1] || '325'}</p>
+              <p className="text-sm text-muted-foreground italic">Host: {episode.host}</p>
             </div>
 
             {/* Waveform Visualization */}
@@ -316,7 +318,7 @@ export function ListeningView({
                     <div
                       key={i}
                       className={`w-[3px] rounded-full transition-all duration-150 ${
-                        isActive ? "bg-[#FDA92B]" : "bg-[#28392e]"
+                        isActive ? "bg-accent" : "bg-border"
                       }`}
                       style={{
                         height: `${height}%`,
@@ -329,17 +331,17 @@ export function ListeningView({
 
               {/* Progress Bar */}
               <div
-                className="group relative h-1.5 cursor-pointer overflow-hidden rounded-full bg-[#1e2e24] mb-2"
+                className="group relative h-1.5 cursor-pointer overflow-hidden rounded-full bg-muted mb-2"
                 onClick={handleProgressClick}
               >
                 <div
-                  className="absolute inset-y-0 left-0 bg-[#FDA92B] transition-all"
+                  className="absolute inset-y-0 left-0 bg-accent transition-all"
                   style={{ width: `${progressPercentage}%` }}
                 />
               </div>
 
               {/* Time Display */}
-              <div className="flex justify-between text-xs font-mono text-gray-400">
+              <div className="flex justify-between text-xs font-mono text-muted-foreground">
                 <span>{formatTime(episode.currentTime)}</span>
                 <span>{formatTime(episode.durationSeconds)}</span>
               </div>
@@ -351,7 +353,7 @@ export function ListeningView({
                 size="icon"
                 variant="ghost"
                 onClick={handleSkipBack}
-                className="relative size-12 text-gray-400 hover:bg-[#1e2e24] hover:text-white"
+                className="relative size-12 text-muted-foreground hover:bg-muted hover:text-foreground"
                 title="Skip back 15 seconds"
               >
                 <RotateCcw className="size-7" />
@@ -361,7 +363,7 @@ export function ListeningView({
               <Button
                 size="icon"
                 onClick={handlePlayPause}
-                className="size-14 rounded-full bg-[#FDA92B] text-[#102216] shadow-lg hover:bg-[#FDA92B]/90 transition-all hover:scale-105"
+                className="size-14 rounded-full bg-accent text-accent-foreground shadow-lg hover:bg-accent/90 transition-all hover:scale-105"
               >
                 {isPlaying ? (
                   <Pause className="size-7" fill="currentColor" />
@@ -374,7 +376,7 @@ export function ListeningView({
                 size="icon"
                 variant="ghost"
                 onClick={handleSkipForward}
-                className="relative size-12 text-gray-400 hover:bg-[#1e2e24] hover:text-white"
+                className="relative size-12 text-muted-foreground hover:bg-muted hover:text-foreground"
                 title="Skip forward 15 seconds"
               >
                 <RotateCw className="size-7" />
@@ -385,16 +387,16 @@ export function ListeningView({
         </aside>
 
         {/* RIGHT COLUMN - Live Research Stream */}
-        <main className="flex-1 overflow-y-auto">
+        <main className="flex-1 overflow-y-auto bg-muted">
           <div className="max-w-4xl mx-auto px-8 py-8">
             {/* Header */}
             <div className="text-center mb-12">
               <div className="inline-flex items-center gap-2 mb-2">
-                <div className="h-px w-16 bg-[#28392e]" />
-                <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-500">
+                <div className="h-px w-16 bg-border" />
+                <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   Live Research Stream
                 </h2>
-                <div className="h-px w-16 bg-[#28392e]" />
+                <div className="h-px w-16 bg-border" />
               </div>
             </div>
 
@@ -415,9 +417,8 @@ export function ListeningView({
                       return (
                         <span
                           key={idx}
-                          className={`transition-colors duration-200 ${
-                            isHighlighted ? 'text-[#FDA92B] font-semibold' :
-                            hasPassed ? 'text-[#FDA92B]' : 'text-white'
+                          className={`transition-colors duration-200 text-foreground ${
+                            isHighlighted ? 'font-semibold' : ''
                           }`}
                         >
                           {word.text}{' '}
@@ -430,50 +431,50 @@ export function ListeningView({
               
               return (
                 <div className="mb-8" ref={currentClaimRef}>
-                  <div className="mb-3 flex items-center gap-2 text-xs font-bold text-[#FDA92B] uppercase tracking-wider">
+                  <div className="mb-3 flex items-center gap-2 text-xs font-bold text-accent uppercase tracking-wider">
                     <span>JUST NOW</span>
                     <span className="relative flex size-2">
-                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#FDA92B] opacity-75"></span>
-                      <span className="relative inline-flex size-2 rounded-full bg-[#FDA92B]"></span>
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent opacity-75"></span>
+                      <span className="relative inline-flex size-2 rounded-full bg-accent"></span>
                     </span>
                     {hasWordTiming && (
-                      <span className="text-xs text-gray-400 font-normal">• Word-level sync</span>
+                      <span className="text-xs text-muted-foreground font-normal">• Word-level sync</span>
                     )}
                   </div>
 
-                  <div className="bg-gradient-to-br from-[#1e2e24] to-[#182d21] border border-[#FDA92B]/30 rounded-xl p-6 shadow-[0_0_30px_rgba(253,169,43,0.1)] transition-all duration-300">
+                  <div className="bg-gradient-to-br from-card to-muted/50 rounded-xl p-6 shadow-[0_8px_30px_rgba(0,0,0,0.12)] transition-all duration-300">
                     <div className="mb-3">
-                      <span className="inline-block rounded-full bg-[#FDA92B]/20 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-[#FDA92B]">
+                      <span className="inline-block rounded-full bg-accent/20 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-accent">
                         {currentClaim.category}
                       </span>
                     </div>
 
                     {/* Title with word-level highlighting if available */}
                     <h3 className="text-2xl font-bold mb-4 leading-relaxed">
-                      {hasWordTiming ? 
+                      "{hasWordTiming ? 
                         renderWithWordHighlighting(currentClaim.title, currentClaim.timing!.words!) :
-                        <span className="text-[#FDA92B] transition-colors duration-500">{currentClaim.title}</span>
-                      }
+                        <span className="text-foreground transition-colors duration-500">{currentClaim.title}</span>
+                      }"
                     </h3>
 
                     {/* Keep description in light color for readability */}
-                    <p className="text-base text-gray-300 leading-relaxed mb-4">
+                    <p className="text-base text-muted-foreground leading-relaxed mb-4">
                       {currentClaim.description}
                     </p>
 
-                    <p className="text-sm text-gray-500 mb-6 italic">"{currentClaim.source}"</p>
+                    <p className="text-sm text-muted-foreground/60 mb-6 italic">"{currentClaim.source}"</p>
 
                     <div className="flex gap-3">
                       <Button
                         onClick={() => onDiveDeeper(currentClaim.id)}
-                        className="bg-[#FDA92B] text-[#102216] hover:bg-[#FDA92B]/90 font-semibold shadow-[0_4px_14px_rgba(253,169,43,0.2)]"
+                        className="bg-accent text-accent-foreground hover:bg-accent/90 font-semibold shadow-[0_4px_14px_rgba(253,169,43,0.2)]"
                       >
                         Dive Deeper
                       </Button>
                       <Button
                         onClick={() => onViewSource(currentClaim.id)}
                         variant="outline"
-                        className="border-[#28392e] bg-[#1e2e24] text-white hover:border-[#FDA92B]/30 hover:bg-[#28392e]"
+                        className="border-border bg-card text-foreground hover:border-accent/30 hover:bg-muted"
                       >
                         Read Source
                       </Button>
@@ -487,39 +488,39 @@ export function ListeningView({
             <div className="space-y-8">
               {pastClaims.slice(0, 10).map((claim) => (
                 <div key={claim.id}>
-                  <div className="mb-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  <div className="mb-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                     {getRelativeTime(claim.timestamp)}
                   </div>
 
                   <div
                     onClick={() => setSelectedClaimId(claim.id === selectedClaimId ? null : claim.id)}
-                    className={`bg-[#1a261f] border rounded-xl p-5 cursor-pointer transition-all ${
+                    className={`bg-card rounded-xl p-5 cursor-pointer transition-all ${
                       selectedClaimId === claim.id
-                        ? "border-[#FDA92B]/30 shadow-md"
-                        : "border-[#28392e] hover:border-[#FDA92B]/20"
+                        ? "shadow-[0_8px_30px_rgba(253,169,43,0.15)]"
+                        : "shadow-[0_2px_12px_rgba(0,0,0,0.08)] hover:shadow-[0_4px_20px_rgba(0,0,0,0.12)]"
                     }`}
                   >
                     <div className="mb-2">
-                      <span className="inline-block rounded-full bg-[#28392e] px-2.5 py-0.5 text-xs font-medium text-gray-400 uppercase tracking-wide">
+                      <span className="inline-block rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground uppercase tracking-wide">
                         {claim.category}
                       </span>
                     </div>
 
-                    <h3 className="text-lg font-bold text-white mb-2">{claim.title}</h3>
+                    <h3 className="text-lg font-bold text-foreground mb-2">"{claim.title}"</h3>
 
-                    <p className="text-sm text-gray-300 leading-relaxed mb-3">{claim.description}</p>
+                    <p className="text-sm text-muted-foreground leading-relaxed mb-3">{claim.description}</p>
 
-                    <p className="text-xs text-gray-500 mb-4">Source: {claim.source}</p>
+                    <p className="text-xs text-muted-foreground/60 mb-4">Source: {claim.source}</p>
 
                     {selectedClaimId === claim.id && (
-                      <div className="flex gap-3 pt-3 border-t border-[#28392e]">
+                      <div className="flex gap-3 pt-3 border-t border-border">
                         <Button
                           onClick={(e) => {
                             e.stopPropagation()
                             onDiveDeeper(claim.id)
                           }}
                           size="sm"
-                          className="bg-[#FDA92B] text-[#102216] hover:bg-[#FDA92B]/90"
+                          className="bg-accent text-accent-foreground hover:bg-accent/90"
                         >
                           Dive Deeper
                         </Button>
@@ -530,7 +531,7 @@ export function ListeningView({
                           }}
                           size="sm"
                           variant="outline"
-                          className="border-[#28392e] text-white hover:bg-[#28392e]"
+                          className="border-border text-foreground hover:bg-muted"
                         >
                           View Source
                         </Button>
@@ -545,7 +546,7 @@ export function ListeningView({
             {!currentClaim && pastClaims.length === 0 && (
               <div className="text-center py-16">
                 <div className="text-6xl mb-4">🎧</div>
-                <p className="text-gray-400">Start playing to see research insights appear here</p>
+                <p className="text-muted-foreground">Start playing to see research insights appear here</p>
               </div>
             )}
           </div>

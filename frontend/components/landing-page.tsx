@@ -3,6 +3,7 @@
 import { ChevronRight, Play, Zap, FileCheck, Search, Headphones, Brain, Compass, Menu, X } from "lucide-react"
 import { useEffect, useState } from "react"
 import { callMcpTool } from "@/lib/api"
+import { ThemeToggle } from "./theme-toggle"
 
 interface LandingPageProps {
   onGetStarted: () => void
@@ -61,66 +62,62 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
   }, [])
 
   return (
-    <div className="relative flex min-h-screen w-full flex-col bg-[#102216] text-white">
+    <div className="relative flex min-h-screen w-full flex-col bg-background text-foreground">
       {/* Fixed Header - Transparent on hero */}
-      <header className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between border-b border-white/0 bg-transparent backdrop-blur-sm px-6 py-5 md:px-10 lg:px-40 transition-all">
+      <header className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between border-b border-transparent bg-transparent backdrop-blur-sm px-6 py-5 md:px-10 lg:px-40 transition-all">
         <div className="flex items-center gap-3">
-          <h2 className="text-xl font-bold tracking-tight text-white">Noeron</h2>
+          <h2 className="text-2xl font-medium tracking-tight text-[#EBE2D2] italic" style={{ fontFamily: 'var(--font-bodoni-moda)' }}>Noeron</h2>
         </div>
 
         {/* Desktop Navigation - Moved to right */}
         <div className="hidden md:flex items-center gap-8">
           <nav className="flex gap-8">
-            <a href="#features" className="text-white/80 hover:text-white transition-colors text-sm font-medium">
+            <a href="#features" className="text-[#EBE2D2]/80 hover:text-[#EBE2D2] transition-colors text-sm font-medium">
               Features
             </a>
-            <a href="#how-it-works" className="text-white/80 hover:text-white transition-colors text-sm font-medium">
+            <a href="#how-it-works" className="text-[#EBE2D2]/80 hover:text-[#EBE2D2] transition-colors text-sm font-medium">
               How it Works
-            </a>
-            <a href="#demo" className="text-white/80 hover:text-white transition-colors text-sm font-medium">
-              Demo
             </a>
           </nav>
           
           <button
             onClick={onGetStarted}
-            className="flex items-center justify-center rounded-lg h-9 px-4 bg-white/90 hover:bg-white transition-colors text-[#102216] text-sm font-bold"
+            className="flex items-center justify-center rounded-lg h-9 px-4 bg-primary/90 hover:bg-primary transition-colors text-primary-foreground text-sm font-bold"
           >
             Try Live Demo
           </button>
+          
+          <ThemeToggle />
         </div>
 
         {/* Mobile Menu Button */}
-        <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="md:hidden text-white">
+        <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="md:hidden text-[#EBE2D2]">
           {mobileMenuOpen ? <X className="size-6" /> : <Menu className="size-6" />}
         </button>
       </header>
 
       {/* Mobile Menu */}
       {mobileMenuOpen && (
-        <div className="fixed top-[73px] left-0 right-0 z-40 bg-[#1a261f] border-b border-[#28392e] p-6 md:hidden">
+        <div className="fixed top-[73px] left-0 right-0 z-40 bg-card border-b border-border p-6 md:hidden">
           <nav className="flex flex-col gap-4">
             <a
               href="#features"
               onClick={() => setMobileMenuOpen(false)}
-              className="text-gray-400 hover:text-[#FDA92B] transition-colors text-sm font-medium"
+              className="text-muted-foreground hover:text-accent transition-colors text-sm font-medium"
             >
               Features
             </a>
             <a
               href="#how-it-works"
               onClick={() => setMobileMenuOpen(false)}
-              className="text-gray-400 hover:text-[#FDA92B] transition-colors text-sm font-medium"
+              className="text-muted-foreground hover:text-accent transition-colors text-sm font-medium"
             >
               How it Works
             </a>
-            <a
-              href="#demo"
-              onClick={() => setMobileMenuOpen(false)}
-              className="text-gray-400 hover:text-[#FDA92B] transition-colors text-sm font-medium"
-            >
-              Demo
-            </a>
+            <div className="pt-4 border-t border-border flex items-center justify-between">
+              <span className="text-sm font-medium text-muted-foreground">Theme</span>
+              <ThemeToggle />
+            </div>
           </nav>
         </div>
       )}
@@ -148,11 +145,11 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
 
               {/* Headline */}
               <div className="flex flex-col gap-6">
-                <h1 className="text-5xl md:text-6xl lg:text-7xl font-black leading-[1.1] tracking-tight text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.3)]">
+                <h1 className="text-5xl md:text-6xl lg:text-7xl font-black leading-[1.1] tracking-tight text-[#EBE2D2] drop-shadow-[0_2px_10px_rgba(0,0,0,0.3)]">
                   Thoughtful exploration<br className="hidden md:block" />
-                  of <span className="text-[#FDA92B]"> big ideas</span>
+                  of <span className="text-accent"> big ideas</span>
                 </h1>
-                <p className="text-white/90 text-lg md:text-xl lg:text-2xl max-w-2xl mx-auto md:mx-auto font-light leading-relaxed drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)]">
+                <p className="text-[#EBE2D2]/90 text-lg md:text-xl lg:text-2xl max-w-2xl mx-auto md:mx-auto font-light leading-relaxed drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)]">
                   The knowledge layer for podcasts.
                 </p>
               </div>
@@ -161,12 +158,16 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
               <div className="flex flex-col sm:flex-row gap-4 justify-center w-full sm:w-auto mt-4">
                 <button
                   onClick={onGetStarted}
-                  className="flex min-w-[180px] h-14 items-center justify-center rounded-lg bg-white hover:bg-[#F5E6D3] transition-all text-[#102216] text-base font-bold shadow-[0_4px_20px_rgba(0,0,0,0.3)] hover:shadow-[0_6px_30px_rgba(0,0,0,0.4)] hover:scale-[1.02]"
+                  className="flex min-w-[200px] h-14 items-center justify-center rounded-[18px] border border-[rgba(255,255,255,0.3)] bg-[rgba(255,252,245,0.15)] backdrop-blur-sm px-8 py-3.5 text-[#EBE2D2] text-[15px] font-light tracking-[0.5px] transition-all duration-300 hover:bg-[rgba(255,252,245,0.25)] hover:shadow-[0_0_20px_rgba(253,169,43,0.3)]"
+                  style={{ fontFamily: 'var(--font-manrope)' }}
                 >
                   Try Live Demo
                 </button>
-                <button className="flex min-w-[180px] h-14 items-center justify-center rounded-lg border-2 border-white/30 bg-white/10 backdrop-blur-md hover:bg-white/20 hover:border-white/50 transition-all text-white text-base font-semibold shadow-[0_4px_20px_rgba(0,0,0,0.2)]">
-                  <Play className="size-5 mr-2" />
+                <button 
+                  className="flex min-w-[200px] h-14 items-center justify-center rounded-[18px] border border-[rgba(255,255,255,0.3)] bg-transparent backdrop-blur-sm px-8 py-3.5 text-[#EBE2D2]/85 text-[15px] font-light tracking-[0.5px] transition-all duration-300 hover:bg-[rgba(255,252,245,0.1)] hover:text-[#EBE2D2]"
+                  style={{ fontFamily: 'var(--font-manrope)' }}
+                >
+                  <Play className="size-4 mr-2" />
                   Watch Video
                 </button>
               </div>
@@ -175,9 +176,9 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
 
           {/* Scroll indicator */}
           <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 hidden md:block">
-            <div className="flex flex-col items-center gap-2 text-white/60 text-xs uppercase tracking-widest">
+            <div className="flex flex-col items-center gap-2 text-[#EBE2D2]/60 text-xs uppercase tracking-widest">
               <span>Explore</span>
-              <div className="w-px h-12 bg-gradient-to-b from-white/40 to-transparent animate-pulse" />
+              <div className="w-px h-12 bg-gradient-to-b from-[#EBE2D2]/40 to-transparent animate-pulse" />
             </div>
           </div>
         </section>
@@ -188,12 +189,12 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
             <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between mb-8">
               <div>
                 <h2 className="text-3xl md:text-4xl font-bold">Live research snapshot</h2>
-                <p className="text-gray-400 text-sm md:text-base">
-                  Behind the scenes the MCP server keeps your questions aligned with the latest papers. These are the top hits for “bioelectricity morphogenesis.”
+                <p className="text-muted-foreground text-sm md:text-base">
+                  Behind the scenes the MCP server keeps your questions aligned with the latest papers. These are the top hits for "bioelectricity morphogenesis."
                 </p>
               </div>
               <button
-                className="inline-flex items-center gap-2 rounded-full border border-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-white transition hover:border-white/30 hover:bg-white/10"
+                className="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] transition hover:border-accent hover:bg-accent/10"
                 onClick={() => onGetStarted()}
               >
                 View full search
@@ -206,14 +207,14 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
                 Array.from({ length: 3 }, (_, index) => (
                   <div
                     key={`skeleton-${index}`}
-                    className="h-48 rounded-2xl border border-white/10 bg-[#111b16] p-5 animate-pulse"
+                    className="h-48 rounded-2xl border border-border bg-card p-5 animate-pulse"
                   />
                 ))}
 
               {searchState === "error" && (
-                <div className="w-full rounded-2xl border border-red-500/40 bg-[#1a261f] p-6 text-sm text-red-300">
-                  <p className="font-semibold text-white">Unable to fetch papers</p>
-                  <p>{searchError || "The MCP server might be warming up."}</p>
+                <div className="w-full rounded-2xl border border-red-500/40 bg-card p-6 text-sm text-red-500">
+                  <p className="font-semibold">Unable to fetch papers</p>
+                  <p className="text-muted-foreground">{searchError || "The MCP server might be warming up."}</p>
                 </div>
               )}
 
@@ -229,14 +230,14 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
                   return (
                     <article
                       key={paper.paperId}
-                      className="flex h-full flex-col justify-between rounded-2xl border border-white/10 bg-[#111b16] p-6 transition hover:border-[#FDA92B]/40 hover:bg-[#112619]"
+                      className="flex h-full flex-col justify-between rounded-2xl border border-border bg-card p-6 transition hover:border-accent/40 hover:bg-card/80"
                     >
                       <div>
-                        <p className="text-xs uppercase tracking-[0.3em] text-gray-500">Paper</p>
-                        <h3 className="mt-2 text-lg font-bold leading-snug text-white">{paper.title}</h3>
-                        <p className="mt-3 text-sm text-gray-400">{authors}</p>
+                        <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Paper</p>
+                        <h3 className="mt-2 text-lg font-bold leading-snug">{paper.title}</h3>
+                        <p className="mt-3 text-sm text-muted-foreground">{authors}</p>
                       </div>
-                      <div className="mt-4 flex items-center justify-between text-xs uppercase tracking-[0.2em] text-gray-500">
+                      <div className="mt-4 flex items-center justify-between text-xs uppercase tracking-[0.2em] text-muted-foreground">
                         <span>{paper.year ?? "Year unknown"}</span>
                         <span>{paper.citationCount ?? 0} cites</span>
                       </div>
@@ -248,7 +249,7 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
         </section>
 
         {/* Tech Stack Marquee */}
-        <section className="w-full border-y border-white/5 bg-black/20 py-8 overflow-hidden">
+        <section className="w-full border-y border-border bg-muted/20 py-8 overflow-hidden">
           <div className="flex justify-center gap-12 opacity-40 hover:opacity-60 transition-opacity duration-500">
             <div className="flex items-center gap-2 font-mono text-sm">GEMINI 1.5 PRO</div>
             <div className="flex items-center gap-2 font-mono text-sm">PYTHON</div>
@@ -263,7 +264,7 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
           <div className="mx-auto max-w-[960px]">
             <div className="mb-12">
               <h2 className="text-3xl md:text-4xl font-bold mb-4">The Research Gap</h2>
-              <p className="text-gray-400 max-w-2xl text-lg">
+              <p className="text-muted-foreground max-w-2xl text-lg">
                 We live in a golden age of audio content, yet verifying claims against rigorous academic standards
                 remains a manual, disjointed process.
               </p>
@@ -272,23 +273,23 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
             <div className="grid md:grid-cols-2 gap-6 relative">
               {/* Connecting Line Visualization */}
               <div className="hidden md:block absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10">
-                <div className="size-12 rounded-full bg-[#102216] border border-white/10 flex items-center justify-center text-red-500">
+                <div className="size-12 rounded-full bg-background border border-border flex items-center justify-center text-red-500">
                   <X className="size-6" />
                 </div>
               </div>
 
               {/* Podcast Card */}
-              <div className="rounded-xl border border-white/5 bg-[#1a261f] p-8 flex flex-col h-full relative overflow-hidden group">
+              <div className="rounded-xl border border-border bg-card p-8 flex flex-col h-full relative overflow-hidden group">
                 <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/5 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none" />
                 <div className="mb-6 size-12 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-400">
                   <Headphones className="size-7" />
                 </div>
                 <h3 className="text-xl font-bold mb-2">Podcast Conversations</h3>
-                <p className="text-gray-400 leading-relaxed mb-6">
+                <p className="text-muted-foreground leading-relaxed mb-6">
                   Highly accessible and engaging, but often lacks immediate citations. Knowledge is fluid and hard to
                   fact-check in real-time.
                 </p>
-                <div className="mt-auto h-32 rounded-lg bg-black/40 border border-white/5 overflow-hidden relative">
+                <div className="mt-auto h-32 rounded-lg bg-muted/40 border border-border overflow-hidden relative">
                   <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 via-blue-500/10 to-transparent" />
                   <div className="absolute bottom-3 left-3 right-3 flex items-center gap-2">
                     <div className="h-1 bg-blue-500/50 rounded-full w-2/3" />
@@ -297,22 +298,22 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
               </div>
 
               {/* Academic Papers Card */}
-              <div className="rounded-xl border border-white/5 bg-[#1a261f] p-8 flex flex-col h-full relative overflow-hidden group">
+              <div className="rounded-xl border border-border bg-card p-8 flex flex-col h-full relative overflow-hidden group">
                 <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/5 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none" />
                 <div className="mb-6 size-12 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-400">
                   <FileCheck className="size-7" />
                 </div>
                 <h3 className="text-xl font-bold mb-2">Academic Papers</h3>
-                <p className="text-gray-400 leading-relaxed mb-6">
+                <p className="text-muted-foreground leading-relaxed mb-6">
                   Deep, verified knowledge that is dense and difficult to consume. Often locked behind paywalls or
                   complex jargon.
                 </p>
-                <div className="mt-auto h-32 rounded-lg bg-black/40 border border-white/5 overflow-hidden relative p-4">
+                <div className="mt-auto h-32 rounded-lg bg-muted/40 border border-border overflow-hidden relative p-4">
                   <div className="space-y-2 opacity-50">
-                    <div className="h-2 w-full bg-white/20 rounded" />
-                    <div className="h-2 w-full bg-white/20 rounded" />
-                    <div className="h-2 w-3/4 bg-white/20 rounded" />
-                    <div className="h-2 w-1/2 bg-white/20 rounded" />
+                    <div className="h-2 w-full bg-foreground/20 rounded" />
+                    <div className="h-2 w-full bg-foreground/20 rounded" />
+                    <div className="h-2 w-3/4 bg-foreground/20 rounded" />
+                    <div className="h-2 w-1/2 bg-foreground/20 rounded" />
                   </div>
                 </div>
               </div>
@@ -321,50 +322,50 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
         </section>
 
         {/* Solution Section */}
-        <section className="py-20 px-6 md:px-10 lg:px-40 bg-gradient-to-b from-[#102216] to-[#0a0c0b]">
+        <section className="py-20 px-6 md:px-10 lg:px-40 bg-gradient-to-b from-background to-muted/30">
           <div className="mx-auto max-w-[960px]">
             <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-6">
               <div>
                 <h2 className="text-3xl md:text-4xl font-bold mb-4">The Noeron Solution</h2>
-                <p className="text-gray-400 max-w-xl text-lg">
+                <p className="text-muted-foreground max-w-xl text-lg">
                   We bridge the gap using advanced LLMs to listen, synthesize, and retrieve context instantly.
                 </p>
               </div>
-              <div className="text-[#FDA92B] flex items-center gap-2 font-medium cursor-pointer group">
+              <div className="text-accent flex items-center gap-2 font-medium cursor-pointer group">
                 View all features <ChevronRight className="size-5 transition-transform group-hover:translate-x-1" />
               </div>
             </div>
 
             <div className="grid md:grid-cols-3 gap-6">
               {/* Feature 1 */}
-              <div className="bg-[#1a261f]/60 backdrop-blur-xl border border-white/10 p-6 rounded-xl hover:-translate-y-1 transition-transform duration-300">
-                <div className="size-10 rounded bg-[#FDA92B]/20 text-[#FDA92B] flex items-center justify-center mb-4">
+              <div className="bg-card/60 backdrop-blur-xl border border-border p-6 rounded-xl hover:-translate-y-1 transition-transform duration-300">
+                <div className="size-10 rounded bg-accent/20 text-accent flex items-center justify-center mb-4">
                   <Zap className="size-5" />
                 </div>
                 <h3 className="text-lg font-bold mb-2">Real-Time Context</h3>
-                <p className="text-sm text-gray-400 leading-relaxed">
+                <p className="text-sm text-muted-foreground leading-relaxed">
                   Definitions and context cards appear instantly as concepts are mentioned in audio.
                 </p>
               </div>
 
               {/* Feature 2 */}
-              <div className="bg-[#1a261f]/60 backdrop-blur-xl border border-white/10 p-6 rounded-xl hover:-translate-y-1 transition-transform duration-300">
-                <div className="size-10 rounded bg-[#FDA92B]/20 text-[#FDA92B] flex items-center justify-center mb-4">
+              <div className="bg-card/60 backdrop-blur-xl border border-border p-6 rounded-xl hover:-translate-y-1 transition-transform duration-300">
+                <div className="size-10 rounded bg-accent/20 text-accent flex items-center justify-center mb-4">
                   <FileCheck className="size-5" />
                 </div>
                 <h3 className="text-lg font-bold mb-2">Evidence Synthesis</h3>
-                <p className="text-sm text-gray-400 leading-relaxed">
+                <p className="text-sm text-muted-foreground leading-relaxed">
                   Automatically cross-reference spoken claims against a database of 200M+ papers.
                 </p>
               </div>
 
               {/* Feature 3 */}
-              <div className="bg-[#1a261f]/60 backdrop-blur-xl border border-white/10 p-6 rounded-xl hover:-translate-y-1 transition-transform duration-300">
-                <div className="size-10 rounded bg-[#FDA92B]/20 text-[#FDA92B] flex items-center justify-center mb-4">
+              <div className="bg-card/60 backdrop-blur-xl border border-border p-6 rounded-xl hover:-translate-y-1 transition-transform duration-300">
+                <div className="size-10 rounded bg-accent/20 text-accent flex items-center justify-center mb-4">
                   <Search className="size-5" />
                 </div>
                 <h3 className="text-lg font-bold mb-2">Progressive Discovery</h3>
-                <p className="text-sm text-gray-400 leading-relaxed">
+                <p className="text-sm text-muted-foreground leading-relaxed">
                   Start simple and dive deeper. Click any term to expand into a full literature review.
                 </p>
               </div>
@@ -374,16 +375,16 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
 
         {/* How It Works */}
         <section className="py-20 px-6 md:px-10 lg:px-40 relative overflow-hidden" id="how-it-works">
-          <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1/3 h-full bg-gradient-to-l from-[#FDA92B]/5 to-transparent pointer-events-none" />
+          <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1/3 h-full bg-gradient-to-l from-accent/5 to-transparent pointer-events-none" />
 
           <div className="mx-auto max-w-[960px]">
             <div className="flex flex-col md:flex-row md:items-center justify-between mb-16 gap-4">
               <h2 className="text-3xl md:text-4xl font-bold">How it Works</h2>
               <div className="flex flex-wrap gap-3">
-                <span className="px-3 py-1 rounded-full border border-white/10 bg-white/5 text-xs text-gray-400 font-mono">
+                <span className="px-3 py-1 rounded-full border border-border bg-muted/20 text-xs text-muted-foreground font-mono">
                   Built with Gemini 3
                 </span>
-                <span className="px-3 py-1 rounded-full border border-white/10 bg-white/5 text-xs text-gray-400 font-mono">
+                <span className="px-3 py-1 rounded-full border border-border bg-muted/20 text-xs text-muted-foreground font-mono">
                   Designed with Stitch
                 </span>
               </div>

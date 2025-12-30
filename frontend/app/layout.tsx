@@ -1,13 +1,15 @@
 import type React from "react"
 import type { Metadata } from "next"
-import { Cardo, Manrope } from "next/font/google"
+import { Bodoni_Moda, Manrope } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
+import { ThemeProvider } from "@/contexts/theme-context"
 import "./globals.css"
 
-const cardo = Cardo({
+const bodoniModa = Bodoni_Moda({
   subsets: ["latin"],
-  weight: ["400", "700"],
-  variable: "--font-cardo",
+  weight: ["500"],
+  style: ["normal", "italic"],
+  variable: "--font-bodoni-moda",
 })
 
 const manrope = Manrope({
@@ -44,10 +46,12 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className="dark">
-      <body className={`${cardo.variable} ${manrope.variable} font-sans antialiased`}>
-        {children}
-        <Analytics />
+    <html lang="en" suppressHydrationWarning>
+      <body className={`${bodoniModa.variable} ${manrope.variable} font-sans antialiased`}>
+        <ThemeProvider>
+          {children}
+          <Analytics />
+        </ThemeProvider>
       </body>
     </html>
   )

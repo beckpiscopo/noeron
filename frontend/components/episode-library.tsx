@@ -104,28 +104,15 @@ export function EpisodeLibrary({ onSelectEpisode }: EpisodeLibraryProps) {
   return (
     <div className="relative flex min-h-screen w-full flex-col bg-[#102216] text-white">
       {/* Sticky Header */}
-      <header className="sticky top-0 z-50 w-full border-b border-white/10 px-6 py-5 md:px-10 bg-[#102216]/85 backdrop-blur-xl">
-        <div className="mx-auto max-w-[900px] flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
-          {/* Branding & Title */}
-          <div className="flex flex-col gap-4">
-            <div className="flex items-center gap-3 text-[#FDA92B]">
-              <div className="size-6 bg-[#FDA92B] rounded-full flex items-center justify-center text-[#102216]">
-                <div className="size-3 rounded-full border-2 border-[#102216]" />
-              </div>
-              <h2 className="text-white text-lg font-bold tracking-tight">Noeron</h2>
-            </div>
-            <div className="flex flex-col gap-1">
-              <h1 className="text-3xl md:text-4xl font-black leading-tight tracking-[-0.02em]">
-                Podcast Episode Library
-              </h1>
-              <p className="text-gray-400 text-sm md:text-base font-normal max-w-2xl">
-                Podcast interviews exploring morphogenesis, bioelectricity, and collective intelligence
-              </p>
-            </div>
+      <header className="sticky top-0 z-50 w-full border-b border-white/10 px-6 py-4 bg-[#102216]/85 backdrop-blur-xl">
+        <div className="mx-auto max-w-7xl flex items-center justify-between">
+          {/* Branding */}
+          <div className="flex items-center gap-2.5">
+            <span className="text-white text-2xl font-medium tracking-tight italic" style={{ fontFamily: 'var(--font-bodoni-moda)' }}>noeron</span>
           </div>
 
           {/* Utilities */}
-          <div className="flex items-center gap-3 self-start md:self-start pt-1">
+          <div className="flex items-center gap-3">
             <button className="flex items-center justify-center size-10 rounded-full bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white transition-colors">
               <Search className="size-5" />
             </button>
@@ -142,6 +129,16 @@ export function EpisodeLibrary({ onSelectEpisode }: EpisodeLibraryProps) {
       {/* Main Content */}
       <main className="flex-1 w-full px-4 md:px-10 py-8">
         <div className="mx-auto max-w-[1200px]">
+          {/* Page Title */}
+          <div className="mb-8">
+            <h1 className="text-3xl md:text-4xl font-black leading-tight tracking-[-0.02em] text-white mb-2">
+              Podcast Episode Library
+            </h1>
+            <p className="text-gray-400 text-sm md:text-base font-normal">
+              Podcast interviews exploring morphogenesis, bioelectricity, and collective intelligence
+            </p>
+          </div>
+
           <div className="mb-4 text-xs font-semibold uppercase tracking-[0.3em] text-gray-500">
             {status === "loading" && "Refreshing episode catalog…"}
             {status === "error" && `Snapshot stale (${errorMessage})`}
