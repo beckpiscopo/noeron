@@ -96,11 +96,31 @@ interface ClaimContextData {
   error?: string
 }
 
+interface DeepDiveSummary {
+  claim_id: string
+  summary: string
+  cached: boolean
+  generated_at: string
+  rag_query: string
+  papers_retrieved: number
+  papers?: Array<{
+    title: string
+    section: string
+    year: string
+  }>
+  error?: string
+}
+
 export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewSourcePaper }: DeepExplorationViewProps) {
-  const [synthesisMode, setSynthesisMode] = useState<"simplified" | "technical" | "raw">("technical")
+  const [synthesisMode, setSynthesisMode] = useState<"simplified" | "technical" | "ai_summary" | "raw">("technical")
   const [contextData, setContextData] = useState<ClaimContextData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  // Deep dive summary state
+  const [deepDiveSummary, setDeepDiveSummary] = useState<DeepDiveSummary | null>(null)
+  const [isLoadingDeepDive, setIsLoadingDeepDive] = useState(false)
+  const [deepDiveError, setDeepDiveError] = useState<string | null>(null)
 
   // Fetch claim context data on mount
   useEffect(() => {
@@ -109,6 +129,17 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
     const fetchClaimContext = async () => {
       setIsLoading(true)
       setError(null)
+
+      // Check if claim.id is in the correct format
+      if (!claim.id.includes("-")) {
+        setError(
+          "This claim doesn't have the required segment ID format. " +
+          "Please ensure the database has been migrated with segment_claim_id values. " +
+          `(Current ID: ${claim.id})`
+        )
+        setIsLoading(false)
+        return
+      }
 
       try {
         const data = await callMcpTool<ClaimContextData>("get_claim_context", {
@@ -143,6 +174,34 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
       cancelled = true
     }
   }, [claim.id, episodeId])
+
+  // Function to fetch deep dive summary on-demand
+  const fetchDeepDiveSummary = async (forceRegenerate = false) => {
+    if (!claim.id.includes("-")) return
+
+    setIsLoadingDeepDive(true)
+    setDeepDiveError(null)
+
+    try {
+      const data = await callMcpTool<DeepDiveSummary>("generate_deep_dive_summary", {
+        claim_id: claim.id,
+        episode_id: episodeId,
+        n_results: 7,
+        force_regenerate: forceRegenerate,
+      })
+
+      if (data.error) {
+        setDeepDiveError(data.error)
+      } else {
+        setDeepDiveSummary(data)
+      }
+    } catch (err) {
+      setDeepDiveError(err instanceof Error ? err.message : "Failed to generate deep dive summary")
+      console.error("Error fetching deep dive summary:", err)
+    } finally {
+      setIsLoadingDeepDive(false)
+    }
+  }
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60)
@@ -285,6 +344,22 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
                     Technical
                   </button>
                   <button
+                    onClick={() => {
+                      setSynthesisMode("ai_summary")
+                      if (!deepDiveSummary && !isLoadingDeepDive) {
+                        fetchDeepDiveSummary()
+                      }
+                    }}
+                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-1.5 ${
+                      synthesisMode === "ai_summary"
+                        ? "bg-[#102216] text-white shadow-sm"
+                        : "text-gray-400 hover:text-white"
+                    }`}
+                  >
+                    <Sparkles className="w-3.5 h-3.5" />
+                    AI Deep Dive
+                  </button>
+                  <button
                     onClick={() => setSynthesisMode("raw")}
                     className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
                       synthesisMode === "raw" ? "bg-[#102216] text-white shadow-sm" : "text-gray-400 hover:text-white"
@@ -349,6 +424,135 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
                       </p>
                     )}
                   </>
+                )}
+
+                {synthesisMode === "ai_summary" && (
+                  <div className="space-y-4">
+                    {/* Loading State */}
+                    {isLoadingDeepDive && (
+                      <div className="flex items-center justify-center py-12">
+                        <div className="flex flex-col items-center gap-4">
+                          <Loader2 className="w-8 h-8 text-[#FDA92B] animate-spin" />
+                          <div className="text-center">
+                            <p className="text-gray-300 font-medium">Generating AI Deep Dive...</p>
+                            <p className="text-gray-500 text-sm mt-1">Searching papers and synthesizing evidence</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Error State */}
+                    {deepDiveError && !isLoadingDeepDive && (
+                      <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4">
+                        <p className="text-red-400 text-sm">{deepDiveError}</p>
+                        <button
+                          onClick={() => fetchDeepDiveSummary(true)}
+                          className="mt-3 text-sm text-[#FDA92B] hover:underline"
+                        >
+                          Try again
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Summary Content */}
+                    {deepDiveSummary && !isLoadingDeepDive && !deepDiveError && (
+                      <>
+                        {/* Metadata bar */}
+                        <div className="flex items-center justify-between text-xs text-gray-500 pb-3 border-b border-[#28392e]">
+                          <div className="flex items-center gap-4">
+                            <span>{deepDiveSummary.papers_retrieved} papers analyzed</span>
+                            {deepDiveSummary.cached && (
+                              <span className="px-2 py-0.5 bg-[#1e2e24] rounded text-gray-400">Cached</span>
+                            )}
+                          </div>
+                          <button
+                            onClick={() => fetchDeepDiveSummary(true)}
+                            className="text-[#FDA92B] hover:underline flex items-center gap-1"
+                          >
+                            <ArrowUp className="w-3 h-3 rotate-45" />
+                            Regenerate
+                          </button>
+                        </div>
+
+                        {/* Render markdown-like summary */}
+                        <div className="prose prose-invert prose-sm max-w-none">
+                          {deepDiveSummary.summary.split('\n\n').map((paragraph, idx) => {
+                            // Handle bold headers like **Finding**:
+                            if (paragraph.startsWith('**')) {
+                              const match = paragraph.match(/^\*\*([^*]+)\*\*:?\s*(.*)/)
+                              if (match) {
+                                const [, header, content] = match
+                                return (
+                                  <div key={idx} className="mb-4">
+                                    <h4 className="text-[#FDA92B] font-bold text-sm uppercase tracking-wider mb-2">
+                                      {header}
+                                    </h4>
+                                    <p className="text-gray-300">{content}</p>
+                                  </div>
+                                )
+                              }
+                            }
+                            // Handle bullet points
+                            if (paragraph.includes('\n- ') || paragraph.startsWith('- ')) {
+                              const lines = paragraph.split('\n')
+                              return (
+                                <ul key={idx} className="list-disc list-inside space-y-1 text-gray-300 mb-4">
+                                  {lines.map((line, lineIdx) => {
+                                    const bulletContent = line.replace(/^-\s*/, '').trim()
+                                    if (bulletContent) {
+                                      return <li key={lineIdx}>{bulletContent}</li>
+                                    }
+                                    return null
+                                  })}
+                                </ul>
+                              )
+                            }
+                            // Regular paragraph
+                            return paragraph.trim() ? (
+                              <p key={idx} className="text-gray-300 mb-3">{paragraph}</p>
+                            ) : null
+                          })}
+                        </div>
+
+                        {/* Papers used */}
+                        {deepDiveSummary.papers && deepDiveSummary.papers.length > 0 && (
+                          <div className="mt-6 pt-4 border-t border-[#28392e]">
+                            <h5 className="text-xs uppercase tracking-wider text-gray-500 font-semibold mb-3">
+                              Sources Retrieved
+                            </h5>
+                            <div className="flex flex-wrap gap-2">
+                              {deepDiveSummary.papers.map((paper, idx) => (
+                                <span
+                                  key={idx}
+                                  className="px-3 py-1.5 bg-[#1e2e24] border border-[#28392e] rounded-lg text-xs text-gray-400"
+                                  title={paper.title}
+                                >
+                                  {paper.title.length > 40 ? paper.title.slice(0, 40) + "..." : paper.title}
+                                  {paper.year && <span className="text-gray-600 ml-1">({paper.year})</span>}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    )}
+
+                    {/* Initial state - no summary yet */}
+                    {!deepDiveSummary && !isLoadingDeepDive && !deepDiveError && (
+                      <div className="text-center py-8">
+                        <Sparkles className="w-10 h-10 text-[#FDA92B]/50 mx-auto mb-4" />
+                        <p className="text-gray-400 mb-4">
+                          Generate an AI-powered deep dive summary for this claim
+                        </p>
+                        <button
+                          onClick={() => fetchDeepDiveSummary()}
+                          className="px-6 py-2.5 bg-[#FDA92B] hover:bg-[#FDA92B]/90 text-[#111813] font-bold rounded-lg transition-colors"
+                        >
+                          Generate Deep Dive
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
             </div>

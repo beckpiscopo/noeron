@@ -148,7 +148,7 @@ export default function Home() {
   
   // Helper to convert Claim to the format expected by DeepExplorationView
   const convertClaimForExploration = (claim: Claim) => ({
-    id: String(claim.id),
+    id: claim.segment_claim_id || String(claim.id), // Use segment_claim_id if available, otherwise fall back to numeric ID
     title: claim.distilled_claim || claim.title || claim.claim_text || "Unknown claim",
     timestamp: claim.timestamp || (claim.start_ms ? claim.start_ms / 1000 : 0),
     description: claim.claim_text || claim.description || "",
@@ -202,6 +202,7 @@ export default function Home() {
   // Convert Supabase claim to frontend Claim format
   const convertSupabaseClaim = (supabaseClaim: SupabaseClaim): Claim => ({
     id: supabaseClaim.id,
+    segment_claim_id: supabaseClaim.segment_claim_id,
     timestamp: supabaseClaim.start_ms ? supabaseClaim.start_ms / 1000 : 0,
     // Supabase fields
     claim_text: supabaseClaim.claim_text,

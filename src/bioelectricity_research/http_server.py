@@ -312,6 +312,155 @@ async def http_get_claim_context(request: Request):
         traceback.print_exc()
         return JSONResponse({"error": str(e)}, status_code=500)
 
+
+@app.post("/tools/generate_deep_dive_summary/execute")
+async def http_generate_deep_dive_summary(request: Request):
+    """Generate a deep dive summary for a scientific claim using RAG + Gemini."""
+    try:
+        import asyncio
+        from datetime import datetime
+
+        body = await request.json()
+        claim_id = body.get("claim_id")
+        episode_id = body.get("episode_id", "lex_325")
+        n_results = body.get("n_results", 7)
+        force_regenerate = body.get("force_regenerate", False)
+
+        if not claim_id:
+            return JSONResponse({"error": "claim_id is required"}, status_code=400)
+
+        # Import helper functions directly
+        from .server import (
+            _load_claims_cache,
+            _load_papers_collection,
+            _load_deep_dive_cache,
+            _save_deep_dive_cache,
+            _build_research_query,
+            _format_rag_results_for_prompt,
+            _call_gemini_for_deep_dive,
+            get_vectorstore,
+            DEEP_DIVE_PROMPT_TEMPLATE,
+            GEMINI_MODEL_DEFAULT,
+        )
+
+        # Check cache first (unless force_regenerate)
+        cache_key = f"{episode_id}:{claim_id}"
+
+        if not force_regenerate:
+            cache = _load_deep_dive_cache()
+            if cache_key in cache:
+                return {
+                    "claim_id": claim_id,
+                    "summary": cache[cache_key]["summary"],
+                    "cached": True,
+                    "generated_at": cache[cache_key].get("generated_at", "unknown"),
+                    "rag_query": cache[cache_key].get("rag_query", ""),
+                    "papers_retrieved": cache[cache_key].get("papers_retrieved", 0),
+                }
+
+        # Step 1: Load claim from cache
+        claims_cache = _load_claims_cache()
+
+        # Parse claim_id
+        parts = claim_id.rsplit("-", 1)
+        if len(parts) != 2:
+            return {"error": f"Invalid claim_id format: {claim_id}"}
+
+        segment_key = parts[0]
+        try:
+            claim_index = int(parts[1])
+        except ValueError:
+            return {"error": f"Invalid claim index in claim_id: {claim_id}"}
+
+        # Get segment and claim data
+        segments = claims_cache.get("segments", {})
+        segment_data = segments.get(segment_key)
+
+        if not segment_data:
+            return {"error": f"Segment not found: {segment_key}"}
+
+        claims_list = segment_data.get("claims", [])
+        if claim_index >= len(claims_list):
+            return {"error": f"Claim index {claim_index} out of range"}
+
+        claim_data = claims_list[claim_index]
+
+        # Step 2: Build research query
+        research_query = _build_research_query(claim_data)
+
+        # Step 3: Query ChromaDB
+        vs = get_vectorstore()
+        rag_results_raw = vs.search(research_query, n_results=n_results)
+
+        # Parse RAG results
+        docs = rag_results_raw.get("documents", [[]])[0]
+        metas = rag_results_raw.get("metadatas", [[]])[0]
+
+        rag_results = []
+        for doc, meta in zip(docs, metas):
+            rag_results.append({
+                "text": doc,
+                "paper_id": meta.get("paper_id", ""),
+                "paper_title": meta.get("paper_title", ""),
+                "section": meta.get("section_heading", ""),
+                "year": meta.get("year", ""),
+            })
+
+        # Step 4: Load papers collection for metadata enrichment
+        papers_collection = _load_papers_collection()
+
+        # Step 5: Format evidence and build prompt
+        evidence_summary = _format_rag_results_for_prompt(rag_results, papers_collection)
+
+        prompt = DEEP_DIVE_PROMPT_TEMPLATE.format(
+            claim_text=claim_data.get("claim_text", ""),
+            speaker_stance=claim_data.get("speaker_stance", "assertion"),
+            needs_backing=claim_data.get("needs_backing_because", "No specific reason provided"),
+            evidence_summary=evidence_summary,
+        )
+
+        # Step 6: Call Gemini
+        summary = await asyncio.to_thread(
+            _call_gemini_for_deep_dive,
+            prompt,
+            GEMINI_MODEL_DEFAULT,
+        )
+
+        # Step 7: Cache the result
+        cache = _load_deep_dive_cache()
+        cache[cache_key] = {
+            "summary": summary,
+            "generated_at": datetime.utcnow().isoformat(),
+            "rag_query": research_query,
+            "papers_retrieved": len(rag_results),
+            "claim_text": claim_data.get("claim_text", ""),
+        }
+        _save_deep_dive_cache(cache)
+
+        # Return structured response
+        return {
+            "claim_id": claim_id,
+            "summary": summary,
+            "cached": False,
+            "generated_at": cache[cache_key]["generated_at"],
+            "rag_query": research_query,
+            "papers_retrieved": len(rag_results),
+            "papers": [
+                {
+                    "title": r.get("paper_title", ""),
+                    "section": r.get("section", ""),
+                    "year": r.get("year", ""),
+                }
+                for r in rag_results[:5]
+            ],
+        }
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
 def run_server(host="127.0.0.1", port=8000):
     """Run the HTTP server."""
     uvicorn.run(app, host=host, port=port)

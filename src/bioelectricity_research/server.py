@@ -1,7 +1,9 @@
 """Bioelectricity Research MCP Server - Main implementation"""
 
 from pathlib import Path
+import os
 import sys
+import asyncio
 
 import httpx
 import json as json_module
@@ -11,6 +13,17 @@ from pydantic import BaseModel, Field
 from fastmcp import FastMCP
 
 from .storage import PaperStorage, fetch_and_store_paper
+
+# Gemini imports
+try:
+    from google import genai  # type: ignore[import]
+except ImportError:
+    genai = None
+
+# Gemini configuration
+GEMINI_API_KEY_ENV = "GEMINI_API_KEY"
+GEMINI_MODEL_DEFAULT = os.environ.get("GEMINI_MODEL", "gemini-3-pro-preview")
+_GENAI_CLIENT = None
 
 scripts_dir = Path(__file__).resolve().parent.parent / "scripts"
 sys.path.insert(0, str(scripts_dir))
@@ -36,6 +49,175 @@ def get_vectorstore():
 
 EPISODES_FILE_PATH = Path(__file__).resolve().parent.parent.parent / "data" / "episodes.json"
 CLAIMS_CACHE_PATH = Path(__file__).resolve().parent.parent.parent / "cache" / "podcast_lex_325_claims_with_timing.json"
+DEEP_DIVE_CACHE_PATH = Path(__file__).resolve().parent.parent.parent / "cache" / "deep_dive_summaries.json"
+
+
+# ============================================================================
+# Gemini Deep Dive Summary Generation
+# ============================================================================
+
+def _ensure_gemini_client_ready() -> None:
+    """Initialize the Gemini client if not already done."""
+    global _GENAI_CLIENT
+    if _GENAI_CLIENT is not None:
+        return
+    if genai is None:
+        raise RuntimeError("google.genai is not installed. Run: pip install google-genai")
+    api_key = os.environ.get(GEMINI_API_KEY_ENV)
+    if not api_key:
+        raise RuntimeError(f"{GEMINI_API_KEY_ENV} environment variable is required.")
+    _GENAI_CLIENT = genai.Client(api_key=api_key)
+
+
+DEEP_DIVE_PROMPT_TEMPLATE = """You are a science journalist explaining research findings to an educated but non-specialist audience.
+
+Given a scientific claim from a podcast and supporting research papers, write a clear, scannable summary that helps the reader understand the evidence.
+
+## CLAIM FROM PODCAST
+"{claim_text}"
+
+Speaker's stance: {speaker_stance}
+Why this needs backing: {needs_backing}
+
+## SUPPORTING EVIDENCE FROM RAG RETRIEVAL
+{evidence_summary}
+
+## YOUR TASK
+Write a 200-300 word summary with this exact structure:
+
+**Finding**: State what the research shows in one clear sentence. Be specific about what was measured/observed.
+
+**Why It Matters**: Explain the biological or medical significance in 2-3 sentences. Why should someone care about this?
+
+**Evidence Strength**: Classify as one of:
+- "Strong" (multiple independent replications, high-impact journals, consistent findings)
+- "Emerging" (promising initial studies, needs more replication)
+- "Contested" (conflicting results, ongoing debate)
+Then briefly explain your classification in 1-2 sentences.
+
+**Key Uncertainties**: List 2-3 important caveats, limitations, or open questions. Be honest about what we don't know.
+
+## GUIDELINES
+- Write in active voice, present tense where possible
+- Avoid jargon; if you must use technical terms, briefly explain them
+- Be precise about what the evidence actually shows vs. what's speculated
+- If the evidence is weak or limited, say so clearly
+- Don't oversell or undersell the findings
+
+Respond with ONLY the structured summary, no preamble."""
+
+
+def _load_deep_dive_cache() -> dict:
+    """Load the deep dive summaries cache."""
+    if not DEEP_DIVE_CACHE_PATH.exists():
+        return {}
+    try:
+        with DEEP_DIVE_CACHE_PATH.open() as fh:
+            return json_module.load(fh)
+    except json_module.JSONDecodeError:
+        return {}
+
+
+def _save_deep_dive_cache(cache: dict) -> None:
+    """Save the deep dive summaries cache."""
+    DEEP_DIVE_CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with DEEP_DIVE_CACHE_PATH.open("w") as fh:
+        json_module.dump(cache, fh, indent=2)
+
+
+def _build_research_query(claim_data: dict) -> str:
+    """
+    Build a research query from claim data.
+    Uses the pre-computed research_query if available, otherwise builds from claim text + tags.
+    """
+    # Prefer the pre-computed research_query from Gemini claim detection
+    if claim_data.get("research_query"):
+        return claim_data["research_query"]
+
+    # Fallback: build query from claim text and context tags
+    claim_text = claim_data.get("claim_text", "")
+    context_tags = claim_data.get("context_tags") or {}
+
+    query_parts = []
+
+    # Add context tags
+    for tag_key in ("organism", "mechanism", "interaction", "concept"):
+        if context_tags.get(tag_key):
+            query_parts.append(context_tags[tag_key].lower())
+
+    # Add key terms from claim text (words > 5 chars, excluding stopwords)
+    stopwords = {"there", "these", "their", "about", "being", "could", "would", "should", "which", "through"}
+    claim_words = [
+        w.lower().strip(".,;:\"'")
+        for w in claim_text.split()
+        if len(w) > 5 and w.lower() not in stopwords
+    ]
+    query_parts.extend(claim_words[:5])
+
+    # Always include "Levin" for this corpus
+    query_parts.append("Levin")
+
+    # Deduplicate while preserving order
+    seen = set()
+    deduped = []
+    for part in query_parts:
+        if part and part not in seen:
+            deduped.append(part)
+            seen.add(part)
+
+    return " ".join(deduped) if deduped else claim_text[:100]
+
+
+def _format_rag_results_for_prompt(
+    rag_results: list,
+    papers_collection: dict
+) -> str:
+    """Format RAG results into a readable summary for the Gemini prompt."""
+    if not rag_results:
+        return "No matching papers found in the corpus. The evidence base for this claim is limited or the corpus does not cover this topic."
+
+    lines = []
+    for i, result in enumerate(rag_results[:7], 1):  # Limit to top 7 chunks
+        paper_id = result.get("paper_id", "")
+        paper_title = result.get("paper_title", "Unknown paper")
+        section = result.get("section", result.get("section_heading", ""))
+        text_chunk = result.get("text", "")[:600]  # Limit chunk size
+        year = result.get("year", "")
+
+        # Try to get additional metadata from papers collection
+        paper_data = papers_collection.get(paper_id, {})
+        metadata = paper_data.get("metadata", {})
+        citations = metadata.get("citationCount", 0)
+        venue = metadata.get("venue", "")
+        abstract = metadata.get("abstract", "")[:300] if metadata.get("abstract") else ""
+
+        lines.append(f"""
+---
+**Paper {i}: {paper_title}**
+- Year: {year or metadata.get('year', 'N/A')} | Citations: {citations} | Venue: {venue}
+- Section: {section}
+- Relevant excerpt: "{text_chunk}..."
+{f'- Abstract: {abstract}...' if abstract else ''}
+""")
+
+    return "\n".join(lines)
+
+
+def _call_gemini_for_deep_dive(prompt: str, model_name: str) -> str:
+    """Call Gemini to generate the deep dive summary."""
+    _ensure_gemini_client_ready()
+    response = _GENAI_CLIENT.models.generate_content(
+        model=model_name,
+        contents=prompt,
+    )
+    # Extract text from response
+    if hasattr(response, "text"):
+        return response.text
+    if hasattr(response, "candidates") and response.candidates:
+        candidate = response.candidates[0]
+        if hasattr(candidate, "content") and hasattr(candidate.content, "parts"):
+            return "".join(part.text for part in candidate.content.parts if hasattr(part, "text"))
+    raise ValueError("Could not extract text from Gemini response")
 
 
 class EpisodeMetadata(BaseModel):
@@ -885,6 +1067,165 @@ async def get_claim_context(params: GetClaimContextInput) -> dict[str, Any]:
     except Exception as e:
         return {
             "error": f"Error getting claim context: {str(e)}"
+        }
+
+
+# ============================================================================
+# Deep Dive Summary Generation Tool
+# ============================================================================
+
+class GenerateDeepDiveSummaryInput(BaseModel):
+    """Input for generating a deep dive summary."""
+    claim_id: str = Field(
+        ...,
+        description="The claim ID in format 'segment_key-index' (e.g., 'lex_325|00:00:00.160|1-0')"
+    )
+    episode_id: str = Field(
+        default="lex_325",
+        description="The episode ID"
+    )
+    n_results: int = Field(
+        default=7,
+        description="Number of RAG results to retrieve (default: 7)"
+    )
+    force_regenerate: bool = Field(
+        default=False,
+        description="If True, regenerate even if cached summary exists"
+    )
+
+
+@mcp.tool()
+async def generate_deep_dive_summary(params: GenerateDeepDiveSummaryInput) -> dict[str, Any]:
+    """
+    Generate a deep dive summary for a scientific claim using RAG retrieval + Gemini synthesis.
+
+    Flow:
+    1. Load claim from cache
+    2. Build research query from claim data
+    3. Query ChromaDB for relevant paper chunks
+    4. Enrich with paper metadata
+    5. Call Gemini to synthesize a structured summary
+    6. Cache and return the result
+    """
+    try:
+        # Check cache first (unless force_regenerate)
+        cache_key = f"{params.episode_id}:{params.claim_id}"
+
+        if not params.force_regenerate:
+            cache = _load_deep_dive_cache()
+            if cache_key in cache:
+                return {
+                    "claim_id": params.claim_id,
+                    "summary": cache[cache_key]["summary"],
+                    "cached": True,
+                    "generated_at": cache[cache_key].get("generated_at", "unknown"),
+                    "rag_query": cache[cache_key].get("rag_query", ""),
+                    "papers_retrieved": cache[cache_key].get("papers_retrieved", 0),
+                }
+
+        # Step 1: Load claim from cache
+        claims_cache = _load_claims_cache()
+
+        # Parse claim_id
+        parts = params.claim_id.rsplit("-", 1)
+        if len(parts) != 2:
+            return {"error": f"Invalid claim_id format: {params.claim_id}"}
+
+        segment_key = parts[0]
+        try:
+            claim_index = int(parts[1])
+        except ValueError:
+            return {"error": f"Invalid claim index in claim_id: {params.claim_id}"}
+
+        # Get segment and claim data
+        segments = claims_cache.get("segments", {})
+        segment_data = segments.get(segment_key)
+
+        if not segment_data:
+            return {"error": f"Segment not found: {segment_key}"}
+
+        claims_list = segment_data.get("claims", [])
+        if claim_index >= len(claims_list):
+            return {"error": f"Claim index {claim_index} out of range"}
+
+        claim_data = claims_list[claim_index]
+
+        # Step 2: Build research query
+        research_query = _build_research_query(claim_data)
+
+        # Step 3: Query ChromaDB
+        vs = get_vectorstore()
+        rag_results_raw = vs.search(research_query, n_results=params.n_results)
+
+        # Parse RAG results
+        docs = rag_results_raw.get("documents", [[]])[0]
+        metas = rag_results_raw.get("metadatas", [[]])[0]
+
+        rag_results = []
+        for doc, meta in zip(docs, metas):
+            rag_results.append({
+                "text": doc,
+                "paper_id": meta.get("paper_id", ""),
+                "paper_title": meta.get("paper_title", ""),
+                "section": meta.get("section_heading", ""),
+                "year": meta.get("year", ""),
+            })
+
+        # Step 4: Load papers collection for metadata enrichment
+        papers_collection = _load_papers_collection()
+
+        # Step 5: Format evidence and build prompt
+        evidence_summary = _format_rag_results_for_prompt(rag_results, papers_collection)
+
+        prompt = DEEP_DIVE_PROMPT_TEMPLATE.format(
+            claim_text=claim_data.get("claim_text", ""),
+            speaker_stance=claim_data.get("speaker_stance", "assertion"),
+            needs_backing=claim_data.get("needs_backing_because", "No specific reason provided"),
+            evidence_summary=evidence_summary,
+        )
+
+        # Step 6: Call Gemini
+        summary = await asyncio.to_thread(
+            _call_gemini_for_deep_dive,
+            prompt,
+            GEMINI_MODEL_DEFAULT,
+        )
+
+        # Step 7: Cache the result
+        from datetime import datetime
+        cache = _load_deep_dive_cache()
+        cache[cache_key] = {
+            "summary": summary,
+            "generated_at": datetime.utcnow().isoformat(),
+            "rag_query": research_query,
+            "papers_retrieved": len(rag_results),
+            "claim_text": claim_data.get("claim_text", ""),
+        }
+        _save_deep_dive_cache(cache)
+
+        # Return structured response
+        return {
+            "claim_id": params.claim_id,
+            "summary": summary,
+            "cached": False,
+            "generated_at": cache[cache_key]["generated_at"],
+            "rag_query": research_query,
+            "papers_retrieved": len(rag_results),
+            "papers": [
+                {
+                    "title": r.get("paper_title", ""),
+                    "section": r.get("section", ""),
+                    "year": r.get("year", ""),
+                }
+                for r in rag_results[:5]
+            ],
+        }
+
+    except Exception as e:
+        import traceback
+        return {
+            "error": f"Error generating deep dive summary: {str(e)}",
+            "traceback": traceback.format_exc(),
         }
 
 

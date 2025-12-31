@@ -36,6 +36,9 @@ CREATE TABLE IF NOT EXISTS claims (
     -- Episode reference
     podcast_id TEXT NOT NULL REFERENCES episodes(podcast_id) ON DELETE CASCADE,
     
+    -- Segment reference (for MCP server compatibility)
+    segment_claim_id TEXT UNIQUE,      -- Format: "segment_key-index" (e.g., "lex_325|00:00:00.160|1-0")
+    
     -- Timing information
     timestamp TEXT,                    -- Human readable: "00:15:23"
     start_ms BIGINT,                   -- Start time in milliseconds
@@ -76,6 +79,7 @@ CREATE INDEX IF NOT EXISTS idx_claims_podcast ON claims(podcast_id);
 CREATE INDEX IF NOT EXISTS idx_claims_timestamp ON claims(start_ms) WHERE start_ms IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_claims_paper ON claims(paper_id) WHERE paper_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_claims_distilled ON claims(podcast_id) WHERE distilled_claim IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_claims_segment_id ON claims(segment_claim_id) WHERE segment_claim_id IS NOT NULL;
 
 -- GIN index for JSONB context_tags (fast tag queries)
 CREATE INDEX IF NOT EXISTS idx_claims_context_tags ON claims USING GIN (context_tags);

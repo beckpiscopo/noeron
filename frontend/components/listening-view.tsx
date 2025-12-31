@@ -41,6 +41,7 @@ export interface Claim {
   id: string | number
   timestamp: number
   // New fields from Supabase
+  segment_claim_id?: string  // Format: "segment_key-index" (e.g., "lex_325|00:00:00.160|1-0")
   claim_text?: string
   distilled_claim?: string
   distilled_word_count?: number
@@ -85,11 +86,13 @@ function getClaimFullText(claim: Claim): string {
 
 // Helper to format timestamp
 function formatTimestamp(claim: Claim): string {
-  if (claim.timestamp) {
-    return formatTime(claim.timestamp)
-  }
+  // Always use start_ms for precise timing (milliseconds)
   if (claim.start_ms) {
     return formatTime(claim.start_ms / 1000)
+  }
+  // Fallback to timestamp field (in seconds)
+  if (claim.timestamp) {
+    return formatTime(claim.timestamp)
   }
   return "00:00"
 }
@@ -276,6 +279,19 @@ export function ListeningView({
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const currentClaimRef = useRef<HTMLDivElement | null>(null)
   
+  // Audio offset correction (in milliseconds)
+  // Audio offset in milliseconds - adjust this value to sync claims with audio
+  // This can vary per podcast if audio files have different intro/edits
+  // Positive: claims appear EARLIER (subtract from current time)
+  // Negative: claims appear LATER (add to current time)
+  // 
+  // TO CALIBRATE:
+  // 1. Note a claim's text and its timestamp (e.g., "Xenobots..." at 8:00 = 480s)
+  // 2. Play the podcast and note when you actually hear it (e.g., 9:17 = 557s)
+  // 3. Calculate: offset_ms = -(actual_time - transcript_time) * 1000
+  //    Example: -(557 - 480) * 1000 = -77000
+  const AUDIO_OFFSET_MS = 0 // Adjust based on manual testing
+  
   const handlePlayPause = () => {
     setIsPlaying(!isPlaying)
   }
@@ -338,7 +354,10 @@ export function ListeningView({
     return aTime - bTime
   })
   
-  const currentTimeMs = episode.currentTime * 1000
+  // Apply audio offset correction
+  // The raw audio time needs to be adjusted to match the transcript timestamps
+  // Ensure we don't go negative (audio before transcript starts)
+  const currentTimeMs = Math.max(0, (episode.currentTime * 1000) + AUDIO_OFFSET_MS)
   
   // Find the current claim: the most recent claim that has started
   // A claim is "current" from when it starts until the next claim starts
@@ -366,7 +385,9 @@ export function ListeningView({
   const getRelativeTime = (claim: Claim) => {
     const claimStartMs = claim.start_ms ?? 0
     const claimTimeSeconds = claimStartMs / 1000
-    const diff = episode.currentTime - claimTimeSeconds
+    // Use the offset-corrected current time (don't go negative)
+    const adjustedCurrentTime = Math.max(0, episode.currentTime + (AUDIO_OFFSET_MS / 1000))
+    const diff = adjustedCurrentTime - claimTimeSeconds
     
     if (diff < 60) return "JUST NOW"
     const mins = Math.floor(diff / 60)
@@ -375,16 +396,17 @@ export function ListeningView({
   
   // Debug logging - enhanced with more details
   useEffect(() => {
+    const adjustedCurrentTime = Math.max(0, episode.currentTime + (AUDIO_OFFSET_MS / 1000))
     if (currentClaim) {
       const claimStartMs = currentClaim.start_ms ?? 0
       const claimTimeSeconds = claimStartMs / 1000
       const displayText = currentClaim.distilled_claim || currentClaim.title || currentClaim.claim_text || "Unknown"
-      const timeDiff = episode.currentTime - claimTimeSeconds
-      console.log(`[Sync Debug] Current Time: ${episode.currentTime.toFixed(2)}s (${currentTimeMs}ms) | Claim Start: ${claimTimeSeconds.toFixed(2)}s (${claimStartMs}ms) | Diff: ${timeDiff.toFixed(2)}s | "${displayText.substring(0, 50)}..." | Past Claims: ${pastClaims.length}`)
+      const timeDiff = adjustedCurrentTime - claimTimeSeconds
+      console.log(`[Sync Debug] Raw Audio: ${episode.currentTime.toFixed(2)}s | Adjusted: ${adjustedCurrentTime.toFixed(2)}s (${currentTimeMs}ms) | Claim: ${claimTimeSeconds.toFixed(2)}s (${claimStartMs}ms) | Diff: ${timeDiff.toFixed(2)}s | "${displayText.substring(0, 50)}..." | Past: ${pastClaims.length}`)
     } else {
-      console.log(`[Sync Debug] Current Time: ${episode.currentTime.toFixed(2)}s (${currentTimeMs}ms) | No current claim | Total valid claims: ${sortedClaims.length}`)
+      console.log(`[Sync Debug] Raw Audio: ${episode.currentTime.toFixed(2)}s | Adjusted: ${adjustedCurrentTime.toFixed(2)}s (${currentTimeMs}ms) | No current claim | Valid claims: ${sortedClaims.length}`)
     }
-  }, [currentClaim?.id, episode.currentTime, pastClaims.length, currentTimeMs, sortedClaims.length])
+  }, [currentClaim?.id, episode.currentTime, pastClaims.length, currentTimeMs, sortedClaims.length, AUDIO_OFFSET_MS])
 
   useEffect(() => {
     const audio = audioRef.current
