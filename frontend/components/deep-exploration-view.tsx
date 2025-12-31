@@ -111,6 +111,33 @@ interface DeepDiveSummary {
   error?: string
 }
 
+// AI-generated evidence threads (narrative research arcs)
+interface ThreadMilestone {
+  year: number
+  paper_title: string
+  paper_id: string
+  finding: string
+}
+
+interface AIEvidenceThread {
+  name: string
+  type: "experimental_validation" | "theoretical_framework" | "mechanism_discovery" | "cross_domain"
+  strength: "foundational" | "developing" | "speculative"
+  milestones: ThreadMilestone[]
+  narrative: string
+}
+
+interface EvidenceThreadsResponse {
+  claim_id: string
+  threads: AIEvidenceThread[]
+  cached: boolean
+  generated_at: string
+  papers_analyzed: number
+  eligible: boolean
+  eligibility_reason: string
+  error?: string
+}
+
 export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewSourcePaper }: DeepExplorationViewProps) {
   const [synthesisMode, setSynthesisMode] = useState<"simplified" | "technical" | "ai_summary" | "raw">("technical")
   const [contextData, setContextData] = useState<ClaimContextData | null>(null)
@@ -121,6 +148,11 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
   const [deepDiveSummary, setDeepDiveSummary] = useState<DeepDiveSummary | null>(null)
   const [isLoadingDeepDive, setIsLoadingDeepDive] = useState(false)
   const [deepDiveError, setDeepDiveError] = useState<string | null>(null)
+
+  // AI Evidence threads state (narrative research arcs)
+  const [aiEvidenceThreads, setAiEvidenceThreads] = useState<EvidenceThreadsResponse | null>(null)
+  const [isLoadingThreads, setIsLoadingThreads] = useState(false)
+  const [threadsError, setThreadsError] = useState<string | null>(null)
 
   // Fetch claim context data on mount
   useEffect(() => {
@@ -200,6 +232,34 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
       console.error("Error fetching deep dive summary:", err)
     } finally {
       setIsLoadingDeepDive(false)
+    }
+  }
+
+  // Function to fetch AI evidence threads on-demand
+  const fetchEvidenceThreads = async (forceRegenerate = false) => {
+    if (!claim.id.includes("-")) return
+
+    setIsLoadingThreads(true)
+    setThreadsError(null)
+
+    try {
+      const data = await callMcpTool<EvidenceThreadsResponse>("generate_evidence_threads", {
+        claim_id: claim.id,
+        episode_id: episodeId,
+        n_results: 10,
+        force_regenerate: forceRegenerate,
+      })
+
+      if (data.error) {
+        setThreadsError(data.error)
+      } else {
+        setAiEvidenceThreads(data)
+      }
+    } catch (err) {
+      setThreadsError(err instanceof Error ? err.message : "Failed to generate evidence threads")
+      console.error("Error fetching evidence threads:", err)
+    } finally {
+      setIsLoadingThreads(false)
     }
   }
 
@@ -301,9 +361,19 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
                   </span>
                   <span className="text-xs text-gray-400">Triggered at {formatTime(claim.timestamp)}</span>
                 </div>
-                <h1 className="text-2xl md:text-3xl font-bold leading-tight mb-4">
-                  "{synthesis?.claim_text || claim.title}"
+
+                {/* Distilled claim as header */}
+                <h1 className="text-2xl md:text-3xl font-bold leading-tight mb-4 text-white">
+                  {claim.title}
                 </h1>
+
+                {/* Full quote from transcript */}
+                {synthesis?.claim_text && synthesis.claim_text !== claim.title && (
+                  <p className="text-base text-gray-300 leading-relaxed mb-6">
+                    "{synthesis.claim_text}"
+                  </p>
+                )}
+
                 <div className="flex items-center gap-3">
                   <div className="h-8 w-8 rounded-full bg-gray-700" />
                   <p className="text-sm font-medium text-gray-300">
@@ -636,58 +706,225 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
 
         {/* Right Column: Evidence & Actions */}
         <div className="lg:col-span-4 flex flex-col gap-6">
-          {/* Evidence Threads */}
+          {/* AI Evidence Threads */}
           <div className="bg-[#111813] border border-[#28392e] rounded-xl p-5 h-fit">
-            <div className="flex items-center gap-2 mb-4">
-              <GitBranch className="w-5 h-5 text-[#FDA92B]" />
-              <h3 className="font-bold text-lg">Evidence Threads</h3>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <GitBranch className="w-5 h-5 text-[#FDA92B]" />
+                <h3 className="font-bold text-lg">Evidence Threads</h3>
+              </div>
+              {!aiEvidenceThreads && !isLoadingThreads && (
+                <button
+                  onClick={() => fetchEvidenceThreads()}
+                  className="text-xs text-[#FDA92B] hover:underline flex items-center gap-1"
+                >
+                  <Sparkles className="w-3 h-3" />
+                  Generate
+                </button>
+              )}
             </div>
-            {evidenceThreads.length > 0 ? (
+
+            {/* Loading State */}
+            {isLoadingThreads && (
+              <div className="flex flex-col items-center justify-center py-8">
+                <Loader2 className="w-6 h-6 text-[#FDA92B] animate-spin mb-3" />
+                <p className="text-gray-400 text-sm">Analyzing research patterns...</p>
+                <p className="text-gray-500 text-xs mt-1">Identifying narrative threads</p>
+              </div>
+            )}
+
+            {/* Error State */}
+            {threadsError && !isLoadingThreads && (
+              <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4">
+                <p className="text-red-400 text-xs">{threadsError}</p>
+                <button
+                  onClick={() => fetchEvidenceThreads(true)}
+                  className="mt-2 text-xs text-[#FDA92B] hover:underline"
+                >
+                  Try again
+                </button>
+              </div>
+            )}
+
+            {/* AI Threads Content */}
+            {aiEvidenceThreads && !isLoadingThreads && !threadsError && (
               <>
-                <div className="relative pl-2 border-l border-[#28392e] ml-2 space-y-6">
-                  {evidenceThreads.map((thread, index) => (
-                    <div
-                      key={index}
-                      className={`relative pl-6 group cursor-pointer ${thread.highlighted ? "" : "opacity-70 hover:opacity-100"} transition-opacity`}
-                      onClick={() => {
-                        if (thread.source_link) {
-                          window.open(thread.source_link, "_blank")
-                        }
-                      }}
-                    >
-                      {thread.highlighted ? (
-                        <div className="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-[#FDA92B] border-4 border-[#102216] shadow-[0_0_0_1px_#FDA92B]" />
-                      ) : (
-                        <div className="absolute -left-[5px] top-1.5 w-2 h-2 rounded-full bg-[#3d5646]" />
-                      )}
-                      <p className="text-[10px] font-mono text-[#FDA92B] mb-1 tracking-wider uppercase">
-                        {thread.type === "primary"
-                          ? "Primary Source"
-                          : thread.type === "replication"
-                            ? "Replication"
-                            : "Counter-Evidence"}
-                      </p>
-                      <h4 className="font-medium text-sm mb-1 group-hover:text-[#FDA92B] transition-colors">
-                        {thread.title}
-                      </h4>
-                      <p className="text-gray-400 text-xs mb-1">{thread.description}</p>
-                      {thread.citation_count > 0 && (
-                        <p className="text-gray-500 text-[10px]">{thread.citation_count} citations</p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-                <div className="mt-6 pt-4 border-t border-[#28392e]">
-                  <button className="w-full py-2 flex items-center justify-center gap-2 text-xs font-medium text-gray-400 hover:text-white transition-colors">
-                    <span>View Full Citation Map</span>
-                    <ExternalLink className="w-3 h-3" />
+                {/* Metadata bar */}
+                <div className="flex items-center justify-between text-[10px] text-gray-500 pb-3 mb-4 border-b border-[#28392e]">
+                  <span>{aiEvidenceThreads.papers_analyzed} papers analyzed</span>
+                  <button
+                    onClick={() => fetchEvidenceThreads(true)}
+                    className="text-[#FDA92B] hover:underline flex items-center gap-1"
+                  >
+                    <ArrowUp className="w-2.5 h-2.5 rotate-45" />
+                    Regenerate
                   </button>
                 </div>
+
+                {aiEvidenceThreads.threads.length > 0 ? (
+                  <div className="space-y-6">
+                    {aiEvidenceThreads.threads.map((thread, threadIndex) => (
+                      <div key={threadIndex} className="relative">
+                        {/* Thread Header */}
+                        <div className="flex items-start gap-3 mb-3">
+                          <div className={`mt-0.5 size-6 rounded flex items-center justify-center shrink-0 ${
+                            thread.type === "experimental_validation" ? "bg-green-500/20 text-green-400" :
+                            thread.type === "mechanism_discovery" ? "bg-blue-500/20 text-blue-400" :
+                            thread.type === "theoretical_framework" ? "bg-purple-500/20 text-purple-400" :
+                            "bg-orange-500/20 text-orange-400"
+                          }`}>
+                            {thread.type === "experimental_validation" ? (
+                              <FlaskConical className="w-3.5 h-3.5" />
+                            ) : thread.type === "mechanism_discovery" ? (
+                              <GitBranch className="w-3.5 h-3.5" />
+                            ) : thread.type === "theoretical_framework" ? (
+                              <Sparkles className="w-3.5 h-3.5" />
+                            ) : (
+                              <TrendingUp className="w-3.5 h-3.5" />
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-medium text-sm text-white leading-tight">{thread.name}</h4>
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className={`text-[10px] px-1.5 py-0.5 rounded ${
+                                thread.strength === "foundational" ? "bg-green-500/20 text-green-400" :
+                                thread.strength === "developing" ? "bg-yellow-500/20 text-yellow-400" :
+                                "bg-gray-500/20 text-gray-400"
+                              }`}>
+                                {thread.strength}
+                              </span>
+                              <span className="text-[10px] text-gray-500 capitalize">
+                                {thread.type.replace(/_/g, " ")}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Timeline Milestones */}
+                        <div className="relative pl-4 ml-3 border-l border-[#28392e] space-y-3">
+                          {thread.milestones.map((milestone, milestoneIndex) => (
+                            <div key={milestoneIndex} className="relative pl-4 group">
+                              {/* Timeline dot */}
+                              <div className="absolute -left-[7px] top-1.5 w-2.5 h-2.5 rounded-full bg-[#28392e] border-2 border-[#FDA92B] group-hover:bg-[#FDA92B] transition-colors" />
+
+                              {/* Year badge */}
+                              <span className="text-[10px] font-mono text-[#FDA92B] font-bold">
+                                {milestone.year}
+                              </span>
+
+                              {/* Finding */}
+                              <p className="text-xs text-gray-300 mt-0.5 leading-relaxed">
+                                {milestone.finding}
+                              </p>
+
+                              {/* Paper reference */}
+                              <p className="text-[10px] text-gray-500 mt-1 truncate" title={milestone.paper_title}>
+                                {milestone.paper_title.length > 50
+                                  ? milestone.paper_title.slice(0, 50) + "..."
+                                  : milestone.paper_title}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Thread Narrative */}
+                        <div className="mt-3 ml-3 pl-4 border-l border-transparent">
+                          <p className="text-xs text-gray-400 italic leading-relaxed">
+                            {thread.narrative}
+                          </p>
+                        </div>
+
+                        {/* Divider between threads */}
+                        {threadIndex < aiEvidenceThreads.threads.length - 1 && (
+                          <div className="mt-5 mb-2 border-t border-[#28392e]" />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-6">
+                    <p className="text-gray-500 text-sm">
+                      {!aiEvidenceThreads.eligible ? (
+                        <>
+                          <span className="block mb-1">Unable to generate threads</span>
+                          <span className="text-xs text-gray-600">
+                            {aiEvidenceThreads.eligibility_reason.includes("insufficient_papers")
+                              ? "Need 4+ papers to identify patterns"
+                              : aiEvidenceThreads.eligibility_reason.includes("insufficient_year")
+                                ? "Need papers spanning 3+ years"
+                                : "Insufficient data for narrative analysis"}
+                          </span>
+                        </>
+                      ) : (
+                        "No distinct evidence threads identified"
+                      )}
+                    </p>
+                  </div>
+                )}
               </>
-            ) : (
-              <p className="text-gray-500 text-sm text-center py-8">
-                No evidence threads available for this claim.
-              </p>
+            )}
+
+            {/* Initial state - show basic evidence if no AI threads */}
+            {!aiEvidenceThreads && !isLoadingThreads && !threadsError && (
+              <>
+                {evidenceThreads.length > 0 ? (
+                  <>
+                    <div className="relative pl-2 border-l border-[#28392e] ml-2 space-y-6">
+                      {evidenceThreads.slice(0, 3).map((thread, index) => (
+                        <div
+                          key={index}
+                          className={`relative pl-6 group cursor-pointer ${thread.highlighted ? "" : "opacity-70 hover:opacity-100"} transition-opacity`}
+                          onClick={() => {
+                            if (thread.source_link) {
+                              window.open(thread.source_link, "_blank")
+                            }
+                          }}
+                        >
+                          {thread.highlighted ? (
+                            <div className="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-[#FDA92B] border-4 border-[#102216] shadow-[0_0_0_1px_#FDA92B]" />
+                          ) : (
+                            <div className="absolute -left-[5px] top-1.5 w-2 h-2 rounded-full bg-[#3d5646]" />
+                          )}
+                          <p className="text-[10px] font-mono text-[#FDA92B] mb-1 tracking-wider uppercase">
+                            {thread.type === "primary"
+                              ? "Primary Source"
+                              : thread.type === "replication"
+                                ? "Replication"
+                                : "Counter-Evidence"}
+                          </p>
+                          <h4 className="font-medium text-sm mb-1 group-hover:text-[#FDA92B] transition-colors">
+                            {thread.title}
+                          </h4>
+                          <p className="text-gray-400 text-xs mb-1">{thread.description}</p>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="mt-4 pt-4 border-t border-[#28392e]">
+                      <button
+                        onClick={() => fetchEvidenceThreads()}
+                        className="w-full py-2 flex items-center justify-center gap-2 text-xs font-medium bg-[#1e2e24] hover:bg-[#28392e] text-[#FDA92B] rounded-lg transition-colors"
+                      >
+                        <Sparkles className="w-3.5 h-3.5" />
+                        <span>Generate Research Narratives</span>
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-center py-6">
+                    <GitBranch className="w-8 h-8 text-gray-600 mx-auto mb-3" />
+                    <p className="text-gray-500 text-sm mb-3">
+                      No evidence threads available yet
+                    </p>
+                    <button
+                      onClick={() => fetchEvidenceThreads()}
+                      className="px-4 py-2 text-xs font-medium bg-[#1e2e24] hover:bg-[#28392e] text-[#FDA92B] rounded-lg transition-colors inline-flex items-center gap-2"
+                    >
+                      <Sparkles className="w-3.5 h-3.5" />
+                      Generate with AI
+                    </button>
+                  </div>
+                )}
+              </>
             )}
           </div>
 

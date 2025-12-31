@@ -50,6 +50,7 @@ def get_vectorstore():
 EPISODES_FILE_PATH = Path(__file__).resolve().parent.parent.parent / "data" / "episodes.json"
 CLAIMS_CACHE_PATH = Path(__file__).resolve().parent.parent.parent / "cache" / "podcast_lex_325_claims_with_timing.json"
 DEEP_DIVE_CACHE_PATH = Path(__file__).resolve().parent.parent.parent / "cache" / "deep_dive_summaries.json"
+EVIDENCE_THREADS_CACHE_PATH = Path(__file__).resolve().parent.parent.parent / "cache" / "evidence_threads.json"
 
 
 # ============================================================================
@@ -218,6 +219,268 @@ def _call_gemini_for_deep_dive(prompt: str, model_name: str) -> str:
         if hasattr(candidate, "content") and hasattr(candidate.content, "parts"):
             return "".join(part.text for part in candidate.content.parts if hasattr(part, "text"))
     raise ValueError("Could not extract text from Gemini response")
+
+
+# ============================================================================
+# Evidence Threads Generation
+# ============================================================================
+
+EVIDENCE_THREAD_PROMPT = """You are analyzing scientific papers to identify distinct "evidence threads" - coherent research narratives that trace how understanding of a claim developed over time.
+
+CLAIM: "{claim_text}"
+
+RETRIEVED PAPERS:
+{papers_json}
+
+TASK:
+Identify 2-4 distinct evidence threads that show how scientific understanding of this claim was built. Look for:
+
+1. **Experimental Progressions**: Initial observations → mechanism discovery → validation → refinement
+2. **Theoretical Developments**: Concept introduction → formalization → empirical testing → application
+3. **Cross-Domain Generalizations**: Finding in one system → replication in other systems → general principle
+4. **Converging Evidence**: Different research approaches reaching same conclusion
+
+THREAD TYPES:
+- experimental_validation: Direct experimental tests of the claim
+- theoretical_framework: Conceptual/mathematical models supporting the claim
+- mechanism_discovery: Research uncovering how/why the phenomenon works
+- cross_domain: Evidence from multiple organisms/systems showing generality
+
+THREAD STRENGTH:
+- foundational: Well-established with multiple replications and broad acceptance
+- developing: Emerging evidence with some replication but ongoing investigation
+- speculative: Initial findings or theoretical proposals needing more validation
+
+OUTPUT FORMAT (valid JSON only):
+{{
+  "threads": [
+    {{
+      "name": "Brief thread name (3-6 words)",
+      "type": "experimental_validation|theoretical_framework|mechanism_discovery|cross_domain",
+      "strength": "foundational|developing|speculative",
+      "milestones": [
+        {{
+          "year": 2020,
+          "paper_title": "Exact title from papers above",
+          "paper_id": "ID from papers above",
+          "finding": "One concise sentence: what this paper contributed to the thread"
+        }}
+      ],
+      "narrative": "2-3 sentences describing the overall research arc of this thread"
+    }}
+  ]
+}}
+
+CRITICAL RULES:
+- Only cite papers from the RETRIEVED PAPERS list above
+- Include 2-4 milestones per thread (not more)
+- Order milestones chronologically within each thread
+- Each milestone must reference a real paper from the list
+- If you cannot identify at least 2 distinct threads, return {{"threads": []}}
+- Output ONLY valid JSON, no markdown formatting or preamble
+"""
+
+
+def _load_evidence_threads_cache() -> dict:
+    """Load the evidence threads cache."""
+    if not EVIDENCE_THREADS_CACHE_PATH.exists():
+        return {}
+    try:
+        with EVIDENCE_THREADS_CACHE_PATH.open() as fh:
+            return json_module.load(fh)
+    except json_module.JSONDecodeError:
+        return {}
+
+
+def _save_evidence_threads_cache(cache: dict) -> None:
+    """Save the evidence threads cache."""
+    EVIDENCE_THREADS_CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with EVIDENCE_THREADS_CACHE_PATH.open("w") as fh:
+        json_module.dump(cache, fh, indent=2)
+
+
+def _should_generate_threads(papers: list[dict]) -> tuple[bool, str]:
+    """
+    Check if we have enough papers to generate meaningful evidence threads.
+
+    Returns:
+        (should_generate, reason) tuple
+    """
+    if len(papers) < 4:
+        return False, f"insufficient_papers: need 4+, have {len(papers)}"
+
+    # Check for year spread
+    years = []
+    for paper in papers:
+        year = paper.get("year")
+        if year and isinstance(year, (int, str)):
+            try:
+                years.append(int(year))
+            except (ValueError, TypeError):
+                pass
+
+    if len(years) < 3:
+        return False, f"insufficient_year_data: only {len(years)} papers have years"
+
+    year_span = max(years) - min(years)
+    if year_span < 3:
+        return False, f"insufficient_year_span: only {year_span} years (need 3+)"
+
+    return True, "eligible"
+
+
+def _format_papers_for_thread_prompt(papers: list[dict], papers_collection: dict) -> str:
+    """Format papers as JSON for the thread generation prompt."""
+    formatted_papers = []
+
+    for paper in papers:
+        paper_id = paper.get("paper_id", "")
+        paper_title = paper.get("paper_title", "Unknown")
+        year = paper.get("year", "")
+        section = paper.get("section", paper.get("section_heading", ""))
+        text_excerpt = paper.get("text", "")[:400]  # Limit excerpt size
+
+        # Try to get additional metadata
+        paper_data = papers_collection.get(paper_id, {})
+        metadata = paper_data.get("metadata", {})
+        citations = metadata.get("citationCount", 0)
+        venue = metadata.get("venue", "")
+
+        # Get authors
+        authors = metadata.get("authors", [])
+        author_str = "Unknown"
+        if authors:
+            first_author = authors[0].get("name", "Unknown") if isinstance(authors[0], dict) else str(authors[0])
+            if len(authors) > 1:
+                author_str = f"{first_author} et al."
+            else:
+                author_str = first_author
+
+        formatted_papers.append({
+            "paper_id": paper_id,
+            "title": paper_title,
+            "year": year or metadata.get("year", "unknown"),
+            "authors": author_str,
+            "venue": venue,
+            "citations": citations,
+            "section": section,
+            "excerpt": text_excerpt,
+        })
+
+    return json_module.dumps(formatted_papers, indent=2)
+
+
+def _validate_threads(threads: list[dict], papers: list[dict]) -> list[dict]:
+    """
+    Validate that threads only reference papers that actually exist in our list.
+
+    Returns validated threads with invalid ones removed.
+    """
+    # Build set of valid paper IDs and titles
+    valid_paper_ids = set()
+    valid_paper_titles = set()
+
+    for paper in papers:
+        paper_id = paper.get("paper_id", "")
+        paper_title = paper.get("paper_title", "")
+        if paper_id:
+            valid_paper_ids.add(paper_id)
+        if paper_title:
+            valid_paper_titles.add(paper_title.lower().strip())
+
+    validated_threads = []
+    valid_types = {"experimental_validation", "theoretical_framework", "mechanism_discovery", "cross_domain"}
+    valid_strengths = {"foundational", "developing", "speculative"}
+
+    for thread in threads:
+        # Validate thread type
+        if thread.get("type") not in valid_types:
+            print(f"[THREAD_VALIDATION] Skipping thread with invalid type: {thread.get('type')}")
+            continue
+
+        # Validate thread strength
+        if thread.get("strength") not in valid_strengths:
+            print(f"[THREAD_VALIDATION] Skipping thread with invalid strength: {thread.get('strength')}")
+            continue
+
+        # Validate milestones
+        milestones = thread.get("milestones", [])
+        valid_milestones = []
+        seen_paper_ids = set()
+
+        for milestone in milestones:
+            paper_id = milestone.get("paper_id", "")
+            paper_title = milestone.get("paper_title", "").lower().strip()
+            year = milestone.get("year")
+
+            # Check year is plausible
+            if year and (year < 1990 or year > 2025):
+                print(f"[THREAD_VALIDATION] Skipping milestone with implausible year: {year}")
+                continue
+
+            # Check paper exists (by ID or title match)
+            paper_exists = paper_id in valid_paper_ids or paper_title in valid_paper_titles
+            if not paper_exists:
+                print(f"[THREAD_VALIDATION] Skipping milestone - paper not found: {milestone.get('paper_title')}")
+                continue
+
+            # Check for duplicates within thread
+            if paper_id and paper_id in seen_paper_ids:
+                print(f"[THREAD_VALIDATION] Skipping duplicate paper in thread: {paper_id}")
+                continue
+
+            if paper_id:
+                seen_paper_ids.add(paper_id)
+            valid_milestones.append(milestone)
+
+        # Only include thread if it has at least 2 valid milestones
+        if len(valid_milestones) >= 2:
+            thread["milestones"] = valid_milestones
+            validated_threads.append(thread)
+        else:
+            print(f"[THREAD_VALIDATION] Skipping thread '{thread.get('name')}' - only {len(valid_milestones)} valid milestones")
+
+    return validated_threads
+
+
+def _call_gemini_for_threads(prompt: str, model_name: str) -> dict:
+    """Call Gemini to generate evidence threads."""
+    _ensure_gemini_client_ready()
+    response = _GENAI_CLIENT.models.generate_content(
+        model=model_name,
+        contents=prompt,
+    )
+
+    # Extract text from response
+    text = None
+    if hasattr(response, "text"):
+        text = response.text
+    elif hasattr(response, "candidates") and response.candidates:
+        candidate = response.candidates[0]
+        if hasattr(candidate, "content") and hasattr(candidate.content, "parts"):
+            text = "".join(part.text for part in candidate.content.parts if hasattr(part, "text"))
+
+    if not text:
+        raise ValueError("Could not extract text from Gemini response")
+
+    # Clean up the response - remove markdown code blocks if present
+    text = text.strip()
+    if text.startswith("```json"):
+        text = text[7:]
+    elif text.startswith("```"):
+        text = text[3:]
+    if text.endswith("```"):
+        text = text[:-3]
+    text = text.strip()
+
+    # Parse JSON
+    try:
+        result = json_module.loads(text)
+        return result
+    except json_module.JSONDecodeError as e:
+        print(f"[GEMINI_THREADS] Failed to parse JSON: {e}")
+        print(f"[GEMINI_THREADS] Raw response: {text[:500]}")
+        return {"threads": [], "error": "Failed to parse Gemini response as JSON"}
 
 
 class EpisodeMetadata(BaseModel):
@@ -1225,6 +1488,191 @@ async def generate_deep_dive_summary(params: GenerateDeepDiveSummaryInput) -> di
         import traceback
         return {
             "error": f"Error generating deep dive summary: {str(e)}",
+            "traceback": traceback.format_exc(),
+        }
+
+
+# ============================================================================
+# Evidence Threads Generation Tool
+# ============================================================================
+
+class GenerateEvidenceThreadsInput(BaseModel):
+    """Input for generating evidence threads."""
+    claim_id: str = Field(
+        ...,
+        description="The claim ID in format 'segment_key-index' (e.g., 'lex_325|00:00:00.160|1-0')"
+    )
+    episode_id: str = Field(
+        default="lex_325",
+        description="The episode ID"
+    )
+    n_results: int = Field(
+        default=10,
+        description="Number of RAG results to retrieve for thread analysis (default: 10)"
+    )
+    force_regenerate: bool = Field(
+        default=False,
+        description="If True, regenerate even if cached threads exist"
+    )
+
+
+@mcp.tool()
+async def generate_evidence_threads(params: GenerateEvidenceThreadsInput) -> dict[str, Any]:
+    """
+    Generate evidence threads for a scientific claim - coherent research narratives
+    that trace how understanding of the claim developed over time.
+
+    Flow:
+    1. Load claim from cache
+    2. Build research query from claim data
+    3. Query ChromaDB for relevant papers (need 4+ with 3+ year span)
+    4. Check eligibility (enough papers with temporal spread)
+    5. Call Gemini to identify threads
+    6. Validate threads reference real papers
+    7. Cache and return
+    """
+    try:
+        from datetime import datetime
+
+        # Check cache first (unless force_regenerate)
+        cache_key = f"{params.episode_id}:{params.claim_id}"
+
+        if not params.force_regenerate:
+            cache = _load_evidence_threads_cache()
+            if cache_key in cache:
+                return {
+                    "claim_id": params.claim_id,
+                    "threads": cache[cache_key]["threads"],
+                    "cached": True,
+                    "generated_at": cache[cache_key].get("generated_at", "unknown"),
+                    "papers_analyzed": cache[cache_key].get("papers_analyzed", 0),
+                    "eligible": cache[cache_key].get("eligible", True),
+                    "eligibility_reason": cache[cache_key].get("eligibility_reason", "eligible"),
+                }
+
+        # Step 1: Load claim from cache
+        claims_cache = _load_claims_cache()
+
+        # Parse claim_id
+        parts = params.claim_id.rsplit("-", 1)
+        if len(parts) != 2:
+            return {"error": f"Invalid claim_id format: {params.claim_id}"}
+
+        segment_key = parts[0]
+        try:
+            claim_index = int(parts[1])
+        except ValueError:
+            return {"error": f"Invalid claim index in claim_id: {params.claim_id}"}
+
+        # Get segment and claim data
+        segments = claims_cache.get("segments", {})
+        segment_data = segments.get(segment_key)
+
+        if not segment_data:
+            return {"error": f"Segment not found: {segment_key}"}
+
+        claims_list = segment_data.get("claims", [])
+        if claim_index >= len(claims_list):
+            return {"error": f"Claim index {claim_index} out of range"}
+
+        claim_data = claims_list[claim_index]
+        claim_text = claim_data.get("claim_text", "")
+
+        # Step 2: Build research query
+        research_query = _build_research_query(claim_data)
+
+        # Step 3: Query ChromaDB with more results for thread analysis
+        vs = get_vectorstore()
+        rag_results_raw = vs.search(research_query, n_results=params.n_results)
+
+        # Parse RAG results
+        docs = rag_results_raw.get("documents", [[]])[0]
+        metas = rag_results_raw.get("metadatas", [[]])[0]
+
+        rag_results = []
+        for doc, meta in zip(docs, metas):
+            rag_results.append({
+                "text": doc,
+                "paper_id": meta.get("paper_id", ""),
+                "paper_title": meta.get("paper_title", ""),
+                "section": meta.get("section_heading", ""),
+                "year": meta.get("year", ""),
+            })
+
+        # Step 4: Check eligibility
+        eligible, eligibility_reason = _should_generate_threads(rag_results)
+
+        if not eligible:
+            # Cache and return empty result
+            result = {
+                "claim_id": params.claim_id,
+                "threads": [],
+                "cached": False,
+                "generated_at": datetime.utcnow().isoformat(),
+                "papers_analyzed": len(rag_results),
+                "eligible": False,
+                "eligibility_reason": eligibility_reason,
+            }
+
+            cache = _load_evidence_threads_cache()
+            cache[cache_key] = result
+            _save_evidence_threads_cache(cache)
+
+            return result
+
+        # Step 5: Load papers collection and format for prompt
+        papers_collection = _load_papers_collection()
+        papers_json = _format_papers_for_thread_prompt(rag_results, papers_collection)
+
+        # Build prompt
+        prompt = EVIDENCE_THREAD_PROMPT.format(
+            claim_text=claim_text,
+            papers_json=papers_json,
+        )
+
+        # Step 6: Call Gemini
+        gemini_result = await asyncio.to_thread(
+            _call_gemini_for_threads,
+            prompt,
+            GEMINI_MODEL_DEFAULT,
+        )
+
+        if gemini_result.get("error"):
+            return {
+                "claim_id": params.claim_id,
+                "threads": [],
+                "error": gemini_result["error"],
+                "papers_analyzed": len(rag_results),
+            }
+
+        raw_threads = gemini_result.get("threads", [])
+
+        # Step 7: Validate threads
+        validated_threads = _validate_threads(raw_threads, rag_results)
+
+        # Step 8: Cache and return
+        result = {
+            "claim_id": params.claim_id,
+            "threads": validated_threads,
+            "cached": False,
+            "generated_at": datetime.utcnow().isoformat(),
+            "papers_analyzed": len(rag_results),
+            "eligible": True,
+            "eligibility_reason": "eligible",
+            "raw_thread_count": len(raw_threads),
+            "validated_thread_count": len(validated_threads),
+        }
+
+        cache = _load_evidence_threads_cache()
+        cache[cache_key] = result
+        _save_evidence_threads_cache(cache)
+
+        return result
+
+    except Exception as e:
+        import traceback
+        return {
+            "error": f"Error generating evidence threads: {str(e)}",
             "traceback": traceback.format_exc(),
         }
 
