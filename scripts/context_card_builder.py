@@ -185,6 +185,7 @@ class ContextCard:
     confidence_score: Optional[float] = None
     context_tags: Optional[Dict[str, str]] = None
     claim_type: Optional[str] = None
+    distilled_claim: Optional[str] = None  # Short, scannable summary for UI
 
 CLAIM_FILLER_PREFIXES = [
     r"^(?:because\s+if|because|so|and|then|well|now|listen|look|um|ah|oh)\b[\s,]*"
@@ -768,6 +769,7 @@ def _serialize_context_card(card: ContextCard) -> dict:
         "confidence_score": card.confidence_score,
         "context_tags": card.context_tags,
         "claim_type": card.claim_type,
+        "distilled_claim": card.distilled_claim,
     }
 
 

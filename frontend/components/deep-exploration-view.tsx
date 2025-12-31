@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import {
   ArrowLeft,
   Quote,
@@ -16,8 +16,10 @@ import {
   Scissors,
   Mic,
   ArrowUp,
+  Loader2,
 } from "lucide-react"
 import { NoeronHeader } from "./noeron-header"
+import { callMcpTool } from "@/lib/api"
 
 interface DeepExplorationViewProps {
   episode: {
@@ -27,17 +29,120 @@ interface DeepExplorationViewProps {
     currentTime: number
   }
   claim: {
+    id: string
     title: string
     timestamp: number
     description: string
     source: string
   }
+  episodeId: string
   onBack: () => void
-  onViewSourcePaper: () => void // Added prop for onClick handler
+  onViewSourcePaper: () => void
 }
 
-export function DeepExplorationView({ episode, claim, onBack, onViewSourcePaper }: DeepExplorationViewProps) {
+interface EvidenceThread {
+  type: "primary" | "replication" | "counter"
+  title: string
+  paper_title: string
+  description: string
+  paper_id: string
+  source_link: string
+  confidence_score: number
+  citation_count: number
+  highlighted: boolean
+}
+
+interface RelatedConcept {
+  title: string
+  description: string
+  paper_title: string
+  paper_id: string
+  year: string | number
+}
+
+interface ClaimContextData {
+  claim_id: string
+  claim_data: {
+    claim_text: string
+    speaker_stance: string
+    needs_backing_because: string
+    claim_type: string
+    context_tags: Record<string, string>
+  }
+  evidence_threads: EvidenceThread[]
+  related_concepts: RelatedConcept[]
+  synthesis: {
+    claim_text: string
+    rationale: string
+    speaker_stance: string
+    claim_type: string
+    context_tags: Record<string, string>
+  }
+  confidence_metrics: {
+    confidence_level: string
+    confidence_score: number
+    consensus_percentage: number
+    evidence_counts: {
+      primary: number
+      replication: number
+      counter: number
+    }
+  }
+  segment_info: {
+    timestamp: string
+    speaker: string
+    transcript_excerpt: string
+  }
+  error?: string
+}
+
+export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewSourcePaper }: DeepExplorationViewProps) {
   const [synthesisMode, setSynthesisMode] = useState<"simplified" | "technical" | "raw">("technical")
+  const [contextData, setContextData] = useState<ClaimContextData | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  // Fetch claim context data on mount
+  useEffect(() => {
+    let cancelled = false
+
+    const fetchClaimContext = async () => {
+      setIsLoading(true)
+      setError(null)
+
+      try {
+        const data = await callMcpTool<ClaimContextData>("get_claim_context", {
+          claim_id: claim.id,
+          episode_id: episodeId,
+          include_related_concepts: true,
+          related_concepts_limit: 5,
+        })
+
+        if (cancelled) return
+
+        if (data.error) {
+          setError(data.error)
+        } else {
+          setContextData(data)
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : "Failed to load claim context")
+          console.error("Error fetching claim context:", err)
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false)
+        }
+      }
+    }
+
+    fetchClaimContext()
+
+    return () => {
+      cancelled = true
+    }
+  }, [claim.id, episodeId])
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60)
@@ -45,52 +150,23 @@ export function DeepExplorationView({ episode, claim, onBack, onViewSourcePaper 
     return `${mins}:${secs.toString().padStart(2, "0")}`
   }
 
-  const evidenceThreads = [
-    {
-      type: "primary",
-      title: "Brownlee et al., Nature (2001)",
-      description: "The foundational paper linking hyperglycemia to superoxide overproduction.",
-      highlighted: true,
-    },
-    {
-      type: "replication",
-      title: "Ceriello et al. (2018)",
-      description: "Confirmed ROS accumulation in human endothelial cells.",
-      highlighted: false,
-    },
-    {
-      type: "counter",
-      title: "Smith & Jones (2020)",
-      description: "Proposed alternative pathway independent of ROS in neurons.",
-      highlighted: false,
-    },
-  ]
+  // Use real data or fallback to placeholders
+  const evidenceThreads = contextData?.evidence_threads ?? []
+  const relatedConcepts = contextData?.related_concepts ?? []
+  const synthesis = contextData?.synthesis
+  const confidenceMetrics = contextData?.confidence_metrics
 
-  const relatedConcepts = [
-    {
-      title: "Krebs Cycle",
-      description: "The sequence of reactions by which most living cells generate energy.",
-      icon: FlaskConical,
-      image: "/chemical-reaction-cycle-diagram-abstract.jpg",
-    },
-    {
-      title: "Reactive Oxygen Species",
-      description: "A type of unstable molecule that contains oxygen and that easily reacts with other molecules.",
-      icon: FlaskConical,
-      image: "/microscope-cell-view-molecular-structure.jpg",
-    },
-    {
-      title: "Electron Transport Chain",
-      description: "A series of protein complexes that couple redox reactions.",
-      icon: FlaskConical,
-      image: "/molecular-structure-protein-complex-3d.jpg",
-    },
+  // Fallback placeholder images for related concepts
+  const conceptImages = [
+    "/chemical-reaction-cycle-diagram-abstract.jpg",
+    "/microscope-cell-view-molecular-structure.jpg",
+    "/molecular-structure-protein-complex-3d.jpg",
   ]
 
   const guidedPrompts = [
-    { icon: HelpCircle, text: "What is the specific mechanism of Complex I inhibition?" },
-    { icon: TrendingUp, text: "Show me the glucose vs. efficiency graph" },
-    { icon: FlaskConical, text: "Are there mitigating compounds?" },
+    { icon: HelpCircle, text: `What is the mechanism behind ${claim.title.split(" ").slice(0, 5).join(" ")}?` },
+    { icon: TrendingUp, text: "Show me related experimental data" },
+    { icon: FlaskConical, text: "What are the implications of this finding?" },
   ]
 
   return (
@@ -106,7 +182,7 @@ export function DeepExplorationView({ episode, claim, onBack, onViewSourcePaper 
           </div>
           <div>
             <h2 className="text-lg font-bold leading-tight">{episode.title}</h2>
-            <p className="text-xs text-gray-400">Episode 42 • {episode.category}</p>
+            <p className="text-xs text-gray-400">{episode.category}</p>
           </div>
         </div>
         <div className="flex items-center gap-4">
@@ -124,98 +200,158 @@ export function DeepExplorationView({ episode, claim, onBack, onViewSourcePaper 
         </div>
       </header>
 
+      {/* Loading State */}
+      {isLoading && (
+        <div className="flex-1 flex items-center justify-center">
+          <div className="flex flex-col items-center gap-4">
+            <Loader2 className="w-8 h-8 text-[#FDA92B] animate-spin" />
+            <p className="text-gray-400">Loading claim context...</p>
+          </div>
+        </div>
+      )}
+
+      {/* Error State */}
+      {error && !isLoading && (
+        <div className="flex-1 flex items-center justify-center p-8">
+          <div className="max-w-md bg-red-500/10 border border-red-500/30 rounded-xl p-6 text-center">
+            <p className="text-red-400 mb-4">{error}</p>
+            <button
+              onClick={onBack}
+              className="px-4 py-2 bg-[#FDA92B] hover:bg-[#FDA92B]/90 text-[#111813] font-bold rounded-lg"
+            >
+              Go Back
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Main Content */}
-      <main className="flex-1 w-full max-w-[1280px] mx-auto px-4 md:px-10 py-8 pb-32 grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Left Column: Core Exploration */}
-        <div className="lg:col-span-8 flex flex-col gap-6">
-          {/* Anchor Claim */}
-          <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-[#182d21] to-[#102216] border border-[#28392e] shadow-lg">
-            <div className="absolute top-0 right-0 p-4 opacity-10">
-              <Quote className="w-36 h-36" />
-            </div>
-            <div className="p-6 md:p-8 relative z-10">
-              <div className="flex items-center gap-2 mb-4">
-                <span className="px-2 py-1 rounded bg-red-500/20 text-red-400 text-xs font-bold uppercase tracking-wider border border-red-500/30">
-                  Anchor Claim
-                </span>
-                <span className="text-xs text-gray-400">Triggered at {formatTime(claim.timestamp)}</span>
+      {!isLoading && !error && contextData && (
+        <main className="flex-1 w-full max-w-[1280px] mx-auto px-4 md:px-10 py-8 pb-32 grid grid-cols-1 lg:grid-cols-12 gap-8">
+          {/* Left Column: Core Exploration */}
+          <div className="lg:col-span-8 flex flex-col gap-6">
+            {/* Anchor Claim */}
+            <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-[#182d21] to-[#102216] border border-[#28392e] shadow-lg">
+              <div className="absolute top-0 right-0 p-4 opacity-10">
+                <Quote className="w-36 h-36" />
               </div>
-              <h1 className="text-2xl md:text-3xl font-bold leading-tight mb-4">"{claim.title}"</h1>
-              <div className="flex items-center gap-3">
-                <div className="h-8 w-8 rounded-full bg-gray-700" />
-                <p className="text-sm font-medium text-gray-300">
-                  {episode.host} • <span className="text-gray-500">Host</span>
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Synthesis Section */}
-          <div className="bg-[#111813] border border-[#28392e] rounded-xl p-6 md:p-8 shadow-sm">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-              <h3 className="text-xl font-bold flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-[#FDA92B]" />
-                Synthesis
-              </h3>
-
-              {/* Segmented Control */}
-              <div className="flex p-1 bg-[#1e2e24] rounded-lg">
-                <button
-                  onClick={() => setSynthesisMode("simplified")}
-                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
-                    synthesisMode === "simplified"
-                      ? "bg-[#102216] text-white shadow-sm"
-                      : "text-gray-400 hover:text-white"
-                  }`}
-                >
-                  Simplified
-                </button>
-                <button
-                  onClick={() => setSynthesisMode("technical")}
-                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
-                    synthesisMode === "technical"
-                      ? "bg-[#102216] text-white shadow-sm"
-                      : "text-gray-400 hover:text-white"
-                  }`}
-                >
-                  Technical
-                </button>
-                <button
-                  onClick={() => setSynthesisMode("raw")}
-                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
-                    synthesisMode === "raw" ? "bg-[#102216] text-white shadow-sm" : "text-gray-400 hover:text-white"
-                  }`}
-                >
-                  Raw Data
-                </button>
+              <div className="p-6 md:p-8 relative z-10">
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="px-2 py-1 rounded bg-red-500/20 text-red-400 text-xs font-bold uppercase tracking-wider border border-red-500/30">
+                    {synthesis?.claim_type || "Anchor Claim"}
+                  </span>
+                  <span className="text-xs text-gray-400">Triggered at {formatTime(claim.timestamp)}</span>
+                </div>
+                <h1 className="text-2xl md:text-3xl font-bold leading-tight mb-4">
+                  "{synthesis?.claim_text || claim.title}"
+                </h1>
+                <div className="flex items-center gap-3">
+                  <div className="h-8 w-8 rounded-full bg-gray-700" />
+                  <p className="text-sm font-medium text-gray-300">
+                    {episode.host} • <span className="text-gray-500">{synthesis?.speaker_stance || "assertion"}</span>
+                  </p>
+                </div>
               </div>
             </div>
 
-            <div className="space-y-4 text-gray-300 leading-relaxed">
-              <p>
-                At a technical level, the claim refers to the inhibition of the{" "}
-                <span className="text-[#FDA92B] border-b border-[#FDA92B]/30 cursor-help">
-                  Electron Transport Chain
-                </span>{" "}
-                (ETC), specifically complexes I and III.
-              </p>
-              <p>
-                Recent analysis suggests that sustained hyperglycemic spikes lead to an accumulation of{" "}
-                <strong className="text-white">Reactive Oxygen Species (ROS)</strong>. This oxidative stress damages the
-                inner mitochondrial membrane, increasing proton leak and decoupling respiration from ATP synthesis.
-              </p>
-              <div className="bg-[#1e2e24] border-l-4 border-[#FDA92B] p-4 rounded-r-lg my-6">
-                <p className="text-sm italic">
-                  "Think of it like a car engine running too rich—fuel (sugar) is abundant, but the combustion process
-                  becomes dirty, clogging the engine (mitochondria) with soot (ROS)."
-                </p>
+            {/* Synthesis Section */}
+            <div className="bg-[#111813] border border-[#28392e] rounded-xl p-6 md:p-8 shadow-sm">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                <h3 className="text-xl font-bold flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-[#FDA92B]" />
+                  Synthesis
+                </h3>
+
+                {/* Segmented Control */}
+                <div className="flex p-1 bg-[#1e2e24] rounded-lg">
+                  <button
+                    onClick={() => setSynthesisMode("simplified")}
+                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+                      synthesisMode === "simplified"
+                        ? "bg-[#102216] text-white shadow-sm"
+                        : "text-gray-400 hover:text-white"
+                    }`}
+                  >
+                    Simplified
+                  </button>
+                  <button
+                    onClick={() => setSynthesisMode("technical")}
+                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+                      synthesisMode === "technical"
+                        ? "bg-[#102216] text-white shadow-sm"
+                        : "text-gray-400 hover:text-white"
+                    }`}
+                  >
+                    Technical
+                  </button>
+                  <button
+                    onClick={() => setSynthesisMode("raw")}
+                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+                      synthesisMode === "raw" ? "bg-[#102216] text-white shadow-sm" : "text-gray-400 hover:text-white"
+                    }`}
+                  >
+                    Raw Data
+                  </button>
+                </div>
               </div>
-              <p>
-                Data from the 2023 Meta-Analysis indicates a non-linear correlation: efficiency remains stable up to
-                120mg/dL glucose, then precipitates rapidly.
-              </p>
+
+              <div className="space-y-4 text-gray-300 leading-relaxed">
+                {synthesisMode === "raw" && (
+                  <pre className="text-xs bg-[#1e2e24] p-4 rounded overflow-x-auto">
+                    {JSON.stringify(contextData, null, 2)}
+                  </pre>
+                )}
+                
+                {synthesisMode === "simplified" && (
+                  <>
+                    <p className="text-lg">{claim.description}</p>
+                    {synthesis?.rationale && (
+                      <div className="bg-[#1e2e24] border-l-4 border-[#FDA92B] p-4 rounded-r-lg">
+                        <p className="text-sm">{synthesis.rationale}</p>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {synthesisMode === "technical" && (
+                  <>
+                    <p><strong>Claim:</strong> {synthesis?.claim_text || claim.title}</p>
+                    {synthesis?.rationale && (
+                      <div className="bg-[#1e2e24] border-l-4 border-[#FDA92B] p-4 rounded-r-lg my-4">
+                        <p className="text-sm italic">
+                          <strong>Why this needs verification:</strong> {synthesis.rationale}
+                        </p>
+                      </div>
+                    )}
+                    {synthesis?.context_tags && Object.keys(synthesis.context_tags).length > 0 && (
+                      <div className="flex flex-wrap gap-2 mt-4">
+                        {Object.entries(synthesis.context_tags).map(([key, value]) => (
+                          <span
+                            key={key}
+                            className="px-3 py-1 bg-[#1e2e24] border border-[#28392e] rounded-full text-xs"
+                          >
+                            <span className="text-gray-500">{key}:</span>{" "}
+                            <span className="text-[#FDA92B]">{value}</span>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    {evidenceThreads.length > 0 && (
+                      <p className="mt-4">
+                        This claim is supported by {evidenceThreads.length} research paper
+                        {evidenceThreads.length !== 1 ? "s" : ""}, with{" "}
+                        {confidenceMetrics?.evidence_counts.primary || 0} primary source
+                        {confidenceMetrics?.evidence_counts.primary !== 1 ? "s" : ""},{" "}
+                        {confidenceMetrics?.evidence_counts.replication || 0} replication stud
+                        {confidenceMetrics?.evidence_counts.replication !== 1 ? "ies" : "y"}, and{" "}
+                        {confidenceMetrics?.evidence_counts.counter || 0} counter-evidence paper
+                        {confidenceMetrics?.evidence_counts.counter !== 1 ? "s" : ""}.
+                      </p>
+                    )}
+                  </>
+                )}
+              </div>
             </div>
-          </div>
 
           {/* Guided Prompts */}
           <div>
@@ -240,51 +376,58 @@ export function DeepExplorationView({ episode, claim, onBack, onViewSourcePaper 
           </div>
 
           {/* Related Concepts Carousel */}
-          <div className="pt-4">
-            <div className="flex items-center justify-between mb-4">
-              <h4 className="font-bold text-lg">Related Concepts</h4>
-              <div className="flex gap-2">
-                <button className="size-8 rounded-full bg-[#1e2e24] flex items-center justify-center hover:bg-[#FDA92B] hover:text-[#102216] transition-colors">
-                  <ChevronLeft className="w-5 h-5" />
-                </button>
-                <button className="size-8 rounded-full bg-[#1e2e24] flex items-center justify-center hover:bg-[#FDA92B] hover:text-[#102216] transition-colors">
-                  <ChevronRight className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
-            <div className="flex overflow-x-auto gap-4 pb-4 snap-x scrollbar-hide">
-              {relatedConcepts.map((concept, index) => {
-                const Icon = concept.icon
-                return (
-                  <div
-                    key={index}
-                    className="snap-start min-w-[240px] w-[240px] h-[300px] rounded-xl relative group cursor-pointer overflow-hidden border border-[#28392e]"
-                    style={{
-                      backgroundImage: `linear-gradient(to top, rgba(16, 34, 22, 0.95), rgba(16, 34, 22, 0.3)), url('${concept.image}')`,
-                      backgroundSize: "cover",
-                      backgroundPosition: "center",
-                    }}
-                  >
-                    <div className="absolute inset-0 bg-[#FDA92B]/0 group-hover:bg-[#FDA92B]/10 transition-colors" />
-                    <div className="absolute bottom-0 left-0 p-4 w-full">
-                      <div className="mb-2 size-8 rounded bg-[#FDA92B]/20 flex items-center justify-center text-[#FDA92B] backdrop-blur-sm">
-                        <Icon className="w-5 h-5" />
-                      </div>
-                      <h5 className="font-bold text-lg leading-tight mb-1">{concept.title}</h5>
-                      <p className="text-gray-400 text-xs line-clamp-2">{concept.description}</p>
-                    </div>
-                  </div>
-                )
-              })}
-              {/* Add More Card */}
-              <div className="snap-start min-w-[240px] w-[240px] h-[300px] bg-[#1e2e24] rounded-xl relative group cursor-pointer overflow-hidden border border-[#28392e] flex flex-col justify-center items-center text-center p-6">
-                <div className="size-12 rounded-full bg-[#FDA92B]/10 flex items-center justify-center text-[#FDA92B] mb-4 group-hover:scale-110 transition-transform">
-                  <Plus className="w-6 h-6" />
+          {relatedConcepts.length > 0 && (
+            <div className="pt-4">
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="font-bold text-lg">Related Concepts</h4>
+                <div className="flex gap-2">
+                  <button className="size-8 rounded-full bg-[#1e2e24] flex items-center justify-center hover:bg-[#FDA92B] hover:text-[#102216] transition-colors">
+                    <ChevronLeft className="w-5 h-5" />
+                  </button>
+                  <button className="size-8 rounded-full bg-[#1e2e24] flex items-center justify-center hover:bg-[#FDA92B] hover:text-[#102216] transition-colors">
+                    <ChevronRight className="w-5 h-5" />
+                  </button>
                 </div>
-                <h5 className="font-bold text-lg">Explore All Concepts</h5>
+              </div>
+              <div className="flex overflow-x-auto gap-4 pb-4 snap-x scrollbar-hide">
+                {relatedConcepts.map((concept, index) => {
+                  const backgroundImage = conceptImages[index % conceptImages.length]
+                  return (
+                    <div
+                      key={index}
+                      className="snap-start min-w-[240px] w-[240px] h-[300px] rounded-xl relative group cursor-pointer overflow-hidden border border-[#28392e]"
+                      style={{
+                        backgroundImage: `linear-gradient(to top, rgba(16, 34, 22, 0.95), rgba(16, 34, 22, 0.3)), url('${backgroundImage}')`,
+                        backgroundSize: "cover",
+                        backgroundPosition: "center",
+                      }}
+                    >
+                      <div className="absolute inset-0 bg-[#FDA92B]/0 group-hover:bg-[#FDA92B]/10 transition-colors" />
+                      <div className="absolute bottom-0 left-0 p-4 w-full">
+                        <div className="mb-2 size-8 rounded bg-[#FDA92B]/20 flex items-center justify-center text-[#FDA92B] backdrop-blur-sm">
+                          <FlaskConical className="w-5 h-5" />
+                        </div>
+                        <h5 className="font-bold text-lg leading-tight mb-1">{concept.title}</h5>
+                        <p className="text-gray-400 text-xs line-clamp-2">{concept.description}</p>
+                        {concept.year && (
+                          <p className="text-gray-500 text-[10px] mt-1">
+                            {concept.paper_title} ({concept.year})
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+                {/* Add More Card */}
+                <div className="snap-start min-w-[240px] w-[240px] h-[300px] bg-[#1e2e24] rounded-xl relative group cursor-pointer overflow-hidden border border-[#28392e] flex flex-col justify-center items-center text-center p-6">
+                  <div className="size-12 rounded-full bg-[#FDA92B]/10 flex items-center justify-center text-[#FDA92B] mb-4 group-hover:scale-110 transition-transform">
+                    <Plus className="w-6 h-6" />
+                  </div>
+                  <h5 className="font-bold text-lg">Explore All Concepts</h5>
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Right Column: Evidence & Actions */}
@@ -295,37 +438,53 @@ export function DeepExplorationView({ episode, claim, onBack, onViewSourcePaper 
               <GitBranch className="w-5 h-5 text-[#FDA92B]" />
               <h3 className="font-bold text-lg">Evidence Threads</h3>
             </div>
-            <div className="relative pl-2 border-l border-[#28392e] ml-2 space-y-6">
-              {evidenceThreads.map((thread, index) => (
-                <div
-                  key={index}
-                  className={`relative pl-6 group cursor-pointer ${thread.highlighted ? "" : "opacity-70 hover:opacity-100"} transition-opacity`}
-                >
-                  {thread.highlighted ? (
-                    <div className="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-[#FDA92B] border-4 border-[#102216] shadow-[0_0_0_1px_#FDA92B]" />
-                  ) : (
-                    <div className="absolute -left-[5px] top-1.5 w-2 h-2 rounded-full bg-[#3d5646]" />
-                  )}
-                  <p className="text-[10px] font-mono text-[#FDA92B] mb-1 tracking-wider uppercase">
-                    {thread.type === "primary"
-                      ? "Primary Source"
-                      : thread.type === "replication"
-                        ? "Replication"
-                        : "Counter-Evidence"}
-                  </p>
-                  <h4 className="font-medium text-sm mb-1 group-hover:text-[#FDA92B] transition-colors">
-                    {thread.title}
-                  </h4>
-                  <p className="text-gray-400 text-xs">{thread.description}</p>
+            {evidenceThreads.length > 0 ? (
+              <>
+                <div className="relative pl-2 border-l border-[#28392e] ml-2 space-y-6">
+                  {evidenceThreads.map((thread, index) => (
+                    <div
+                      key={index}
+                      className={`relative pl-6 group cursor-pointer ${thread.highlighted ? "" : "opacity-70 hover:opacity-100"} transition-opacity`}
+                      onClick={() => {
+                        if (thread.source_link) {
+                          window.open(thread.source_link, "_blank")
+                        }
+                      }}
+                    >
+                      {thread.highlighted ? (
+                        <div className="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-[#FDA92B] border-4 border-[#102216] shadow-[0_0_0_1px_#FDA92B]" />
+                      ) : (
+                        <div className="absolute -left-[5px] top-1.5 w-2 h-2 rounded-full bg-[#3d5646]" />
+                      )}
+                      <p className="text-[10px] font-mono text-[#FDA92B] mb-1 tracking-wider uppercase">
+                        {thread.type === "primary"
+                          ? "Primary Source"
+                          : thread.type === "replication"
+                            ? "Replication"
+                            : "Counter-Evidence"}
+                      </p>
+                      <h4 className="font-medium text-sm mb-1 group-hover:text-[#FDA92B] transition-colors">
+                        {thread.title}
+                      </h4>
+                      <p className="text-gray-400 text-xs mb-1">{thread.description}</p>
+                      {thread.citation_count > 0 && (
+                        <p className="text-gray-500 text-[10px]">{thread.citation_count} citations</p>
+                      )}
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-            <div className="mt-6 pt-4 border-t border-[#28392e]">
-              <button className="w-full py-2 flex items-center justify-center gap-2 text-xs font-medium text-gray-400 hover:text-white transition-colors">
-                <span>View Full Citation Map</span>
-                <ExternalLink className="w-3 h-3" />
-              </button>
-            </div>
+                <div className="mt-6 pt-4 border-t border-[#28392e]">
+                  <button className="w-full py-2 flex items-center justify-center gap-2 text-xs font-medium text-gray-400 hover:text-white transition-colors">
+                    <span>View Full Citation Map</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </button>
+                </div>
+              </>
+            ) : (
+              <p className="text-gray-500 text-sm text-center py-8">
+                No evidence threads available for this claim.
+              </p>
+            )}
           </div>
 
           {/* Source Material Card */}
@@ -360,17 +519,26 @@ export function DeepExplorationView({ episode, claim, onBack, onViewSourcePaper 
             <div className="bg-[#111813] p-3 rounded-lg border border-[#28392e]">
               <p className="text-gray-500 text-[10px] uppercase font-bold tracking-wider mb-1">Confidence</p>
               <p className="text-lg font-bold flex items-center gap-1">
-                High
-                <span className="size-2 rounded-full bg-green-500 inline-block" />
+                {confidenceMetrics?.confidence_level || "Unknown"}
+                <span
+                  className={`size-2 rounded-full inline-block ${
+                    confidenceMetrics?.confidence_level === "High"
+                      ? "bg-green-500"
+                      : confidenceMetrics?.confidence_level === "Medium"
+                        ? "bg-yellow-500"
+                        : "bg-red-500"
+                  }`}
+                />
               </p>
             </div>
             <div className="bg-[#111813] p-3 rounded-lg border border-[#28392e]">
               <p className="text-gray-500 text-[10px] uppercase font-bold tracking-wider mb-1">Consensus</p>
-              <p className="text-lg font-bold">85%</p>
+              <p className="text-lg font-bold">{confidenceMetrics?.consensus_percentage || 0}%</p>
             </div>
           </div>
         </div>
       </main>
+      )}
 
       {/* Sticky Chat Box Footer */}
       <footer className="fixed bottom-0 left-0 right-0 z-50 bg-[#102216]/95 backdrop-blur-lg border-t border-[#28392e] px-6 py-4">

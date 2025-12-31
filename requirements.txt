@@ -7,3 +7,4 @@ python-dotenv
 yt-dlp
 assemblyai
 ffmpeg
+supabase>=2.0.0

@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react"
 import { callMcpTool } from "@/lib/api"
+import { getClaimsForEpisode } from "@/lib/supabase"
+import type { Claim as SupabaseClaim } from "@/lib/supabase"
 import { LandingPage } from "@/components/landing-page"
 import { ListeningView } from "@/components/listening-view"
 import { DeepExplorationView } from "@/components/deep-exploration-view"
@@ -118,6 +120,7 @@ export default function Home() {
   const [selectedEpisode, setSelectedEpisode] = useState<EpisodeMetadata | null>(null)
   const [currentTime, setCurrentTime] = useState(0)
   const [claims, setClaims] = useState<Claim[]>(fallbackClaims)
+  const [selectedClaimId, setSelectedClaimId] = useState<string | number | null>(null)
 
   const activeEpisode = selectedEpisode ?? fallbackEpisode
   const durationSeconds = parseDurationLabelToSeconds(activeEpisode.duration)
@@ -142,17 +145,33 @@ export default function Home() {
     title: activeEpisode.title,
     currentTime,
   }
-  const currentExplorationClaim = claims[2] ?? claims[0] ?? fallbackClaims[0]
+  
+  // Helper to convert Claim to the format expected by DeepExplorationView
+  const convertClaimForExploration = (claim: Claim) => ({
+    id: String(claim.id),
+    title: claim.distilled_claim || claim.title || claim.claim_text || "Unknown claim",
+    timestamp: claim.timestamp || (claim.start_ms ? claim.start_ms / 1000 : 0),
+    description: claim.claim_text || claim.description || "",
+    source: claim.paper_title || claim.source || "Unknown source"
+  })
+  
+  // Find the selected claim or fall back to a default
+  const selectedClaim = selectedClaimId 
+    ? claims.find(c => c.id === selectedClaimId) ?? claims[2] ?? claims[0] ?? fallbackClaims[0]
+    : claims[2] ?? claims[0] ?? fallbackClaims[0]
+  
+  const currentExplorationClaim = convertClaimForExploration(selectedClaim)
 
   const handleGetStarted = () => {
     setView("library")
   }
 
-  const handleDiveDeeper = (claimId: string) => {
+  const handleDiveDeeper = (claimId: string | number) => {
+    setSelectedClaimId(claimId)
     setView("exploration")
   }
 
-  const handleViewSource = (claimId: string) => {
+  const handleViewSource = (claimId: string | number) => {
     setView("paper")
   }
 
@@ -180,6 +199,27 @@ export default function Home() {
     setView("listening")
   }
 
+  // Convert Supabase claim to frontend Claim format
+  const convertSupabaseClaim = (supabaseClaim: SupabaseClaim): Claim => ({
+    id: supabaseClaim.id,
+    timestamp: supabaseClaim.start_ms ? supabaseClaim.start_ms / 1000 : 0,
+    // Supabase fields
+    claim_text: supabaseClaim.claim_text,
+    distilled_claim: supabaseClaim.distilled_claim,
+    distilled_word_count: supabaseClaim.distilled_word_count,
+    paper_title: supabaseClaim.paper_title,
+    paper_url: supabaseClaim.paper_url,
+    confidence_score: supabaseClaim.confidence_score,
+    start_ms: supabaseClaim.start_ms,
+    end_ms: supabaseClaim.end_ms,
+    // Legacy fields for backward compatibility
+    category: supabaseClaim.claim_type || "Research Finding",
+    title: supabaseClaim.distilled_claim || supabaseClaim.claim_text,
+    description: supabaseClaim.claim_text,
+    source: supabaseClaim.paper_title || "Unknown source",
+    status: "past",
+  })
+
   useEffect(() => {
     if (!selectedEpisode) {
       setClaims(fallbackClaims)
@@ -190,7 +230,23 @@ export default function Home() {
 
     const loadClaims = async () => {
       try {
-        const data = await callMcpTool<Claim[]>("get_episode_claims", {
+        // Try loading from Supabase first
+        const supabaseClaims = await getClaimsForEpisode(selectedEpisode.id)
+
+        if (cancelled) {
+          return
+        }
+
+        if (supabaseClaims && supabaseClaims.length > 0) {
+          console.log(`Loaded ${supabaseClaims.length} claims from Supabase`)
+          const convertedClaims = supabaseClaims.map(convertSupabaseClaim)
+          setClaims(convertedClaims)
+          return
+        }
+
+        // Fallback to MCP tool if Supabase has no data
+        console.log("No Supabase data, falling back to MCP tool")
+        const mcpData = await callMcpTool<Claim[]>("get_episode_claims", {
           episode_id: selectedEpisode.id,
           limit: 45,
         })
@@ -199,14 +255,29 @@ export default function Home() {
           return
         }
 
-        if (Array.isArray(data) && data.length) {
-          setClaims(data)
+        if (Array.isArray(mcpData) && mcpData.length) {
+          setClaims(mcpData)
         } else {
           setClaims(fallbackClaims)
         }
       } catch (error) {
         if (!cancelled) {
           console.warn("Failed to load episode claims", error)
+          
+          // Try MCP tool as final fallback
+          try {
+            const mcpData = await callMcpTool<Claim[]>("get_episode_claims", {
+              episode_id: selectedEpisode.id,
+              limit: 45,
+            })
+            if (!cancelled && Array.isArray(mcpData) && mcpData.length) {
+              setClaims(mcpData)
+              return
+            }
+          } catch (mcpError) {
+            console.warn("MCP tool also failed", mcpError)
+          }
+          
           setClaims(fallbackClaims)
         }
       }
@@ -236,6 +307,7 @@ export default function Home() {
       <DeepExplorationView
         episode={explorationEpisode}
         claim={currentExplorationClaim}
+        episodeId={activeEpisode.id}
         onBack={handleBackToListening}
         onViewSourcePaper={() => setView("paper")}
       />
