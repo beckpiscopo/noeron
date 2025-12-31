@@ -4,13 +4,8 @@ import type React from "react"
 
 import { useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Play, Pause, RotateCcw, RotateCw, ChevronDown, ChevronUp } from "lucide-react"
+import { Play, Pause, RotateCcw, RotateCw } from "lucide-react"
 import { NoeronHeader } from "./noeron-header"
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible"
 
 export interface ListeningEpisode {
   id: string
@@ -107,7 +102,6 @@ interface CurrentClaimCardProps {
 }
 
 function CurrentClaimCard({ claim, currentTimeMs, onDiveDeeper, onViewSource }: CurrentClaimCardProps) {
-  const [isExpanded, setIsExpanded] = useState(false)
   const hasWordTiming = claim.timing?.words && claim.timing.words.length > 0
   const hasDistilledClaim = !!claim.distilled_claim
   const displayText = getClaimDisplayText(claim)
@@ -144,62 +138,26 @@ function CurrentClaimCard({ claim, currentTimeMs, onDiveDeeper, onViewSource }: 
           <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent opacity-75"></span>
           <span className="relative inline-flex size-2 rounded-full bg-accent"></span>
         </span>
-        {hasDistilledClaim && (
-          <span className="text-xs text-muted-foreground font-normal ml-1 flex items-center gap-1">
-            <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-500"></span>
-            AI-distilled
-          </span>
-        )}
-        {hasWordTiming && (
-          <span className="text-xs text-muted-foreground font-normal">• Word-level sync</span>
-        )}
       </div>
 
-      <div className="bg-gradient-to-br from-card to-muted/50 rounded-xl p-6 shadow-[0_8px_30px_rgba(0,0,0,0.12)] transition-all duration-300">
+      <div className="bg-gradient-to-br from-card to-muted/50 rounded-xl p-8 shadow-[0_8px_30px_rgba(0,0,0,0.12)] transition-all duration-300 relative">
         {/* Main distilled claim text - large and prominent */}
-        <h3 className="text-2xl font-bold mb-4 leading-relaxed text-foreground">
+        <h3 className="text-2xl font-bold mb-6 leading-relaxed text-foreground">
           {hasWordTiming && claim.timing?.words ? 
             renderWithWordHighlighting(displayText, claim.timing.words) :
             <span className="transition-colors duration-500">{displayText}</span>
           }
         </h3>
 
-        {/* Timestamp */}
-        <div className="flex items-center gap-2 mb-4 text-sm text-muted-foreground">
-          <span className="flex items-center gap-1.5">
-            <span className="text-base">⏱️</span>
-            <span className="font-mono">{timestamp}</span>
-          </span>
-        </div>
-
-        {/* Expandable full transcript quote */}
+        {/* Full transcript quote - always visible */}
         {hasDistilledClaim && fullText && (
-          <Collapsible open={isExpanded} onOpenChange={setIsExpanded} className="mb-4">
-            <CollapsibleTrigger className="flex items-center gap-2 text-sm text-accent hover:text-accent/80 transition-colors font-medium">
-              {isExpanded ? (
-                <>
-                  <ChevronUp className="w-4 h-4" />
-                  Hide full quote
-                </>
-              ) : (
-                <>
-                  <ChevronDown className="w-4 h-4" />
-                  See full transcript quote
-                </>
-              )}
-            </CollapsibleTrigger>
-            <CollapsibleContent className="mt-3">
-              <div className="bg-muted/50 rounded-lg p-4 border-l-4 border-accent/30">
-                <p className="text-sm text-muted-foreground leading-relaxed italic">
-                  "{fullText}"
-                </p>
-              </div>
-            </CollapsibleContent>
-          </Collapsible>
+          <p className="text-base text-muted-foreground leading-relaxed mb-8">
+            "{fullText}"
+          </p>
         )}
 
         {/* Action buttons */}
-        <div className="flex gap-3">
+        <div className="flex gap-3 mb-2">
           <Button
             onClick={() => onDiveDeeper(claim.id)}
             className="bg-accent text-accent-foreground hover:bg-accent/90 font-semibold shadow-[0_4px_14px_rgba(253,169,43,0.2)]"
@@ -213,6 +171,12 @@ function CurrentClaimCard({ claim, currentTimeMs, onDiveDeeper, onViewSource }: 
           >
             Read Source
           </Button>
+        </div>
+
+        {/* Timestamp - bottom right */}
+        <div className="absolute bottom-4 right-6 flex items-center gap-1.5 text-xs text-muted-foreground/60">
+          <span>⏱️</span>
+          <span className="font-mono">{timestamp}</span>
         </div>
       </div>
     </div>
@@ -229,7 +193,6 @@ interface PastClaimCardProps {
 }
 
 function PastClaimCard({ claim, relativeTime, isSelected, onSelect, onDiveDeeper, onViewSource }: PastClaimCardProps) {
-  const [isExpanded, setIsExpanded] = useState(false)
   const hasDistilledClaim = !!claim.distilled_claim
   const displayText = getClaimDisplayText(claim)
   const fullText = getClaimFullText(claim)
@@ -243,69 +206,27 @@ function PastClaimCard({ claim, relativeTime, isSelected, onSelect, onDiveDeeper
 
       <div
         onClick={onSelect}
-        className={`bg-card rounded-xl p-5 cursor-pointer transition-all ${
+        className={`bg-card rounded-xl p-6 cursor-pointer transition-all relative ${
           isSelected
             ? "shadow-[0_8px_30px_rgba(253,169,43,0.15)]"
             : "shadow-[0_2px_12px_rgba(0,0,0,0.08)] hover:shadow-[0_4px_20px_rgba(0,0,0,0.12)]"
         }`}
       >
         {/* Distilled claim or title - primary */}
-        <div className="flex items-start gap-2 mb-3">
-          <h3 className="text-lg font-bold text-foreground flex-1 leading-snug">
-            {displayText}
-          </h3>
-          {hasDistilledClaim && (
-            <span className="inline-flex items-center gap-1 text-[10px] text-green-600 bg-green-50 px-2 py-0.5 rounded-full shrink-0">
-              <span className="inline-block w-1 h-1 rounded-full bg-green-500"></span>
-              AI
-            </span>
-          )}
-        </div>
+        <h3 className="text-lg font-bold text-foreground mb-4 leading-snug">
+          {displayText}
+        </h3>
 
-        {/* Timestamp */}
-        <div className="flex items-center gap-2 mb-3 text-sm text-muted-foreground">
-          <span className="flex items-center gap-1.5">
-            <span>⏱️</span>
-            <span className="text-xs font-mono">{timestamp}</span>
-          </span>
-        </div>
-
-        {/* Expandable full quote */}
+        {/* Full quote - always visible */}
         {hasDistilledClaim && fullText && (
-          <Collapsible 
-            open={isExpanded} 
-            onOpenChange={(open) => {
-              setIsExpanded(open)
-            }}
-            onClick={(e: React.MouseEvent) => e.stopPropagation()}
-            className="mb-3"
-          >
-            <CollapsibleTrigger className="flex items-center gap-2 text-xs text-accent hover:text-accent/80 transition-colors">
-              {isExpanded ? (
-                <>
-                  <ChevronUp className="w-3 h-3" />
-                  Hide quote
-                </>
-              ) : (
-                <>
-                  <ChevronDown className="w-3 h-3" />
-                  Full quote
-                </>
-              )}
-            </CollapsibleTrigger>
-            <CollapsibleContent className="mt-2">
-              <div className="bg-muted/30 rounded p-3 border-l-2 border-accent/20">
-                <p className="text-xs text-muted-foreground leading-relaxed italic">
-                  "{fullText}"
-                </p>
-              </div>
-            </CollapsibleContent>
-          </Collapsible>
+          <p className="text-sm text-muted-foreground leading-relaxed mb-6">
+            "{fullText}"
+          </p>
         )}
 
         {/* Action buttons (shown when selected) */}
         {isSelected && (
-          <div className="flex gap-3 pt-3 border-t border-border">
+          <div className="flex gap-3 pt-3 border-t border-border mb-6">
             <Button
               onClick={(e) => {
                 e.stopPropagation()
@@ -329,6 +250,12 @@ function PastClaimCard({ claim, relativeTime, isSelected, onSelect, onDiveDeeper
             </Button>
           </div>
         )}
+
+        {/* Timestamp - bottom right */}
+        <div className="absolute bottom-3 right-5 flex items-center gap-1.5 text-xs text-muted-foreground/60">
+          <span>⏱️</span>
+          <span className="font-mono">{timestamp}</span>
+        </div>
       </div>
     </div>
   )
@@ -349,11 +276,6 @@ export function ListeningView({
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const currentClaimRef = useRef<HTMLDivElement | null>(null)
   
-  // Timing offset adjustment (if claims timestamps are consistently off)
-  // Positive value means claims come LATER in audio than their timestamp suggests
-  // Negative value means claims come EARLIER
-  const TIMING_OFFSET = -20 // Adjust this based on testing
-
   const handlePlayPause = () => {
     setIsPlaying(!isPlaying)
   }
@@ -405,14 +327,14 @@ export function ListeningView({
 
   // Filter out claims with invalid timestamps (0:00 or missing)
   const validClaims = claims.filter(claim => {
-    const claimStartMs = claim.start_ms || claim.timing?.start_ms || claim.timestamp * 1000
+    const claimStartMs = claim.start_ms ?? 0
     return claimStartMs > 0 // Must have a valid start time
   })
   
   // Sort claims by start time
   const sortedClaims = [...validClaims].sort((a, b) => {
-    const aTime = a.start_ms || a.timing?.start_ms || a.timestamp * 1000
-    const bTime = b.start_ms || b.timing?.start_ms || b.timestamp * 1000
+    const aTime = a.start_ms ?? 0
+    const bTime = b.start_ms ?? 0
     return aTime - bTime
   })
   
@@ -424,7 +346,7 @@ export function ListeningView({
   
   for (let i = sortedClaims.length - 1; i >= 0; i--) {
     const claim = sortedClaims[i]
-    const claimStartMs = claim.start_ms || claim.timing?.start_ms || claim.timestamp * 1000
+    const claimStartMs = claim.start_ms ?? 0
     
     // If we've passed this claim's start time, it's the current one
     if (currentTimeMs >= claimStartMs) {
@@ -442,7 +364,7 @@ export function ListeningView({
   
   // Calculate relative time for claims
   const getRelativeTime = (claim: Claim) => {
-    const claimStartMs = claim.start_ms || claim.timing?.start_ms || claim.timestamp * 1000
+    const claimStartMs = claim.start_ms ?? 0
     const claimTimeSeconds = claimStartMs / 1000
     const diff = episode.currentTime - claimTimeSeconds
     
@@ -451,15 +373,18 @@ export function ListeningView({
     return `${mins} MIN AGO`
   }
   
-  // Debug logging
+  // Debug logging - enhanced with more details
   useEffect(() => {
     if (currentClaim) {
-      const claimStartMs = currentClaim.start_ms || currentClaim.timing?.start_ms || (currentClaim.timestamp || 0) * 1000
+      const claimStartMs = currentClaim.start_ms ?? 0
       const claimTimeSeconds = claimStartMs / 1000
       const displayText = currentClaim.distilled_claim || currentClaim.title || currentClaim.claim_text || "Unknown"
-      console.log(`[Sync Debug] Time: ${episode.currentTime.toFixed(1)}s, Claim at: ${claimTimeSeconds.toFixed(1)}s, "${displayText.substring(0, 50)}...", Past: ${pastClaims.length}`)
+      const timeDiff = episode.currentTime - claimTimeSeconds
+      console.log(`[Sync Debug] Current Time: ${episode.currentTime.toFixed(2)}s (${currentTimeMs}ms) | Claim Start: ${claimTimeSeconds.toFixed(2)}s (${claimStartMs}ms) | Diff: ${timeDiff.toFixed(2)}s | "${displayText.substring(0, 50)}..." | Past Claims: ${pastClaims.length}`)
+    } else {
+      console.log(`[Sync Debug] Current Time: ${episode.currentTime.toFixed(2)}s (${currentTimeMs}ms) | No current claim | Total valid claims: ${sortedClaims.length}`)
     }
-  }, [currentClaim?.id, episode.currentTime, pastClaims.length])
+  }, [currentClaim?.id, episode.currentTime, pastClaims.length, currentTimeMs, sortedClaims.length])
 
   useEffect(() => {
     const audio = audioRef.current
