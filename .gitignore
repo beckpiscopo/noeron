@@ -49,6 +49,7 @@ data/grobid_fulltext/*.json
 data/cleaned_texts/*.json
 data/chunks/*.json
 data/podcasts/raw/
+data/vectorstore/
 # Logs
 *.log
 
