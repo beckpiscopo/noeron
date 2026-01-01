@@ -1,0 +1,18 @@
+#!/bin/sh
+set -eu
+
+blocked_paths=$(git diff --cached --name-only | awk '
+  $0 == ".env" ||
+  $0 == ".env.local" ||
+  $0 ~ /^\.next\// ||
+  $0 ~ /^frontend\/\.next\// {
+    print $0
+  }
+')
+
+if [ -n "$blocked_paths" ]; then
+  echo "ERROR: Commit includes blocked files:"
+  echo "$blocked_paths"
+  echo "Remove them from the commit and try again."
+  exit 1
+fi
