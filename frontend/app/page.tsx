@@ -121,6 +121,7 @@ export default function Home() {
   const [currentTime, setCurrentTime] = useState(0)
   const [claims, setClaims] = useState<Claim[]>(fallbackClaims)
   const [selectedClaimId, setSelectedClaimId] = useState<string | number | null>(null)
+  const [selectedPaperId, setSelectedPaperId] = useState<string | null>(null)
 
   const activeEpisode = selectedEpisode ?? fallbackEpisode
   const durationSeconds = parseDurationLabelToSeconds(activeEpisode.duration)
@@ -138,6 +139,7 @@ export default function Home() {
   const explorationEpisode = {
     title: activeEpisode.title,
     host: activeEpisode.host,
+    guest: activeEpisode.guest,
     category: activeEpisode.podcast,
     currentTime,
   }
@@ -191,6 +193,13 @@ export default function Home() {
 
   const handleBackToExploration = () => {
     setView("exploration")
+  }
+
+  const handleViewPaper = (paperId?: string) => {
+    if (paperId) {
+      setSelectedPaperId(paperId)
+    }
+    setView("paper")
   }
 
   const handleSelectEpisode = (episode: EpisodeMetadata) => {
@@ -300,7 +309,7 @@ export default function Home() {
   }
 
   if (view === "paper") {
-    return <PaperViewer episode={paperEpisode} onBack={handleBackToExploration} />
+    return <PaperViewer episode={paperEpisode} paperId={selectedPaperId} onBack={handleBackToExploration} />
   }
 
   if (view === "exploration") {
@@ -310,7 +319,7 @@ export default function Home() {
         claim={currentExplorationClaim}
         episodeId={activeEpisode.id}
         onBack={handleBackToListening}
-        onViewSourcePaper={() => setView("paper")}
+        onViewSourcePaper={handleViewPaper}
       />
     )
   }

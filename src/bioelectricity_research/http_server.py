@@ -338,6 +338,8 @@ async def http_generate_deep_dive_summary(request: Request):
             _build_research_query,
             _format_rag_results_for_prompt,
             _call_gemini_for_deep_dive,
+            _parse_paper_key_findings,
+            _extract_summary_without_findings,
             get_vectorstore,
             DEEP_DIVE_PROMPT_TEMPLATE,
             GEMINI_MODEL_DEFAULT,
@@ -356,6 +358,7 @@ async def http_generate_deep_dive_summary(request: Request):
                     "generated_at": cache[cache_key].get("generated_at", "unknown"),
                     "rag_query": cache[cache_key].get("rag_query", ""),
                     "papers_retrieved": cache[cache_key].get("papers_retrieved", 0),
+                    "papers": cache[cache_key].get("papers", []),
                 }
 
         # Step 1: Load claim from cache
@@ -426,6 +429,17 @@ async def http_generate_deep_dive_summary(request: Request):
             GEMINI_MODEL_DEFAULT,
         )
 
+        # Build papers list for caching
+        papers_list = [
+            {
+                "paper_id": r.get("paper_id", ""),
+                "title": r.get("paper_title", ""),
+                "section": r.get("section", ""),
+                "year": r.get("year", ""),
+            }
+            for r in rag_results[:5]
+        ]
+
         # Step 7: Cache the result
         cache = _load_deep_dive_cache()
         cache[cache_key] = {
@@ -434,6 +448,7 @@ async def http_generate_deep_dive_summary(request: Request):
             "rag_query": research_query,
             "papers_retrieved": len(rag_results),
             "claim_text": claim_data.get("claim_text", ""),
+            "papers": papers_list,
         }
         _save_deep_dive_cache(cache)
 
@@ -445,14 +460,7 @@ async def http_generate_deep_dive_summary(request: Request):
             "generated_at": cache[cache_key]["generated_at"],
             "rag_query": research_query,
             "papers_retrieved": len(rag_results),
-            "papers": [
-                {
-                    "title": r.get("paper_title", ""),
-                    "section": r.get("section", ""),
-                    "year": r.get("year", ""),
-                }
-                for r in rag_results[:5]
-            ],
+            "papers": papers_list,
         }
 
     except Exception as e:
@@ -627,6 +635,80 @@ async def http_generate_evidence_threads(request: Request):
         _save_evidence_threads_cache(cache)
 
         return result
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.post("/tools/get_paper/execute")
+async def http_get_paper(request: Request):
+    """Get paper data by paper ID."""
+    try:
+        body = await request.json()
+        paper_id = body.get("paper_id")
+
+        if not paper_id:
+            return JSONResponse({"error": "paper_id is required"}, status_code=400)
+
+        # Import helper function
+        from .server import _load_papers_collection
+
+        # Load papers collection
+        papers_collection = _load_papers_collection()
+
+        # Get paper by ID
+        paper_data = papers_collection.get(paper_id)
+
+        if not paper_data:
+            return JSONResponse({
+                "error": f"Paper not found: {paper_id}"
+            }, status_code=404)
+
+        metadata = paper_data.get("metadata", {})
+        content = paper_data.get("content", {})
+        sections = paper_data.get("sections", {})
+
+        # Format authors
+        authors = metadata.get("authors", [])
+        formatted_authors = []
+        for author in authors:
+            if isinstance(author, dict):
+                formatted_authors.append(author.get("name", "Unknown"))
+            else:
+                formatted_authors.append(str(author))
+
+        # Build external link (prefer DOI, fallback to arxiv)
+        external_url = None
+        if metadata.get("doi"):
+            external_url = f"https://doi.org/{metadata['doi']}"
+        elif metadata.get("arxiv"):
+            external_url = f"https://arxiv.org/abs/{metadata['arxiv']}"
+
+        return {
+            "paper_id": paper_id,
+            "title": metadata.get("title", "Unknown Title"),
+            "authors": formatted_authors,
+            "year": metadata.get("year", ""),
+            "venue": metadata.get("venue", ""),
+            "journal": metadata.get("journal", ""),
+            "citation_count": metadata.get("citationCount", 0),
+            "doi": metadata.get("doi", ""),
+            "arxiv": metadata.get("arxiv", ""),
+            "external_url": external_url,
+            "abstract": content.get("abstract", metadata.get("abstract", "")),
+            "full_text": content.get("full_text", ""),
+            "full_text_available": content.get("full_text_available", False),
+            "source": content.get("source", ""),
+            "sections": {
+                "introduction": sections.get("introduction", ""),
+                "methods": sections.get("methods", ""),
+                "results": sections.get("results", ""),
+                "discussion": sections.get("discussion", ""),
+                "conclusion": sections.get("conclusion", ""),
+            }
+        }
 
     except Exception as e:
         import traceback

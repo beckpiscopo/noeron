@@ -98,6 +98,16 @@ Then briefly explain your classification in 1-2 sentences.
 
 **Key Uncertainties**: List 2-3 important caveats, limitations, or open questions. Be honest about what we don't know.
 
+## ALSO REQUIRED - PER-PAPER KEY FINDINGS
+At the end, include a section with key findings for each paper. Use this exact format:
+
+[PAPER_KEY_FINDINGS]
+Paper 1: <one sentence summarizing this paper's key contribution to the claim>
+Paper 2: <one sentence summarizing this paper's key contribution to the claim>
+Paper 3: <one sentence summarizing this paper's key contribution to the claim>
+(continue for all papers listed above)
+[/PAPER_KEY_FINDINGS]
+
 ## GUIDELINES
 - Write in active voice, present tense where possible
 - Avoid jargon; if you must use technical terms, briefly explain them
@@ -105,7 +115,51 @@ Then briefly explain your classification in 1-2 sentences.
 - If the evidence is weak or limited, say so clearly
 - Don't oversell or undersell the findings
 
-Respond with ONLY the structured summary, no preamble."""
+Respond with ONLY the structured summary followed by the paper key findings section, no preamble."""
+
+
+def _parse_paper_key_findings(summary: str, num_papers: int) -> list[str]:
+    """Parse key findings from the summary response.
+
+    Expects format:
+    [PAPER_KEY_FINDINGS]
+    Paper 1: <finding>
+    Paper 2: <finding>
+    [/PAPER_KEY_FINDINGS]
+    """
+    import re
+
+    # Try to extract the key findings block
+    match = re.search(r'\[PAPER_KEY_FINDINGS\](.*?)\[/PAPER_KEY_FINDINGS\]', summary, re.DOTALL)
+
+    if not match:
+        # Return empty strings if no key findings section found
+        return [""] * num_papers
+
+    findings_text = match.group(1).strip()
+    findings = []
+
+    # Parse each "Paper N:" line
+    for i in range(1, num_papers + 1):
+        pattern = rf'Paper\s*{i}\s*:\s*(.+?)(?=Paper\s*\d+\s*:|$)'
+        paper_match = re.search(pattern, findings_text, re.DOTALL | re.IGNORECASE)
+        if paper_match:
+            finding = paper_match.group(1).strip()
+            # Clean up the finding - remove trailing newlines and extra whitespace
+            finding = ' '.join(finding.split())
+            findings.append(finding)
+        else:
+            findings.append("")
+
+    return findings
+
+
+def _extract_summary_without_findings(summary: str) -> str:
+    """Remove the paper key findings section from the summary for display."""
+    import re
+    # Remove the key findings block
+    cleaned = re.sub(r'\[PAPER_KEY_FINDINGS\].*?\[/PAPER_KEY_FINDINGS\]', '', summary, flags=re.DOTALL)
+    return cleaned.strip()
 
 
 def _load_deep_dive_cache() -> dict:
@@ -1384,6 +1438,7 @@ async def generate_deep_dive_summary(params: GenerateDeepDiveSummaryInput) -> di
                     "generated_at": cache[cache_key].get("generated_at", "unknown"),
                     "rag_query": cache[cache_key].get("rag_query", ""),
                     "papers_retrieved": cache[cache_key].get("papers_retrieved", 0),
+                    "papers": cache[cache_key].get("papers", []),
                 }
 
         # Step 1: Load claim from cache
@@ -1448,40 +1503,50 @@ async def generate_deep_dive_summary(params: GenerateDeepDiveSummaryInput) -> di
         )
 
         # Step 6: Call Gemini
-        summary = await asyncio.to_thread(
+        raw_summary = await asyncio.to_thread(
             _call_gemini_for_deep_dive,
             prompt,
             GEMINI_MODEL_DEFAULT,
         )
 
-        # Step 7: Cache the result
+        # Step 7: Parse key findings and clean summary
+        num_papers = min(len(rag_results), 7)  # Match the limit in _format_rag_results_for_prompt
+        key_findings = _parse_paper_key_findings(raw_summary, num_papers)
+        clean_summary = _extract_summary_without_findings(raw_summary)
+
+        # Build papers list with paper_id and key_finding
+        papers_list = []
+        for i, r in enumerate(rag_results[:num_papers]):
+            papers_list.append({
+                "paper_id": r.get("paper_id", ""),
+                "title": r.get("paper_title", ""),
+                "section": r.get("section", ""),
+                "year": r.get("year", ""),
+                "key_finding": key_findings[i] if i < len(key_findings) else "",
+            })
+
+        # Step 8: Cache the result
         from datetime import datetime
         cache = _load_deep_dive_cache()
         cache[cache_key] = {
-            "summary": summary,
+            "summary": clean_summary,
             "generated_at": datetime.utcnow().isoformat(),
             "rag_query": research_query,
             "papers_retrieved": len(rag_results),
             "claim_text": claim_data.get("claim_text", ""),
+            "papers": papers_list,
         }
         _save_deep_dive_cache(cache)
 
         # Return structured response
         return {
             "claim_id": params.claim_id,
-            "summary": summary,
+            "summary": clean_summary,
             "cached": False,
             "generated_at": cache[cache_key]["generated_at"],
             "rag_query": research_query,
             "papers_retrieved": len(rag_results),
-            "papers": [
-                {
-                    "title": r.get("paper_title", ""),
-                    "section": r.get("section", ""),
-                    "year": r.get("year", ""),
-                }
-                for r in rag_results[:5]
-            ],
+            "papers": papers_list,
         }
 
     except Exception as e:

@@ -25,6 +25,7 @@ interface DeepExplorationViewProps {
   episode: {
     title: string
     host: string
+    guest: string
     category: string
     currentTime: number
   }
@@ -37,7 +38,7 @@ interface DeepExplorationViewProps {
   }
   episodeId: string
   onBack: () => void
-  onViewSourcePaper: () => void
+  onViewSourcePaper: (paperId?: string) => void
 }
 
 interface EvidenceThread {
@@ -104,6 +105,7 @@ interface DeepDiveSummary {
   rag_query: string
   papers_retrieved: number
   papers?: Array<{
+    paper_id: string
     title: string
     section: string
     year: string
@@ -264,9 +266,10 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
   }
 
   const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60)
-    const secs = seconds % 60
-    return `${mins}:${secs.toString().padStart(2, "0")}`
+    const hrs = Math.floor(seconds / 3600)
+    const mins = Math.floor((seconds % 3600) / 60)
+    const secs = Math.floor(seconds % 60)
+    return `${hrs}:${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`
   }
 
   // Use real data or fallback to placeholders
@@ -355,11 +358,13 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
                 <Quote className="w-36 h-36" />
               </div>
               <div className="p-6 md:p-8 relative z-10">
-                <div className="flex items-center gap-2 mb-4">
-                  <span className="px-2 py-1 rounded bg-red-500/20 text-red-400 text-xs font-bold uppercase tracking-wider border border-red-500/30">
-                    {synthesis?.claim_type || "Anchor Claim"}
+                <div className="flex items-center gap-3 mb-4">
+                  <span className="px-2 py-1 rounded bg-[#FDA92B]/20 text-[#FDA92B] text-xs font-bold uppercase tracking-wider border border-[#FDA92B]/30">
+                    {synthesis?.claim_type || "Claim"}
                   </span>
-                  <span className="text-xs text-gray-400">Triggered at {formatTime(claim.timestamp)}</span>
+                  <span className="text-xs text-gray-500">
+                    @ {formatTime(claim.timestamp)}
+                  </span>
                 </div>
 
                 {/* Distilled claim as header */}
@@ -375,9 +380,11 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
                 )}
 
                 <div className="flex items-center gap-3">
-                  <div className="h-8 w-8 rounded-full bg-gray-700" />
+                  <div className="h-8 w-8 rounded-full bg-[#FDA92B]/20 flex items-center justify-center text-[#FDA92B] text-sm font-bold">
+                    {episode.guest.split(' ').map(n => n[0]).join('')}
+                  </div>
                   <p className="text-sm font-medium text-gray-300">
-                    {episode.host} • <span className="text-gray-500">{synthesis?.speaker_stance || "assertion"}</span>
+                    {episode.guest} • <span className="text-gray-500">{synthesis?.speaker_stance || "assertion"}</span>
                   </p>
                 </div>
               </div>
@@ -585,25 +592,57 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
                         </div>
 
                         {/* Papers used */}
-                        {deepDiveSummary.papers && deepDiveSummary.papers.length > 0 && (
-                          <div className="mt-6 pt-4 border-t border-[#28392e]">
-                            <h5 className="text-xs uppercase tracking-wider text-gray-500 font-semibold mb-3">
-                              Sources Retrieved
-                            </h5>
-                            <div className="flex flex-wrap gap-2">
-                              {deepDiveSummary.papers.map((paper, idx) => (
-                                <span
-                                  key={idx}
-                                  className="px-3 py-1.5 bg-[#1e2e24] border border-[#28392e] rounded-lg text-xs text-gray-400"
-                                  title={paper.title}
-                                >
-                                  {paper.title.length > 40 ? paper.title.slice(0, 40) + "..." : paper.title}
-                                  {paper.year && <span className="text-gray-600 ml-1">({paper.year})</span>}
-                                </span>
-                              ))}
+                        {deepDiveSummary.papers && deepDiveSummary.papers.length > 0 && (() => {
+                          // Dedupe papers by paper_id
+                          const uniquePapers = [...deepDiveSummary.papers]
+                            .filter((paper, index, self) =>
+                              index === self.findIndex(p => p.paper_id === paper.paper_id)
+                            )
+                            .sort((a, b) => {
+                              const yearA = parseInt(a.year) || 0
+                              const yearB = parseInt(b.year) || 0
+                              return yearB - yearA // newest first
+                            })
+
+                          return (
+                            <div className="mt-6 pt-4 border-t border-[#28392e]">
+                              <h5 className="text-xs uppercase tracking-wider text-gray-500 font-semibold mb-4">
+                                Sources Retrieved ({uniquePapers.length} paper{uniquePapers.length !== 1 ? 's' : ''})
+                              </h5>
+                              <div className="space-y-4">
+                                {uniquePapers.map((paper, idx) => (
+                                  <div key={idx} className="group">
+                                    <div className="flex items-start gap-2">
+                                      <span className="text-sm font-mono text-gray-500 shrink-0 pt-0.5">
+                                        {paper.year || "n/a"}
+                                      </span>
+                                      <span className="text-gray-500 shrink-0 pt-0.5">•</span>
+                                      <div className="flex-1 min-w-0">
+                                        <p className="text-sm text-gray-300 leading-relaxed">
+                                          {paper.title}
+                                        </p>
+                                        <div className="flex flex-wrap items-center gap-2 mt-1.5">
+                                          {paper.section && (
+                                            <span className="text-[10px] text-gray-500 px-1.5 py-0.5 bg-[#1e2e24] rounded">
+                                              {paper.section}
+                                            </span>
+                                          )}
+                                          <button
+                                            onClick={() => onViewSourcePaper(paper.paper_id)}
+                                            className="text-[10px] text-[#FDA92B] hover:text-[#FDA92B]/80 transition-colors flex items-center gap-1"
+                                          >
+                                            View Paper
+                                            <ExternalLink className="w-2.5 h-2.5" />
+                                          </button>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
                             </div>
-                          </div>
-                        )}
+                          )
+                        })()}
                       </>
                     )}
 

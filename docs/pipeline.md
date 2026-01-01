@@ -28,7 +28,12 @@ Both scripts accept `--input-dir`, `--output-dir`, and `--force` flags for parti
 
 ## 3. Cleaned corpus & transcripts
 
-`python scripts/prepare_texts.py` normalizes each file in `data/grobid_fulltext/`, collapsing whitespace, fixing hyphenation, and guaranteeing section headings have separators. Cleaned documents are written as individual JSON files in `data/cleaned_papers/` with tidy `full_text`, structured `sections`, and preserved `source_path`.
+`python scripts/prepare_texts.py` normalizes each file in `data/grobid_fulltext/`, collapsing whitespace, fixing hyphenation, and guaranteeing section headings have separators. You can run it in two ways:
+
+- default: writes cleaned JSON files into `data/cleaned_papers/`
+- in-memory: used by `scripts/build_vector_store.py`, which calls `process_all_papers()` without saving files
+
+The cleaned output has tidy `full_text`, structured `sections`, and a `source_path` reference. Note: the current GROBID extractor writes `pdf_path` (not `source_pdf`), so the `source_path` field will be blank unless you adjust the extractor or the cleaner.
 
 Interview transcripts (e.g., Lex Fridman #325 with Michael Levin) enter the pipeline via AssemblyAI. `scripts/fetch_assemblyai_transcript.py` uses `scripts/transcript_helpers.py` to:
 
@@ -37,7 +42,7 @@ Interview transcripts (e.g., Lex Fridman #325 with Michael Levin) enter the pipe
 - upload to AssemblyAI with speaker diarization enabled (set `ASSEMBLYAI_API_KEY` in your environment)
 - identify Michael Levin’s speaker label, stitch his blocks into timestamped sections, and emit cleaned JSON into `data/cleaned_papers/`
 
-Transcripts therefore appear alongside cleaned GROBID papers and participate in every downstream chunking/embedding step.
+Transcripts are saved directly into `data/cleaned_papers/` and participate in downstream chunking/embedding.
 
 ## 4. Chunking & the embedding store
 
@@ -49,12 +54,14 @@ Transcripts therefore appear alongside cleaned GROBID papers and participate in 
 
 `scripts/build_vector_store.py` glues everything together:
 
-1. optionally reruns `scripts.prepare_texts.py` to refresh `data/cleaned_papers/`
-2. loads every cleaned paper (including AssemblyAI transcripts)
+1. runs `scripts.prepare_texts.process_all_papers()` in memory against `data/grobid_fulltext/`
+2. loads any JSON files already present in `data/cleaned_papers/` (typically AssemblyAI transcripts or manual inserts)
 3. chunks them with the defaults above
 4. clears the existing Chroma collection (`VectorStore.clear_collection()`)
 5. embeds batches of text with `SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")`
 6. persists documents, embeddings, and metadata in `data/vectorstore` via `chromadb.PersistentClient`
+
+Because step 1 runs in memory and step 2 appends any files in `data/cleaned_papers/`, you should avoid writing GROBID-cleaned files there unless you want to double-index those papers.
 
 The `VectorStore` wrapper (in `src/bioelectricity_research/vector_store.py`) exposes `add_chunks()`, `search()`, and `get_stats()`, and every chunk stores enough metadata to link back to the original paper, section, and source path.
 
@@ -75,6 +82,28 @@ Launch the server with `python -m bioelectricity_research` or `uv run bioelectri
 Use `--use-gemini` plus `--podcast-id`/`--episode-title` (and `--redo` when you want to refresh an existing segment) to exercise the Gemini/RAG flow. When you have a full `data/window_segments.json`, run `python scripts/run_context_card_builder_batch.py --podcast-id <id> --episode-title "<title>" --use-gemini --redo` to process every window sequentially, skipping empty windows and logging progress. The batch helper writes each window to a temporary JSON file before invoking `context_card_builder.py`, so you get the same logging, cache updates, and registry validations you expect from single-segment runs.
 
 After completing the batch, run `python scripts/validate_context_card_registry.py` (optionally with `--podcast-id <id>`) to check for duplicate `timestamp|window_id` keys, malformed timestamps, missing required fields, or empty claim lists before you ingest the cards into the rest of the system.
+
+## Recommended default runbook
+
+Use this when you are doing a fresh ingest or adding new material to an existing corpus.
+
+### A) New papers (PDFs)
+
+1) `uv run bioelectricity-research` → use `save_paper` / `save_author_papers` to populate `data/pdfs/` + `data/papers_collection.json`  
+2) `python scripts/grobid_extract.py`  
+3) `python scripts/grobid_quality_check.py` (optional but recommended)  
+4) `python scripts/build_vector_store.py`
+
+### B) New transcript (AssemblyAI)
+
+1) `python scripts/fetch_assemblyai_transcript.py --youtube-url <url> --paper-id <id> --title "<title>"`  
+2) `python scripts/build_vector_store.py`
+
+### C) Claims + context cards from a transcript
+
+1) `python scripts/window_transcript_windows.py` (generate `data/window_segments.json`)  
+2) `python scripts/run_context_card_builder_batch.py --podcast-id <id> --episode-title "<title>" --use-gemini --redo`  
+3) `python scripts/validate_context_card_registry.py --podcast-id <id>`
 
 ## 7. Verification agent
 
