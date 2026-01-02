@@ -423,27 +423,32 @@ async def http_generate_deep_dive_summary(request: Request):
         )
 
         # Step 6: Call Gemini
-        summary = await asyncio.to_thread(
+        raw_summary = await asyncio.to_thread(
             _call_gemini_for_deep_dive,
             prompt,
             GEMINI_MODEL_DEFAULT,
         )
 
-        # Build papers list for caching
-        papers_list = [
-            {
+        # Step 7: Parse key findings and clean summary
+        num_papers = min(len(rag_results), 7)
+        key_findings = _parse_paper_key_findings(raw_summary, num_papers)
+        clean_summary = _extract_summary_without_findings(raw_summary)
+
+        # Build papers list with key_finding
+        papers_list = []
+        for i, r in enumerate(rag_results[:num_papers]):
+            papers_list.append({
                 "paper_id": r.get("paper_id", ""),
                 "title": r.get("paper_title", ""),
                 "section": r.get("section", ""),
                 "year": r.get("year", ""),
-            }
-            for r in rag_results[:5]
-        ]
+                "key_finding": key_findings[i] if i < len(key_findings) else "",
+            })
 
-        # Step 7: Cache the result
+        # Step 8: Cache the result
         cache = _load_deep_dive_cache()
         cache[cache_key] = {
-            "summary": summary,
+            "summary": clean_summary,
             "generated_at": datetime.utcnow().isoformat(),
             "rag_query": research_query,
             "papers_retrieved": len(rag_results),
@@ -455,7 +460,7 @@ async def http_generate_deep_dive_summary(request: Request):
         # Return structured response
         return {
             "claim_id": claim_id,
-            "summary": summary,
+            "summary": clean_summary,
             "cached": False,
             "generated_at": cache[cache_key]["generated_at"],
             "rag_query": research_query,

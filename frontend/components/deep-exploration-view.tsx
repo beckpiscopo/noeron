@@ -109,6 +109,7 @@ interface DeepDiveSummary {
     title: string
     section: string
     year: string
+    key_finding?: string
   }>
   error?: string
 }
@@ -609,7 +610,7 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
                               <h5 className="text-xs uppercase tracking-wider text-gray-500 font-semibold mb-4">
                                 Sources Retrieved ({uniquePapers.length} paper{uniquePapers.length !== 1 ? 's' : ''})
                               </h5>
-                              <div className="space-y-4">
+                              <div className="space-y-5">
                                 {uniquePapers.map((paper, idx) => (
                                   <div key={idx} className="group">
                                     <div className="flex items-start gap-2">
@@ -621,7 +622,12 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
                                         <p className="text-sm text-gray-300 leading-relaxed">
                                           {paper.title}
                                         </p>
-                                        <div className="flex flex-wrap items-center gap-2 mt-1.5">
+                                        {paper.key_finding && (
+                                          <p className="text-xs text-gray-400 mt-2 leading-relaxed">
+                                            <span className="text-gray-500">Key finding:</span> {paper.key_finding}
+                                          </p>
+                                        )}
+                                        <div className="flex flex-wrap items-center gap-2 mt-2">
                                           {paper.section && (
                                             <span className="text-[10px] text-gray-500 px-1.5 py-0.5 bg-[#1e2e24] rounded">
                                               {paper.section}
