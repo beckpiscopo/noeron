@@ -102,24 +102,24 @@ export function EpisodeLibrary({ onSelectEpisode }: EpisodeLibraryProps) {
   }, [])
 
   return (
-    <div className="relative flex min-h-screen w-full flex-col bg-[#102216] text-white">
+    <div className="noeron-theme relative flex min-h-screen w-full flex-col bg-[var(--carbon-black)] text-[var(--parchment)]">
       {/* Sticky Header */}
-      <header className="sticky top-0 z-50 w-full border-b border-white/10 px-6 py-4 bg-[#102216]/85 backdrop-blur-xl">
+      <header className="sticky top-0 z-50 w-full border-b border-[var(--parchment)]/10 px-6 py-4 bg-[var(--carbon-black)]/85 backdrop-blur-xl">
         <div className="mx-auto max-w-7xl flex items-center justify-between">
           {/* Branding */}
           <div className="flex items-center gap-2.5">
-            <span className="text-white text-2xl font-medium tracking-tight italic" style={{ fontFamily: 'var(--font-bodoni-moda)' }}>noeron</span>
+            <span className="display text-2xl font-medium tracking-tight text-[var(--parchment)] italic">noeron</span>
           </div>
 
           {/* Utilities */}
           <div className="flex items-center gap-3">
-            <button className="flex items-center justify-center size-10 rounded-full bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white transition-colors">
+            <button className="flex items-center justify-center size-10 rounded-full bg-[var(--parchment)]/5 text-[var(--parchment)]/50 hover:bg-[var(--parchment)]/10 hover:text-[var(--parchment)] transition-colors">
               <Search className="size-5" />
             </button>
-            <button className="flex items-center justify-center size-10 rounded-full bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white transition-colors">
+            <button className="flex items-center justify-center size-10 rounded-full bg-[var(--parchment)]/5 text-[var(--parchment)]/50 hover:bg-[var(--parchment)]/10 hover:text-[var(--parchment)] transition-colors">
               <Settings className="size-5" />
             </button>
-            <button className="flex items-center justify-center size-10 rounded-full bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white transition-colors">
+            <button className="flex items-center justify-center size-10 rounded-full bg-[var(--parchment)]/5 text-[var(--parchment)]/50 hover:bg-[var(--parchment)]/10 hover:text-[var(--parchment)] transition-colors">
               <HelpCircle className="size-5" />
             </button>
           </div>
@@ -131,15 +131,16 @@ export function EpisodeLibrary({ onSelectEpisode }: EpisodeLibraryProps) {
         <div className="mx-auto max-w-[1200px]">
           {/* Page Title */}
           <div className="mb-8">
-            <h1 className="text-3xl md:text-4xl font-black leading-tight tracking-[-0.02em] text-white mb-2">
+            <div className="eyebrow mb-2">Library</div>
+            <h1 className="display text-3xl md:text-4xl font-normal leading-tight tracking-[-0.02em] text-[var(--parchment)] mb-2">
               Podcast Episode Library
             </h1>
-            <p className="text-gray-400 text-sm md:text-base font-normal">
+            <p className="text-[var(--parchment)]/60 text-sm md:text-base font-normal">
               Podcast interviews exploring morphogenesis, bioelectricity, and collective intelligence
             </p>
           </div>
 
-          <div className="mb-4 text-xs font-semibold uppercase tracking-[0.3em] text-gray-500">
+          <div className="mb-4 text-xs font-semibold uppercase tracking-[0.3em] text-[var(--parchment)]/40 mono">
             {status === "loading" && "Refreshing episode catalog…"}
             {status === "error" && `Snapshot stale (${errorMessage})`}
             {status === "idle" && "Episode catalog synced"}
@@ -152,22 +153,22 @@ export function EpisodeLibrary({ onSelectEpisode }: EpisodeLibraryProps) {
               setHighlightedEpisodeId(episode.id)
               onSelectEpisode(episode)
             }}
-            className={`group relative flex flex-col border border-white/5 rounded-[20px] p-6 cursor-pointer transition-all duration-300 hover:scale-[1.02] hover:bg-[#274A41] hover:shadow-[0_0_25px_rgba(88,61,50,0.3)] hover:border-[#FDA92B]/30 ${
-              episode.id === highlightedEpisodeId ? "bg-[#274A41]" : "bg-[#1E3A30]"
+            className={`group relative flex flex-col border border-[var(--parchment)]/10 p-6 cursor-pointer transition-all duration-300 hover:scale-[1.02] hover:bg-[var(--dark-gray)] hover:shadow-[0_0_25px_rgba(190,124,77,0.2)] hover:border-[var(--golden-chestnut)]/30 ${
+              episode.id === highlightedEpisodeId ? "bg-[var(--dark-gray)]" : "bg-[var(--dark-gray)]/50"
             }`}
             >
               {/* Info Stack */}
               <div className="flex flex-1 flex-col gap-3">
                 <div className="flex flex-col gap-2">
-                  <span className="text-[#FDA92B] text-xs font-bold uppercase tracking-wider">{episode.podcast}</span>
-                  <h3 className="text-white text-lg font-bold leading-tight">{episode.title}</h3>
+                  <span className="text-[var(--golden-chestnut)] text-xs font-bold uppercase tracking-wider mono">{episode.podcast}</span>
+                  <h3 className="text-[var(--parchment)] text-lg font-bold leading-tight">{episode.title}</h3>
                 </div>
-                <p className="text-gray-400 text-sm font-medium">
+                <p className="text-[var(--parchment)]/60 text-sm font-medium">
                   Host: {episode.host} • Guest: {episode.guest}
                 </p>
 
                 {/* Metadata Stack */}
-                <div className="flex flex-col gap-2 mt-2 text-sm text-gray-400">
+                <div className="flex flex-col gap-2 mt-2 text-sm text-[var(--parchment)]/50">
                   <div className="flex items-center gap-1.5">
                     <Clock className="size-4" />
                     <span>{episode.duration}</span>
@@ -176,7 +177,7 @@ export function EpisodeLibrary({ onSelectEpisode }: EpisodeLibraryProps) {
                     <Calendar className="size-4" />
                     <span>{episode.date}</span>
                   </div>
-                  <div className="flex items-center gap-1.5 text-[#FDA92B] font-medium">
+                  <div className="flex items-center gap-1.5 text-[var(--golden-chestnut)] font-medium">
                     <FileText className="size-4" />
                     <span>{episode.papersLinked} Papers Linked</span>
                   </div>
@@ -185,7 +186,7 @@ export function EpisodeLibrary({ onSelectEpisode }: EpisodeLibraryProps) {
 
               {/* Play Button */}
               <div className="flex justify-end mt-4">
-                <button className="flex items-center justify-center size-12 rounded-full bg-[#FDA92B] text-[#102216] shadow-lg shadow-[#FDA92B]/20 transition-all duration-300 group-hover:scale-110 group-hover:bg-[#583D32] group-hover:shadow-[0_0_15px_rgba(88,61,50,0.5)]">
+                <button className="flex items-center justify-center size-12 rounded-full bg-[var(--golden-chestnut)] text-[var(--carbon-black)] shadow-lg shadow-[var(--golden-chestnut)]/20 transition-all duration-300 group-hover:scale-110 group-hover:bg-[var(--parchment)] group-hover:shadow-[0_0_15px_rgba(190,124,77,0.5)]">
                   <Play className="size-5 ml-0.5 fill-current" />
                 </button>
               </div>
@@ -193,13 +194,13 @@ export function EpisodeLibrary({ onSelectEpisode }: EpisodeLibraryProps) {
           ))}
 
           {/* Explore Section */}
-          <div className="flex flex-col items-center justify-center gap-4 py-8 px-4 rounded-[20px] bg-gradient-to-b from-transparent to-[#1a261f]/50 text-center border border-white/5">
-            <div className="size-12 rounded-full bg-[#FDA92B]/10 flex items-center justify-center">
-              <Brain className="size-6 text-[#FDA92B]" />
+          <div className="flex flex-col items-center justify-center gap-4 py-8 px-4 bg-gradient-to-b from-transparent to-[var(--dark-gray)]/50 text-center border border-[var(--parchment)]/10">
+            <div className="size-12 rounded-full bg-[var(--golden-chestnut)]/10 flex items-center justify-center">
+              <Brain className="size-6 text-[var(--golden-chestnut)]" />
             </div>
-            <h3 className="text-lg font-bold text-white">Explore Research Papers</h3>
-            <p className="text-gray-400 text-sm">Dive deeper into the cited literature and hypotheses.</p>
-            <button className="mt-2 flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-[#28392e] hover:bg-[#344a3c] text-white text-sm font-bold transition-colors border border-white/10">
+            <h3 className="text-lg font-bold text-[var(--parchment)]">Explore Research Papers</h3>
+            <p className="text-[var(--parchment)]/60 text-sm">Dive deeper into the cited literature and hypotheses.</p>
+            <button className="btn-noeron btn-noeron-secondary flex items-center gap-2">
               <span>Browse Citations</span>
               <FileText className="size-4" />
             </button>
@@ -209,9 +210,9 @@ export function EpisodeLibrary({ onSelectEpisode }: EpisodeLibraryProps) {
       </main>
 
       {/* Footer */}
-      <footer className="mt-auto py-8 text-center border-t border-white/5 bg-[#0d1c12]">
+      <footer className="mt-auto py-8 text-center border-t border-[var(--parchment)]/10 bg-[var(--carbon-black)]">
         <div className="flex flex-col gap-2 items-center justify-center">
-          <p className="text-white/40 text-xs font-medium tracking-wide uppercase">
+          <p className="text-[var(--parchment)]/40 text-xs font-medium tracking-wide uppercase mono">
             Built with Gemini 3 API • Designed with Google Stitch
           </p>
         </div>

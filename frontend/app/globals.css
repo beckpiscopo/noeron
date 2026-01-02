@@ -4,6 +4,14 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
+  /* Noeron Color Palette - Always available */
+  --carbon-black: #1D1E20;
+  --parchment: #F2E9E4;
+  --dark-gray: #2A2B2D;
+  --golden-chestnut: #BE7C4D;
+  --rosy-copper: #BE5A38;
+  --warm-gray: #6B5D52;
+
   /* Light mode - Cream/Beige palette inspired by portfolio */
   --background: #f5e6d3;
   --foreground: #3d2817;
@@ -41,39 +49,47 @@
 }
 
 .dark {
-  /* Dark mode - Deep green palette from episode library */
-  --background: #102216;
-  --foreground: #EBE2D2;
-  --card: #1E3A30;
-  --card-foreground: #EBE2D2;
-  --popover: #1E3A30;
-  --popover-foreground: #EBE2D2;
-  --primary: #EBE2D2;
-  --primary-foreground: #102216;
-  --secondary: #274A41;
-  --secondary-foreground: #EBE2D2;
-  --muted: #0d1c12;
-  --muted-foreground: #b8a892;
-  --accent: #FDA92B;
-  --accent-foreground: #102216;
-  --destructive: oklch(0.396 0.141 25.723);
-  --destructive-foreground: oklch(0.637 0.237 25.331);
-  --border: #274A41;
-  --input: #274A41;
-  --ring: #9d8b74;
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: #1E3A30;
-  --sidebar-foreground: #EBE2D2;
-  --sidebar-primary: #FDA92B;
-  --sidebar-primary-foreground: #102216;
-  --sidebar-accent: #274A41;
-  --sidebar-accent-foreground: #EBE2D2;
-  --sidebar-border: #274A41;
-  --sidebar-ring: #9d8b74;
+  /* Noeron Color Palette - Warm Technical Blueprint */
+  --carbon-black: #1D1E20;
+  --parchment: #F2E9E4;
+  --dark-gray: #2A2B2D;
+  --golden-chestnut: #BE7C4D;
+  --rosy-copper: #BE5A38;
+  --warm-gray: #6B5D52;
+
+  /* Dark mode - Noeron warm palette */
+  --background: #1D1E20;
+  --foreground: #F2E9E4;
+  --card: #2A2B2D;
+  --card-foreground: #F2E9E4;
+  --popover: #2A2B2D;
+  --popover-foreground: #F2E9E4;
+  --primary: #BE7C4D;
+  --primary-foreground: #1D1E20;
+  --secondary: #6B5D52;
+  --secondary-foreground: #F2E9E4;
+  --muted: #2A2B2D;
+  --muted-foreground: rgba(242, 233, 228, 0.7);
+  --accent: #BE7C4D;
+  --accent-foreground: #1D1E20;
+  --destructive: #BE5A38;
+  --destructive-foreground: #F2E9E4;
+  --border: rgba(242, 233, 228, 0.15);
+  --input: rgba(242, 233, 228, 0.15);
+  --ring: #BE7C4D;
+  --chart-1: #BE7C4D;
+  --chart-2: #BE5A38;
+  --chart-3: #6B5D52;
+  --chart-4: rgba(190, 124, 77, 0.6);
+  --chart-5: rgba(190, 90, 56, 0.6);
+  --sidebar: #2A2B2D;
+  --sidebar-foreground: #F2E9E4;
+  --sidebar-primary: #BE7C4D;
+  --sidebar-primary-foreground: #1D1E20;
+  --sidebar-accent: #6B5D52;
+  --sidebar-accent-foreground: #F2E9E4;
+  --sidebar-border: rgba(242, 233, 228, 0.15);
+  --sidebar-ring: #BE7C4D;
 }
 
 @theme inline {

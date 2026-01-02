@@ -1,604 +1,413 @@
 "use client"
 
-import { ChevronRight, Play, Zap, FileCheck, Search, Headphones, Brain, Compass, Menu, X } from "lucide-react"
-import { useEffect, useState } from "react"
-import { callMcpTool } from "@/lib/api"
-import { ThemeToggle } from "./theme-toggle"
+import { useState, useEffect, useCallback } from "react"
+import { Play } from "lucide-react"
 
 interface LandingPageProps {
   onGetStarted: () => void
 }
 
-interface SearchPaper {
-  paperId: string
-  title: string
-  year?: number
-  citationCount?: number
-  authors?: Array<{ name?: string }>
-  venue?: string
-}
-
 export function LandingPage({ onGetStarted }: LandingPageProps) {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const [featuredPapers, setFeaturedPapers] = useState<SearchPaper[]>([])
-  const [searchState, setSearchState] = useState<"loading" | "idle" | "error">("loading")
-  const [searchError, setSearchError] = useState<string | null>(null)
+  const [currentSection, setCurrentSection] = useState(0)
+  const totalSections = 9
 
+  const goToSection = useCallback((index: number) => {
+    if (index < 0 || index >= totalSections) return
+    setCurrentSection(index)
+  }, [totalSections])
+
+  // Keyboard navigation
   useEffect(() => {
-    let mounted = true
-
-    const loadPapers = async () => {
-      setSearchState("loading")
-
-      try {
-        const results = await callMcpTool<SearchPaper[]>("bioelectricity_search_papers", {
-          query: "bioelectricity morphogenesis",
-          limit: 3,
-          response_format: "json",
-        })
-
-        if (!mounted) {
-          return
-        }
-
-        setFeaturedPapers(results || [])
-        setSearchState("idle")
-        setSearchError(null)
-      } catch (error) {
-        if (!mounted) {
-          return
-        }
-
-        setSearchError(error instanceof Error ? error.message : "Unable to fetch papers")
-        setSearchState("error")
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "ArrowRight") {
+        goToSection(currentSection + 1)
+      } else if (e.key === "ArrowLeft") {
+        goToSection(currentSection - 1)
       }
     }
 
-    loadPapers()
+    document.addEventListener("keydown", handleKeyDown)
+    return () => document.removeEventListener("keydown", handleKeyDown)
+  }, [currentSection, goToSection])
 
-    return () => {
-      mounted = false
+  // Touch swipe support
+  useEffect(() => {
+    let touchStartX = 0
+    let touchEndX = 0
+
+    const handleTouchStart = (e: TouchEvent) => {
+      touchStartX = e.changedTouches[0].screenX
     }
-  }, [])
+
+    const handleTouchEnd = (e: TouchEvent) => {
+      touchEndX = e.changedTouches[0].screenX
+      if (touchStartX - touchEndX > 50) {
+        goToSection(currentSection + 1)
+      }
+      if (touchEndX - touchStartX > 50) {
+        goToSection(currentSection - 1)
+      }
+    }
+
+    document.addEventListener("touchstart", handleTouchStart)
+    document.addEventListener("touchend", handleTouchEnd)
+    return () => {
+      document.removeEventListener("touchstart", handleTouchStart)
+      document.removeEventListener("touchend", handleTouchEnd)
+    }
+  }, [currentSection, goToSection])
 
   return (
-    <div className="relative flex min-h-screen w-full flex-col bg-background text-foreground">
-      {/* Fixed Header - Transparent on hero */}
-      <header className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between border-b border-transparent bg-transparent backdrop-blur-sm px-6 py-5 md:px-10 lg:px-40 transition-all">
-        <div className="flex items-center gap-3">
-          <h2 className="text-2xl font-medium tracking-tight text-[#EBE2D2] italic" style={{ fontFamily: 'var(--font-bodoni-moda)' }}>Noeron</h2>
+    <div className="noeron-theme bg-[var(--carbon-black)] text-[var(--parchment)] overflow-hidden h-screen">
+      {/* Navigation */}
+      <nav className="fixed top-0 left-0 right-0 px-6 md:px-[60px] py-5 flex justify-between items-center z-[1000] backdrop-blur-[10px] bg-[var(--carbon-black)] border-b border-[var(--parchment)]/10">
+        <div className="display text-lg font-medium tracking-[2px] text-[var(--parchment)]">
+          NOERON
         </div>
-
-        {/* Desktop Navigation - Moved to right */}
-        <div className="hidden md:flex items-center gap-8">
-          <nav className="flex gap-8">
-            <a href="#features" className="text-[#EBE2D2]/80 hover:text-[#EBE2D2] transition-colors text-sm font-medium">
-              Features
-            </a>
-            <a href="#how-it-works" className="text-[#EBE2D2]/80 hover:text-[#EBE2D2] transition-colors text-sm font-medium">
-              How it Works
-            </a>
-          </nav>
-          
-          <button
-            onClick={onGetStarted}
-            className="flex items-center justify-center rounded-lg h-9 px-4 bg-primary/90 hover:bg-primary transition-colors text-primary-foreground text-sm font-bold"
-          >
-            Try Live Demo
-          </button>
-          
-          <ThemeToggle />
-        </div>
-
-        {/* Mobile Menu Button */}
-        <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="md:hidden text-[#EBE2D2]">
-          {mobileMenuOpen ? <X className="size-6" /> : <Menu className="size-6" />}
+        <button
+          onClick={() => goToSection(5)}
+          className="btn-noeron-secondary !py-2.5 !px-6 !text-[13px]"
+        >
+          Access Demo →
         </button>
-      </header>
+      </nav>
 
-      {/* Mobile Menu */}
-      {mobileMenuOpen && (
-        <div className="fixed top-[73px] left-0 right-0 z-40 bg-card border-b border-border p-6 md:hidden">
-          <nav className="flex flex-col gap-4">
-            <a
-              href="#features"
-              onClick={() => setMobileMenuOpen(false)}
-              className="text-muted-foreground hover:text-accent transition-colors text-sm font-medium"
-            >
-              Features
-            </a>
-            <a
-              href="#how-it-works"
-              onClick={() => setMobileMenuOpen(false)}
-              className="text-muted-foreground hover:text-accent transition-colors text-sm font-medium"
-            >
-              How it Works
-            </a>
-            <div className="pt-4 border-t border-border flex items-center justify-between">
-              <span className="text-sm font-medium text-muted-foreground">Theme</span>
-              <ThemeToggle />
+      {/* Slider Container */}
+      <div
+        className="fixed top-0 left-0 w-full h-screen flex transition-transform duration-[800ms] ease-[cubic-bezier(0.65,0,0.35,1)]"
+        style={{ transform: `translateX(-${currentSection * 100}vw)` }}
+      >
+
+{/* Section 1: Hero */}
+      <section className="min-w-[100vw] h-screen flex flex-col justify-center items-center px-6 md:px-[60px] py-[100px] pb-[120px] relative overflow-hidden bg-[var(--carbon-black)]">
+          {/* Layered background effects */}
+          <div className="blueprint-pattern opacity-[0.15]" />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--carbon-black)_0%,_#000000_100%)] opacity-40" />
+
+          {/* Subtle vignette */}
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_transparent_0%,_rgba(0,0,0,0.3)_100%)]" />
+
+          <div className="max-w-[1200px] w-full relative z-10 text-center">
+            {/* Improved tagline with geometric lines */}
+            <div className="flex items-center justify-center gap-4 mb-12 animate-fade-in">
+              <div className="h-[1px] w-16 bg-gradient-to-r from-transparent to-[var(--golden-chestnut)]" />
+              <span className="eyebrow tracking-[0.2em] text-[var(--golden-chestnut)]">
+                EPISTEMOLOGICAL INFRASTRUCTURE
+              </span>
+              <div className="h-[1px] w-16 bg-gradient-to-l from-transparent to-[var(--golden-chestnut)]" />
             </div>
-          </nav>
-        </div>
-      )}
 
-      <main className="flex-grow w-full">
-        {/* Hero Section with Watercolor Background */}
-        <section className="relative w-screen min-h-[100vh] flex items-center overflow-hidden left-1/2 right-1/2 -ml-[50vw] -mr-[50vw]">
-          {/* Background Image */}
-          <div className="absolute inset-0 w-full h-full">
-            <img
-              src="/images/hero-watercolor.jpg"
-              alt="Contemplative watercolor space"
-              className="w-full h-full object-cover object-center"
-              loading="eager"
-            />
-            {/* Darkening overlay for better text contrast */}
-            <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/30 to-black/50" />
-            {/* Additional gradient for text area */}
-            <div className="absolute inset-0 bg-gradient-to-r from-black/40 via-transparent to-transparent md:from-black/30" />
-          </div>
+            <h1 className="text-[clamp(4rem,12vw,9rem)] font-normal tracking-[-2px] mb-10 text-[var(--parchment)] leading-[0.95] animate-fade-in-up" style={{ fontFamily: "'Russo One', sans-serif", animationDelay: "0.1s" }}>
+              Noeron
+            </h1>
 
-          {/* Content Container */}
-          <div className="relative z-10 w-full px-6 py-20 md:py-32 md:px-10 lg:px-40">
-            <div className="mx-auto max-w-[960px] flex flex-col items-start md:items-center text-left md:text-center gap-8">
+            <div className="animate-fade-in-up" style={{ animationDelay: "0.2s" }}>
+              <p className="text-xl md:text-2xl font-light leading-relaxed text-[var(--parchment)] mb-3">
+                The <i>knowledge layer</i> for podcasts.
+              </p>
+              <p className="text-base md:text-lg font-light leading-relaxed text-[var(--parchment)]/70 mb-12">
+              Real-time synchronization between conversation and research.
+              </p>
+            </div>
 
-              {/* Headline */}
-              <div className="flex flex-col gap-6">
-                <h1 className="text-5xl md:text-6xl lg:text-7xl font-black leading-[1.1] tracking-tight text-[#EBE2D2] drop-shadow-[0_2px_10px_rgba(0,0,0,0.3)]">
-                  Thoughtful exploration<br className="hidden md:block" />
-                  of <span className="text-accent"> big ideas</span>
-                </h1>
-                <p className="text-[#EBE2D2]/90 text-lg md:text-xl lg:text-2xl max-w-2xl mx-auto md:mx-auto font-light leading-relaxed drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)]">
-                  The knowledge layer for podcasts.
-                </p>
+            {/* Enhanced loading animation with progress bar */}
+            <div className="mono text-xs leading-[1.8] mb-4 max-w-[450px] mx-auto animate-fade-in-up" style={{ animationDelay: "0.3s" }}>
+              <div className="animate-typing text-[var(--golden-chestnut)]/80 mb-1">
+                // PARSING AUDIO STREAMS
               </div>
-
-              {/* CTA Buttons */}
-              <div className="flex flex-col sm:flex-row gap-4 justify-center w-full sm:w-auto mt-4">
-                <button
-                  onClick={onGetStarted}
-                  className="flex min-w-[200px] h-14 items-center justify-center rounded-[18px] border border-[rgba(255,255,255,0.3)] bg-[rgba(255,252,245,0.15)] backdrop-blur-sm px-8 py-3.5 text-[#EBE2D2] text-[15px] font-light tracking-[0.5px] transition-all duration-300 hover:bg-[rgba(255,252,245,0.25)] hover:shadow-[0_0_20px_rgba(253,169,43,0.3)]"
-                  style={{ fontFamily: 'var(--font-manrope)' }}
-                >
-                  Try Live Demo
-                </button>
-                <button 
-                  className="flex min-w-[200px] h-14 items-center justify-center rounded-[18px] border border-[rgba(255,255,255,0.3)] bg-transparent backdrop-blur-sm px-8 py-3.5 text-[#EBE2D2]/85 text-[15px] font-light tracking-[0.5px] transition-all duration-300 hover:bg-[rgba(255,252,245,0.1)] hover:text-[#EBE2D2]"
-                  style={{ fontFamily: 'var(--font-manrope)' }}
-                >
-                  <Play className="size-4 mr-2" />
-                  Watch Video
-                </button>
+              <div className="animate-typing text-[var(--golden-chestnut)]/80 mb-1" style={{ animationDelay: "0.4s" }}>
+                // VERIFYING FACTS WITH GEMINI 3
+              </div>
+              <div className="animate-typing text-[var(--golden-chestnut)]/80 flex items-center justify-center gap-2" style={{ animationDelay: "0.7s" }}>
+                // GENERATING KNOWLEDGE GRAPH...
+                <span className="animate-pulse inline-block w-2 h-3 bg-[var(--golden-chestnut)]" />
               </div>
             </div>
-          </div>
 
-          {/* Scroll indicator */}
-          <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 hidden md:block">
-            <div className="flex flex-col items-center gap-2 text-[#EBE2D2]/60 text-xs uppercase tracking-widest">
-              <span>Explore</span>
-              <div className="w-px h-12 bg-gradient-to-b from-[#EBE2D2]/40 to-transparent animate-pulse" />
+            {/* Progress bar */}
+            <div className="w-full max-w-[400px] mx-auto h-1 bg-[var(--parchment)]/10 rounded-full mb-16 overflow-hidden animate-fade-in-up" style={{ animationDelay: ".4s" }}>
+              <div className="h-full bg-gradient-to-r from-[var(--golden-chestnut)] to-[var(--golden-chestnut)]/70 animate-progress rounded-full shadow-[0_0_12px_rgba(253,169,43,0.4)]" />
             </div>
-          </div>
-        </section>
 
-        {/* Dynamic Search Preview */}
-        <section className="py-16 px-6 md:px-10 lg:px-40">
-          <div className="mx-auto max-w-[960px]">
-            <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between mb-8">
-              <div>
-                <h2 className="text-3xl md:text-4xl font-bold">Live research snapshot</h2>
-                <p className="text-muted-foreground text-sm md:text-base">
-                  Behind the scenes the MCP server keeps your questions aligned with the latest papers. These are the top hits for "bioelectricity morphogenesis."
-                </p>
-              </div>
-              <button
-                className="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] transition hover:border-accent hover:bg-accent/10"
-                onClick={() => onGetStarted()}
+            {/* Improved buttons with better hover states */}
+            <div className="flex gap-5 justify-center flex-wrap animate-fade-in-up" style={{ animationDelay: "0.5s" }}>
+              <button 
+                onClick={onGetStarted} 
+                className="btn-noeron btn-noeron-primary group relative overflow-hidden"
               >
-                View full search
-                <ChevronRight className="size-4" />
+                <span className="relative z-10">Try Live Demo</span>
+                <div className="absolute inset-0 bg-gradient-to-r from-[var(--golden-chestnut)]/0 via-[var(--golden-chestnut)]/10 to-[var(--golden-chestnut)]/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
+              </button>
+              <button className="btn-noeron btn-noeron-secondary flex items-center gap-2.5 group">
+                <Play className="w-3 h-3 fill-current group-hover:scale-110 transition-transform" />
+                <span>Demo Video</span>
+                <span className="mono text-[10px] opacity-60">3M</span>
               </button>
             </div>
-
-            <div className="grid gap-6 md:grid-cols-3">
-              {searchState === "loading" &&
-                Array.from({ length: 3 }, (_, index) => (
-                  <div
-                    key={`skeleton-${index}`}
-                    className="h-48 rounded-2xl border border-border bg-card p-5 animate-pulse"
-                  />
-                ))}
-
-              {searchState === "error" && (
-                <div className="w-full rounded-2xl border border-red-500/40 bg-card p-6 text-sm text-red-500">
-                  <p className="font-semibold">Unable to fetch papers</p>
-                  <p className="text-muted-foreground">{searchError || "The MCP server might be warming up."}</p>
-                </div>
-              )}
-
-              {searchState === "idle" &&
-                featuredPapers.map((paper) => {
-                  const authors =
-                    paper.authors
-                      ?.map((author) => author?.name)
-                      .filter((name): name is string => Boolean(name))
-                      .slice(0, 3)
-                      .join(", ") || "Unknown authors"
-
-                  return (
-                    <article
-                      key={paper.paperId}
-                      className="flex h-full flex-col justify-between rounded-2xl border border-border bg-card p-6 transition hover:border-accent/40 hover:bg-card/80"
-                    >
-                      <div>
-                        <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Paper</p>
-                        <h3 className="mt-2 text-lg font-bold leading-snug">{paper.title}</h3>
-                        <p className="mt-3 text-sm text-muted-foreground">{authors}</p>
-                      </div>
-                      <div className="mt-4 flex items-center justify-between text-xs uppercase tracking-[0.2em] text-muted-foreground">
-                        <span>{paper.year ?? "Year unknown"}</span>
-                        <span>{paper.citationCount ?? 0} cites</span>
-                      </div>
-                    </article>
-                  )
-                })}
-            </div>
           </div>
+
         </section>
 
-        {/* Tech Stack Marquee */}
-        <section className="w-full border-y border-border bg-muted/20 py-8 overflow-hidden">
-          <div className="flex justify-center gap-12 opacity-40 hover:opacity-60 transition-opacity duration-500">
-            <div className="flex items-center gap-2 font-mono text-sm">GEMINI 1.5 PRO</div>
-            <div className="flex items-center gap-2 font-mono text-sm">PYTHON</div>
-            <div className="flex items-center gap-2 font-mono text-sm">PINECONE</div>
-            <div className="flex items-center gap-2 font-mono text-sm">GOOGLE CLOUD</div>
-            <div className="flex items-center gap-2 font-mono text-sm">NEXT.JS</div>
-          </div>
-        </section>
-
-        {/* Problem Section */}
-        <section className="py-20 px-6 md:px-10 lg:px-40 relative" id="features">
-          <div className="mx-auto max-w-[960px]">
-            <div className="mb-12">
-              <h2 className="text-3xl md:text-4xl font-bold mb-4">The Research Gap</h2>
-              <p className="text-muted-foreground max-w-2xl text-lg">
-                We live in a golden age of audio content, yet verifying claims against rigorous academic standards
-                remains a manual, disjointed process.
-              </p>
-            </div>
-
-            <div className="grid md:grid-cols-2 gap-6 relative">
-              {/* Connecting Line Visualization */}
-              <div className="hidden md:block absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10">
-                <div className="size-12 rounded-full bg-background border border-border flex items-center justify-center text-red-500">
-                  <X className="size-6" />
-                </div>
-              </div>
-
-              {/* Podcast Card */}
-              <div className="rounded-xl border border-border bg-card p-8 flex flex-col h-full relative overflow-hidden group">
-                <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/5 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none" />
-                <div className="mb-6 size-12 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-400">
-                  <Headphones className="size-7" />
-                </div>
-                <h3 className="text-xl font-bold mb-2">Podcast Conversations</h3>
-                <p className="text-muted-foreground leading-relaxed mb-6">
-                  Highly accessible and engaging, but often lacks immediate citations. Knowledge is fluid and hard to
-                  fact-check in real-time.
-                </p>
-                <div className="mt-auto h-32 rounded-lg bg-muted/40 border border-border overflow-hidden relative">
-                  <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 via-blue-500/10 to-transparent" />
-                  <div className="absolute bottom-3 left-3 right-3 flex items-center gap-2">
-                    <div className="h-1 bg-blue-500/50 rounded-full w-2/3" />
-                  </div>
-                </div>
-              </div>
-
-              {/* Academic Papers Card */}
-              <div className="rounded-xl border border-border bg-card p-8 flex flex-col h-full relative overflow-hidden group">
-                <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/5 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none" />
-                <div className="mb-6 size-12 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-400">
-                  <FileCheck className="size-7" />
-                </div>
-                <h3 className="text-xl font-bold mb-2">Academic Papers</h3>
-                <p className="text-muted-foreground leading-relaxed mb-6">
-                  Deep, verified knowledge that is dense and difficult to consume. Often locked behind paywalls or
-                  complex jargon.
-                </p>
-                <div className="mt-auto h-32 rounded-lg bg-muted/40 border border-border overflow-hidden relative p-4">
-                  <div className="space-y-2 opacity-50">
-                    <div className="h-2 w-full bg-foreground/20 rounded" />
-                    <div className="h-2 w-full bg-foreground/20 rounded" />
-                    <div className="h-2 w-3/4 bg-foreground/20 rounded" />
-                    <div className="h-2 w-1/2 bg-foreground/20 rounded" />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Solution Section */}
-        <section className="py-20 px-6 md:px-10 lg:px-40 bg-gradient-to-b from-background to-muted/30">
-          <div className="mx-auto max-w-[960px]">
-            <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-6">
+        {/* Section 2: The Problem */}
+        <section className="min-w-[100vw] h-screen flex flex-col justify-center items-center px-6 md:px-[60px] py-[100px] pb-[120px] relative overflow-y-auto bg-[var(--dark-gray)]">
+          <div className="blueprint-pattern" />
+          <div className="max-w-[1200px] w-full relative z-10">
+            <h2 className="display text-4xl md:text-5xl font-normal mb-10 tracking-[-0.5px]">THE PROBLEM</h2>
+            <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_1fr] gap-[60px] items-center">
               <div>
-                <h2 className="text-3xl md:text-4xl font-bold mb-4">The Noeron Solution</h2>
-                <p className="text-muted-foreground max-w-xl text-lg">
-                  We bridge the gap using advanced LLMs to listen, synthesize, and retrieve context instantly.
+                <p className="text-lg leading-[1.7] text-[var(--parchment)]/90 mb-8">
+                  Podcasts make research accessible, but citations invisible.
+                </p>
+                <div className="bg-[rgba(42,43,45,0.6)] border border-[var(--golden-chestnut)]/30 p-8 my-8">
+                  <div className="mono text-2xl font-medium text-[var(--golden-chestnut)] mb-2">150M+ MONTHLY LISTENERS</div>
+                  <div className="text-sm text-[var(--parchment)]/70 mb-5">Deep science podcast ecosystem</div>
+                  <div className="mono text-2xl font-medium text-[var(--golden-chestnut)] mb-2">0% REAL-TIME VERIFICATION</div>
+                  <div className="text-sm text-[var(--parchment)]/70">Citations buried or non-existent</div>
+                </div>
+                <p className="text-lg leading-[1.7] text-[var(--parchment)]/90 mb-8">
+                  When Michael Levin says "bioelectric gradients control morphogenesis,"
+                  where's the evidence?
+                </p>
+                <p className="text-lg leading-[1.7] text-[var(--parchment)]/90">
+                  Traditional approach:<br />
+                  → Hope listeners Google it later (they don't)<br />
+                  → Trust without verification<br />
+                  → Knowledge remains disconnected from source
                 </p>
               </div>
-              <div className="text-accent flex items-center gap-2 font-medium cursor-pointer group">
-                View all features <ChevronRight className="size-5 transition-transform group-hover:translate-x-1" />
-              </div>
-            </div>
-
-            <div className="grid md:grid-cols-3 gap-6">
-              {/* Feature 1 */}
-              <div className="bg-card/60 backdrop-blur-xl border border-border p-6 rounded-xl hover:-translate-y-1 transition-transform duration-300">
-                <div className="size-10 rounded bg-accent/20 text-accent flex items-center justify-center mb-4">
-                  <Zap className="size-5" />
-                </div>
-                <h3 className="text-lg font-bold mb-2">Real-Time Context</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  Definitions and context cards appear instantly as concepts are mentioned in audio.
-                </p>
-              </div>
-
-              {/* Feature 2 */}
-              <div className="bg-card/60 backdrop-blur-xl border border-border p-6 rounded-xl hover:-translate-y-1 transition-transform duration-300">
-                <div className="size-10 rounded bg-accent/20 text-accent flex items-center justify-center mb-4">
-                  <FileCheck className="size-5" />
-                </div>
-                <h3 className="text-lg font-bold mb-2">Evidence Synthesis</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  Automatically cross-reference spoken claims against a database of 200M+ papers.
-                </p>
-              </div>
-
-              {/* Feature 3 */}
-              <div className="bg-card/60 backdrop-blur-xl border border-border p-6 rounded-xl hover:-translate-y-1 transition-transform duration-300">
-                <div className="size-10 rounded bg-accent/20 text-accent flex items-center justify-center mb-4">
-                  <Search className="size-5" />
-                </div>
-                <h3 className="text-lg font-bold mb-2">Progressive Discovery</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  Start simple and dive deeper. Click any term to expand into a full literature review.
-                </p>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* How It Works */}
-        <section className="py-20 px-6 md:px-10 lg:px-40 relative overflow-hidden" id="how-it-works">
-          <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1/3 h-full bg-gradient-to-l from-accent/5 to-transparent pointer-events-none" />
-
-          <div className="mx-auto max-w-[960px]">
-            <div className="flex flex-col md:flex-row md:items-center justify-between mb-16 gap-4">
-              <h2 className="text-3xl md:text-4xl font-bold">How it Works</h2>
-              <div className="flex flex-wrap gap-3">
-                <span className="px-3 py-1 rounded-full border border-border bg-muted/20 text-xs text-muted-foreground font-mono">
-                  Built with Gemini 3
-                </span>
-                <span className="px-3 py-1 rounded-full border border-border bg-muted/20 text-xs text-muted-foreground font-mono">
-                  Designed with Stitch
-                </span>
-              </div>
-            </div>
-
-            <div className="space-y-12">
-              {/* Step 1 */}
-              <div className="flex gap-6 items-start">
-                <div className="flex flex-col items-center flex-shrink-0">
-                  <div className="size-12 rounded-full border-2 border-[#FDA92B] bg-[#102216] flex items-center justify-center">
-                    <Headphones className="size-6 text-[#FDA92B]" />
-                  </div>
-                  <div className="w-0.5 bg-gradient-to-b from-[#FDA92B] to-white/10 h-32 mt-2" />
-                </div>
-                <div className="pt-2">
-                  <h3 className="text-2xl font-bold mb-2">Listen & Ingest</h3>
-                  <p className="text-gray-400 text-lg mb-4">
-                    Simply upload a podcast audio file or paste a YouTube link. Noeron's ingestion engine transcribes
-                    and segments the audio in real-time.
-                  </p>
-                  <div className="w-full max-w-md h-2 bg-white/10 rounded-full overflow-hidden">
-                    <div className="h-full bg-[#FDA92B] w-1/3 animate-pulse" />
-                  </div>
-                </div>
-              </div>
-
-              {/* Step 2 */}
-              <div className="flex gap-6 items-start">
-                <div className="flex flex-col items-center flex-shrink-0">
-                  <div className="size-12 rounded-full border-2 border-white/10 bg-[#1a261f] flex items-center justify-center">
-                    <Brain className="size-6 text-white" />
-                  </div>
-                  <div className="w-0.5 bg-white/10 h-32 mt-2" />
-                </div>
-                <div className="pt-2">
-                  <h3 className="text-2xl font-bold mb-2">Research & Synthesize</h3>
-                  <p className="text-gray-400 text-lg">
-                    Powered by Gemini 1.5 Pro, the system identifies key claims, entities, and research topics, querying
-                    academic databases instantly.
-                  </p>
-                </div>
-              </div>
-
-              {/* Step 3 */}
-              <div className="flex gap-6 items-start">
-                <div className="flex flex-col items-center flex-shrink-0">
-                  <div className="size-12 rounded-full border-2 border-white/10 bg-[#1a261f] flex items-center justify-center">
-                    <Compass className="size-6 text-white" />
-                  </div>
-                </div>
-                <div className="pt-2">
-                  <h3 className="text-2xl font-bold mb-2">Explore & Learn</h3>
-                  <p className="text-gray-400 text-lg">
-                    Navigate the audio with an interactive sidebar. Click on topics to read summaries, view citations,
-                    and save to your personal library.
-                  </p>
+              <div className="flex items-center justify-center p-[60px] border border-dashed border-[var(--parchment)]/30">
+                <div className="mono text-sm text-[var(--parchment)]/50 text-center">
+                  [ VISUAL: Podcast → ??? → Research Paper ]
                 </div>
               </div>
             </div>
           </div>
         </section>
 
-        {/* Demo Section */}
-        <section className="py-20 px-6 md:px-10 lg:px-40 bg-[#1a261f] border-t border-white/5" id="demo">
-          <div className="mx-auto max-w-[960px] text-center">
-            <h2 className="text-3xl md:text-4xl font-bold mb-6">See it in Action</h2>
-            <p className="text-gray-400 mb-10 max-w-2xl mx-auto">
-              Watch how Noeron transforms a 2-hour dense podcast into an interactive learning experience in minutes.
+        {/* Section 3: How It Works */}
+        <section className="min-w-[100vw] h-screen flex flex-col justify-center items-center px-6 md:px-[60px] py-[100px] pb-[120px] relative overflow-y-auto bg-[var(--parchment)] text-[var(--carbon-black)]">
+          <div className="max-w-[1200px] w-full relative z-10">
+            <h2 className="display text-4xl md:text-5xl font-normal mb-10 tracking-[-0.5px] text-[var(--carbon-black)]">HOW IT WORKS</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-10 mt-[60px]">
+              {[
+                { num: "01", title: "LISTEN", text: "Podcast plays naturally\nReal-time transcript processing\nAssemblyAI integration" },
+                { num: "02", title: "DETECT", text: "AI identifies scientific claims\nSemantic search across 500+ papers\nGemini 3 powered detection" },
+                { num: "03", title: "VERIFY", text: "Research appears synchronized\nInteractive visualizations\nCross-episode connections" },
+              ].map((panel) => (
+                <div key={panel.num} className="p-10 border border-[var(--carbon-black)]/10 bg-[var(--carbon-black)]/[0.02]">
+                  <div className="mono text-4xl font-light text-[var(--golden-chestnut)] mb-5">{panel.num}</div>
+                  <div className="display text-2xl mb-4 text-[var(--carbon-black)]">{panel.title}</div>
+                  <div className="text-base leading-relaxed text-[var(--carbon-black)]/80 whitespace-pre-line">{panel.text}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Section 4: Gemini 3 Integration */}
+        <section className="min-w-[100vw] h-screen flex flex-col justify-center items-center px-6 md:px-[60px] py-[100px] pb-[120px] relative overflow-y-auto bg-[var(--carbon-black)]">
+          <div className="blueprint-pattern" />
+          <div className="max-w-[1200px] w-full relative z-10">
+            <h2 className="display text-4xl md:text-5xl font-normal mb-10 tracking-[-0.5px]">POWERED BY GEMINI 3</h2>
+            <p className="text-lg leading-[1.7] text-[var(--parchment)]/90 text-center max-w-[700px] mx-auto mb-10">
+              Not just citations. Living research.
             </p>
-
-            <div className="relative w-full aspect-video rounded-xl overflow-hidden bg-black border border-white/10 shadow-2xl group cursor-pointer">
-              <img
-                src="/images/screen.png"
-                alt="Noeron demo video thumbnail"
-                className="w-full h-full object-cover opacity-60 group-hover:opacity-40 transition-opacity duration-500"
-              />
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="size-20 rounded-full bg-[#FDA92B]/90 text-[#102216] flex items-center justify-center hover:scale-110 transition-transform duration-300 shadow-[0_0_40px_rgba(88,61,50,0.5)]">
-                  <Play className="size-10 ml-1" />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-[60px] mt-[60px]">
+              <div className="p-10">
+                <div className="display text-xl mb-8 pb-4 border-b border-[var(--parchment)]/20">TRADITIONAL APPROACH</div>
+                <div className="text-lg leading-[1.7] text-[var(--parchment)]/90">
+                  Static PDF links<br />
+                  Disconnected information<br />
+                  No visual context<br />
+                  "Figure 3" means nothing
                 </div>
               </div>
-              <div className="absolute bottom-4 left-4 px-3 py-1 bg-black/60 backdrop-blur rounded text-xs font-mono">
-                02:14 Demo Preview
+              <div className="p-10">
+                <div className="display text-xl mb-8 pb-4 border-b border-[var(--parchment)]/20">NOERON + GEMINI 3</div>
+                <ul className="list-none">
+                  {[
+                    "Real-time BETSE bioelectric simulations",
+                    "Interactive voltage gradient visualizations",
+                    "Dynamic morphology calculators",
+                    "Cross-episode knowledge graphs",
+                    "Living visual evidence",
+                  ].map((item) => (
+                    <li key={item} className="text-base leading-[1.8] mb-4 pl-6 relative before:content-['✓'] before:absolute before:left-0 before:text-[var(--golden-chestnut)]">
+                      {item}
+                    </li>
+                  ))}
+                </ul>
               </div>
             </div>
-          </div>
-        </section>
-
-        {/* Final CTA */}
-        <section className="py-20 px-6 md:px-10 lg:px-40 border-t border-white/5">
-          <div className="mx-auto max-w-[960px] text-center">
-            <h2 className="text-4xl md:text-5xl font-black tracking-tight">Ready to dive deeper?</h2>
-            <p className="text-lg text-gray-400">
-              Join the research revolution today. No credit card required for the beta.
+            <p className="text-lg leading-[1.7] text-[var(--parchment)]/90 text-center max-w-[700px] mx-auto mt-[60px]">
+              Gemini 3's multimodal capabilities transform static papers
+              into interactive understanding. See the science, don't just read about it.
             </p>
-            <button
-              onClick={onGetStarted}
-              className="inline-flex h-14 items-center justify-center rounded-lg bg-[#FDA92B] px-8 text-lg font-bold text-[#102216] shadow-[0_0_30px_rgba(88,61,50,0.3)] transition-all hover:scale-105 hover:bg-[#583D32]"
-            >
-              Get Started for Free
-            </button>
           </div>
         </section>
-      </main>
 
-      {/* Footer */}
-      <footer className="border-t border-white/5 bg-[#0a0c0b] px-6 py-12 md:px-10 lg:px-40">
-        <div className="mx-auto max-w-[960px]">
-          <div className="grid gap-12 md:grid-cols-3">
-            {/* Brand Section */}
-            <div>
-              <div className="mb-4 flex items-center gap-3">
-                <div className="flex items-center justify-center size-8 rounded bg-[#FDA92B]/20 text-[#FDA92B]">
-                  <Brain className="size-5" />
+        {/* Section 5: Technical Architecture */}
+        <section className="min-w-[100vw] h-screen flex flex-col justify-center items-center px-6 md:px-[60px] py-[100px] pb-[120px] relative overflow-y-auto bg-[var(--parchment)] text-[var(--carbon-black)]">
+          <div className="max-w-[1200px] w-full relative z-10">
+            <h2 className="display text-4xl md:text-5xl font-normal mb-10 tracking-[-0.5px] text-[var(--carbon-black)]">TECHNICAL IMPLEMENTATION</h2>
+            <div className="text-center my-[60px] mono text-sm leading-[2]">
+              {["AssemblyAI Transcription", "Gemini 3 Claim Detection", "Semantic Scholar API", "ChromaDB Vector Search", "Paper Retrieval & Ranking", "Gemini 3 Synthesis", "Visual Generation + Knowledge Graph"].map((step, i, arr) => (
+                <div key={step}>
+                  <div className="text-[var(--carbon-black)]">{step}</div>
+                  {i < arr.length - 1 && <div className="text-[var(--golden-chestnut)]">↓</div>}
                 </div>
-                <span className="font-bold text-xl">Noeron</span>
-              </div>
-              <p className="text-sm text-gray-500 leading-relaxed">
-                An AI Research Companion bridging the gap between casual podcast listening and rigorous academic
-                standards.
-              </p>
-              <div className="mt-4 flex gap-3">
-                <a
-                  href="#"
-                  className="flex size-8 items-center justify-center rounded bg-white/5 text-gray-400 transition-colors hover:bg-[#FDA92B]/20 hover:text-[#FDA92B]"
-                >
-                  Link 1
-                </a>
-                <a
-                  href="#"
-                  className="flex size-8 items-center justify-center rounded bg-white/5 text-gray-400 transition-colors hover:bg-[#FDA92B]/20 hover:text-[#FDA92B]"
-                >
-                  Link 2
-                </a>
-              </div>
+              ))}
             </div>
-
-            {/* Product Links */}
-            <div>
-              <h4 className="font-semibold text-sm mb-3">Product</h4>
-              <ul className="space-y-3 text-sm">
-                <li>
-                  <a href="#features" className="text-gray-400 transition-colors hover:text-[#FDA92B]">
-                    Features
-                  </a>
-                </li>
-                <li>
-                  <a href="#" className="text-gray-400 transition-colors hover:text-[#FDA92B]">
-                    Pricing
-                  </a>
-                </li>
-                <li>
-                  <a href="#" className="text-gray-400 transition-colors hover:text-[#FDA92B]">
-                    Changelog
-                  </a>
-                </li>
-                <li>
-                  <a href="#" className="text-gray-400 transition-colors hover:text-[#FDA92B]">
-                    More
-                  </a>
-                </li>
-              </ul>
-            </div>
-
-            {/* Company Links */}
-            <div>
-              <h4 className="font-semibold text-sm mb-3">Company</h4>
-              <ul className="space-y-3 text-sm">
-                <li>
-                  <a href="#" className="text-gray-400 transition-colors hover:text-[#FDA92B]">
-                    About
-                  </a>
-                </li>
-                <li>
-                  <a href="#" className="text-gray-400 transition-colors hover:text-[#FDA92B]">
-                    Blog
-                  </a>
-                </li>
-                <li>
-                  <a href="#" className="text-gray-400 transition-colors hover:text-[#FDA92B]">
-                    Contact
-                  </a>
-                </li>
-                <li>
-                  <a href="#" className="text-gray-400 transition-colors hover:text-[#FDA92B]">
-                    Careers
-                  </a>
-                </li>
-              </ul>
-            </div>
-
-            {/* Legal Links */}
-            <div>
-              <h4 className="font-semibold text-sm mb-3">Legal</h4>
-              <ul className="space-y-3 text-sm">
-                <li>
-                  <a href="#" className="text-gray-400 transition-colors hover:text-[#FDA92B]">
-                    Privacy
-                  </a>
-                </li>
-                <li>
-                  <a href="#" className="text-gray-400 transition-colors hover:text-[#FDA92B]">
-                    Terms
-                  </a>
-                </li>
-              </ul>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-8">
+              {[
+                { label: "CORPUS", value: "500+", extra: "papers\n1993-2025" },
+                { label: "ACCURACY", value: "75%", extra: "claim-to-paper\nmatching" },
+                { label: "LATENCY", value: "< 3s", extra: "query-result" },
+                { label: "EMBEDDINGS", value: "", extra: "SentenceTransformer\nall-MiniLM-L6-v2" },
+                { label: "ARCHITECTURE", value: "", extra: "FastMCP Server\nRESTful API" },
+                { label: "PROCESSING", value: "", extra: "GROBID PDF extraction\nRolling 3-min windows" },
+              ].map((spec) => (
+                <div key={spec.label} className="p-8 border border-[var(--carbon-black)]/20 bg-[var(--carbon-black)]/[0.02]">
+                  <div className="mono text-[11px] uppercase tracking-[1px] text-[var(--carbon-black)]/60 mb-2.5">{spec.label}</div>
+                  <div className="mono text-base text-[var(--carbon-black)] leading-[1.5] whitespace-pre-line">
+                    {spec.value && <span className="text-[var(--golden-chestnut)] font-medium">{spec.value}</span>}
+                    {spec.value && " "}{spec.extra}
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
-        </div>
+        </section>
 
-        <div className="mx-auto max-w-[960px] mt-12 pt-8 border-t border-white/5 text-center text-sm text-gray-500">
-          © 2025 Noeron, Inc. All rights reserved.
-        </div>
-      </footer>
+        {/* Section 6: Live Demo */}
+        <section className="min-w-[100vw] h-screen flex flex-col justify-center items-center px-6 md:px-[60px] py-[100px] pb-[120px] relative overflow-y-auto bg-[var(--carbon-black)]">
+          <div className="blueprint-pattern" />
+          <div className="max-w-[1200px] w-full relative z-10">
+            <h2 className="display text-4xl md:text-5xl font-normal mb-10 tracking-[-0.5px] text-center">EXPERIENCE IT YOURSELF</h2>
+            <div className="text-center mt-[60px]">
+              <div className="w-full max-w-[900px] aspect-video bg-[rgba(29,30,32,0.4)] border border-[var(--parchment)]/20 flex items-center justify-center mx-auto mb-10 mono text-sm text-[var(--parchment)]/50">
+                [ 16:9 DEMO VIDEO PLACEHOLDER ]
+              </div>
+              <div className="mono text-sm leading-[2] text-[var(--parchment)]/70 text-left max-w-[500px] mx-auto mb-10">
+                <div><span className="text-[var(--golden-chestnut)]">00:00</span> — Podcast begins</div>
+                <div><span className="text-[var(--golden-chestnut)]">00:45</span> — First claim detected</div>
+                <div><span className="text-[var(--golden-chestnut)]">01:30</span> — Research surfaces</div>
+                <div><span className="text-[var(--golden-chestnut)]">02:15</span> — Gemini visualization generates</div>
+                <div><span className="text-[var(--golden-chestnut)]">03:00</span> — Cross-episode connections emerge</div>
+              </div>
+              <div className="flex gap-5 justify-center flex-wrap">
+                <button onClick={onGetStarted} className="btn-noeron btn-noeron-primary">
+                  Try Live Demo
+                </button>
+                <button className="btn-noeron btn-noeron-secondary">
+                  View on GitHub →
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Section 7: Market Opportunity */}
+        <section className="min-w-[100vw] h-screen flex flex-col justify-center items-center px-6 md:px-[60px] py-[100px] pb-[120px] relative overflow-y-auto bg-[var(--parchment)] text-[var(--carbon-black)]">
+          <div className="max-w-[1200px] w-full relative z-10">
+            <h2 className="display text-4xl md:text-5xl font-normal mb-10 tracking-[-0.5px] text-[var(--carbon-black)]">THE OPPORTUNITY</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-10 mt-[60px]">
+              {[
+                { stat: "10-30M", label: "Monthly addressable listeners" },
+                { stat: "3-5 RESEARCHERS", label: "Vertical focus (Levin, Friston, Bach)" },
+                { stat: "$0 → $XXk", label: "Revenue potential Year 1-2" },
+                { stat: "ONE → THOUSANDS", label: "Synthesis amortization multiplier" },
+              ].map((item) => (
+                <div key={item.stat} className="p-10 border border-[var(--carbon-black)]/20">
+                  <div className="mono text-3xl font-medium text-[var(--golden-chestnut)] mb-2.5">{item.stat}</div>
+                  <div className="text-sm text-[var(--carbon-black)]/70">{item.label}</div>
+                </div>
+              ))}
+            </div>
+            <div className="text-lg leading-[1.7] text-[var(--carbon-black)] mt-[60px]">
+              <strong>Vertical scaling strategy:</strong><br />
+              Focus on prolific researchers with engaged audiences<br />
+              → Michael Levin (bioelectricity, morphogenesis)<br />
+              → Expand to adjacent deep science podcasters<br />
+              → Platform partnerships with networks
+            </div>
+            <p className="text-lg leading-[1.7] text-[var(--carbon-black)] mt-8 italic">
+              "Sunk cost of cognitive labor, amortized across many consumers"<br />
+              One person's deep research synthesis → reusable knowledge infrastructure
+            </p>
+          </div>
+        </section>
+
+        {/* Section 8: Roadmap */}
+        <section className="min-w-[100vw] h-screen flex flex-col justify-center items-center px-6 md:px-[60px] py-[100px] pb-[120px] relative overflow-y-auto bg-[var(--carbon-black)]">
+          <div className="blueprint-pattern" />
+          <div className="max-w-[1200px] w-full relative z-10">
+            <h2 className="display text-4xl md:text-5xl font-normal mb-10 tracking-[-0.5px]">WHAT'S NEXT</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-10 mt-[60px]">
+              {[
+                { quarter: "Q1 2025", title: "CORE DEMO", items: ["500+ paper corpus", "Gemini 3 integration", "75% accuracy"] },
+                { quarter: "Q2 2025", title: "BETA LAUNCH", items: ["Partner with Levin Lab", "Test with active listeners", "Iterate on feedback"] },
+                { quarter: "Q3 2025", title: "PLATFORM EXPANSION", items: ["5 researcher verticals", "Cross-domain graphs", "Educational licensing"] },
+                { quarter: "Q4 2025", title: "PUBLIC LAUNCH", items: ["Open platform", "Publisher partnerships", "Research collaboration tools"] },
+              ].map((card) => (
+                <div key={card.quarter} className="p-10 border border-[var(--parchment)]/20 bg-[rgba(42,43,45,0.3)]">
+                  <div className="mono text-lg text-[var(--golden-chestnut)] mb-4">{card.quarter}</div>
+                  <div className="display text-2xl mb-5">{card.title}</div>
+                  <ul className="list-none text-sm leading-[1.8] text-[var(--parchment)]/80">
+                    {card.items.map((item) => (
+                      <li key={item} className="mb-2 pl-5 relative before:content-['✓'] before:absolute before:left-0 before:text-[var(--golden-chestnut)]">
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Section 9: Final CTA */}
+        <section className="min-w-[100vw] h-screen flex flex-col justify-center items-center px-6 md:px-[60px] py-[100px] pb-[120px] relative overflow-y-auto bg-[var(--carbon-black)]">
+          <div className="blueprint-pattern" />
+          <div className="max-w-[1200px] w-full relative z-10 text-center">
+            <div className="eyebrow eyebrow-ornament mb-[60px]">
+              Built for Gemini 3 Global Hackathon
+            </div>
+            <h2 className="display text-4xl md:text-[56px] font-normal mb-8 text-[var(--parchment)] leading-[1.2]">
+              Transform how knowledge flows<br />
+              from conversation to evidence.
+            </h2>
+            <p className="text-xl text-[var(--parchment)]/85 mb-12 leading-relaxed">
+              Bridging the gap between accessible conversation<br />
+              and rigorous evidence.
+            </p>
+            <div className="flex gap-5 justify-center flex-wrap">
+              <button className="btn-noeron btn-noeron-primary">
+                Watch 3-Min Demo
+              </button>
+              <button onClick={onGetStarted} className="btn-noeron btn-noeron-secondary">
+                Try Live Demo
+              </button>
+            </div>
+            <div className="mt-[60px] text-sm text-[var(--parchment)]/60">
+              Created by Beck Piscopo<br />
+              Atlanta, GA
+            </div>
+          </div>
+        </section>
+      </div>
+
+      {/* Dot Navigation */}
+      <div className="dot-nav">
+        {Array.from({ length: totalSections }).map((_, i) => (
+          <button
+            key={i}
+            onClick={() => goToSection(i)}
+            className={`dot ${i === currentSection ? "active" : ""}`}
+            aria-label={`Section ${i + 1}`}
+          />
+        ))}
+      </div>
     </div>
   )
 }

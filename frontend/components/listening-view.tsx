@@ -117,12 +117,12 @@ function CurrentClaimCard({ claim, currentTimeMs, onDiveDeeper, onViewSource }: 
       <span>
         {words.map((word, idx) => {
           const isHighlighted = currentTimeMs >= word.start_ms && currentTimeMs <= word.end_ms
-          
+
           return (
             <span
               key={idx}
-              className={`transition-colors duration-200 text-foreground ${
-                isHighlighted ? 'font-semibold' : ''
+              className={`transition-colors duration-200 text-[var(--parchment)] ${
+                isHighlighted ? 'font-semibold text-[var(--golden-chestnut)]' : ''
               }`}
             >
               {word.text}{' '}
@@ -135,18 +135,18 @@ function CurrentClaimCard({ claim, currentTimeMs, onDiveDeeper, onViewSource }: 
   
   return (
     <div className="mb-8">
-      <div className="mb-3 flex items-center gap-2 text-xs font-bold text-accent uppercase tracking-wider">
+      <div className="mb-3 flex items-center gap-2 text-xs font-bold text-[var(--golden-chestnut)] uppercase tracking-wider">
         <span>JUST NOW</span>
         <span className="relative flex size-2">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent opacity-75"></span>
-          <span className="relative inline-flex size-2 rounded-full bg-accent"></span>
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--golden-chestnut)] opacity-75"></span>
+          <span className="relative inline-flex size-2 rounded-full bg-[var(--golden-chestnut)]"></span>
         </span>
       </div>
 
-      <div className="bg-gradient-to-br from-card to-muted/50 rounded-xl p-8 shadow-[0_8px_30px_rgba(0,0,0,0.12)] transition-all duration-300 relative">
+      <div className="bg-[var(--dark-gray)] rounded-none p-8 shadow-[0_2px_8px_rgba(0,0,0,0.08)] transition-all duration-200 relative hover:shadow-[0_8px_24px_rgba(0,0,0,0.15)] hover:-translate-y-1 border border-[var(--parchment)]/10">
         {/* Main distilled claim text - large and prominent */}
-        <h3 className="text-2xl font-bold mb-6 leading-relaxed text-foreground">
-          {hasWordTiming && claim.timing?.words ? 
+        <h3 className="display text-2xl font-normal mb-6 leading-relaxed text-[var(--parchment)]">
+          {hasWordTiming && claim.timing?.words ?
             renderWithWordHighlighting(displayText, claim.timing.words) :
             <span className="transition-colors duration-500">{displayText}</span>
           }
@@ -154,7 +154,7 @@ function CurrentClaimCard({ claim, currentTimeMs, onDiveDeeper, onViewSource }: 
 
         {/* Full transcript quote - always visible */}
         {hasDistilledClaim && fullText && (
-          <p className="text-base text-muted-foreground leading-relaxed mb-8">
+          <p className="text-base text-[var(--parchment)]/60 leading-relaxed mb-8">
             "{fullText}"
           </p>
         )}
@@ -163,23 +163,23 @@ function CurrentClaimCard({ claim, currentTimeMs, onDiveDeeper, onViewSource }: 
         <div className="flex gap-3 mb-2">
           <Button
             onClick={() => onDiveDeeper(claim.id)}
-            className="bg-accent text-accent-foreground hover:bg-accent/90 font-semibold shadow-[0_4px_14px_rgba(253,169,43,0.2)]"
+            className="btn-noeron-accent"
           >
             Dive Deeper
           </Button>
           <Button
             onClick={() => onViewSource(claim.id)}
             variant="outline"
-            className="border-border bg-card text-foreground hover:border-accent/30 hover:bg-muted"
+            className="btn-noeron-secondary"
           >
             Read Source
           </Button>
         </div>
 
         {/* Timestamp - bottom right */}
-        <div className="absolute bottom-4 right-6 flex items-center gap-1.5 text-xs text-muted-foreground/60">
+        <div className="absolute bottom-4 right-6 flex items-center gap-1.5 text-xs text-[var(--parchment)]/40 mono">
           <span>⏱️</span>
-          <span className="font-mono">{timestamp}</span>
+          <span>{timestamp}</span>
         </div>
       </div>
     </div>
@@ -200,43 +200,43 @@ function PastClaimCard({ claim, relativeTime, isSelected, onSelect, onDiveDeeper
   const displayText = getClaimDisplayText(claim)
   const fullText = getClaimFullText(claim)
   const timestamp = formatTimestamp(claim)
-  
+
   return (
     <div>
-      <div className="mb-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+      <div className="mb-3 text-xs font-semibold text-[var(--parchment)]/50 uppercase tracking-wider mono">
         {relativeTime}
       </div>
 
       <div
         onClick={onSelect}
-        className={`bg-card rounded-xl p-6 cursor-pointer transition-all relative ${
+        className={`bg-[var(--dark-gray)] rounded-none p-6 cursor-pointer transition-all duration-200 relative border border-[var(--parchment)]/10 ${
           isSelected
-            ? "shadow-[0_8px_30px_rgba(253,169,43,0.15)]"
-            : "shadow-[0_2px_12px_rgba(0,0,0,0.08)] hover:shadow-[0_4px_20px_rgba(0,0,0,0.12)]"
+            ? "shadow-[0_8px_30px_rgba(190,124,77,0.15)] -translate-y-1 border-[var(--golden-chestnut)]/30"
+            : "shadow-[0_2px_8px_rgba(0,0,0,0.08)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.15)] hover:-translate-y-1"
         }`}
       >
         {/* Distilled claim or title - primary */}
-        <h3 className="text-lg font-bold text-foreground mb-4 leading-snug">
+        <h3 className="text-lg font-bold text-[var(--parchment)] mb-4 leading-snug">
           {displayText}
         </h3>
 
         {/* Full quote - always visible */}
         {hasDistilledClaim && fullText && (
-          <p className="text-sm text-muted-foreground leading-relaxed mb-6">
+          <p className="text-sm text-[var(--parchment)]/60 leading-relaxed mb-6">
             "{fullText}"
           </p>
         )}
 
         {/* Action buttons (shown when selected) */}
         {isSelected && (
-          <div className="flex gap-3 pt-3 border-t border-border mb-6">
+          <div className="flex gap-3 pt-3 border-t border-[var(--parchment)]/10 mb-6">
             <Button
               onClick={(e) => {
                 e.stopPropagation()
                 onDiveDeeper(claim.id)
               }}
               size="sm"
-              className="bg-accent text-accent-foreground hover:bg-accent/90"
+              className="btn-noeron-accent"
             >
               Dive Deeper
             </Button>
@@ -247,7 +247,7 @@ function PastClaimCard({ claim, relativeTime, isSelected, onSelect, onDiveDeeper
               }}
               size="sm"
               variant="outline"
-              className="border-border text-foreground hover:bg-muted"
+              className="btn-noeron-secondary"
             >
               View Source
             </Button>
@@ -255,9 +255,9 @@ function PastClaimCard({ claim, relativeTime, isSelected, onSelect, onDiveDeeper
         )}
 
         {/* Timestamp - bottom right */}
-        <div className="absolute bottom-3 right-5 flex items-center gap-1.5 text-xs text-muted-foreground/60">
+        <div className="absolute bottom-3 right-5 flex items-center gap-1.5 text-xs text-[var(--parchment)]/40 mono">
           <span>⏱️</span>
-          <span className="font-mono">{timestamp}</span>
+          <span>{timestamp}</span>
         </div>
       </div>
     </div>
@@ -483,20 +483,20 @@ export function ListeningView({
   }, [claims.length, validClaims.length])
 
   return (
-    <div className="flex min-h-screen flex-col bg-background text-foreground font-sans">
+    <div className="noeron-theme flex min-h-screen flex-col bg-[var(--carbon-black)] text-[var(--parchment)] font-sans">
       <NoeronHeader />
       <audio ref={audioRef} preload="metadata" className="hidden" />
 
       {/* Two Column Layout */}
       <div className="flex flex-1">
         {/* LEFT COLUMN - Sticky Podcast Player */}
-        <aside className="w-[380px] shrink-0 border-r border-border bg-card sticky top-0 h-screen overflow-y-auto">
+        <aside className="w-[380px] shrink-0 border-r border-[var(--parchment)]/10 bg-[var(--dark-gray)] sticky top-0 h-screen overflow-y-auto">
           <div className="p-6 w-full flex flex-col justify-center min-h-full">
             {/* Episode Artwork */}
             <div className="mb-6">
-              <div className="aspect-square w-full rounded-lg shadow-lg overflow-hidden border border-border">
-                <img 
-                  src="/images/green_watercolor.jpg" 
+              <div className="aspect-square w-full rounded-none shadow-lg overflow-hidden border border-[var(--parchment)]/10">
+                <img
+                  src="/images/wavelengths.jpg"
                   alt={episode.title}
                   className="h-full w-full object-cover"
                 />
@@ -505,9 +505,9 @@ export function ListeningView({
 
             {/* Episode Info */}
             <div className="mb-6">
-              <h1 className="text-xl font-bold text-foreground mb-2">{episode.title}</h1>
-              <p className="text-sm text-accent mb-1">EPISODE {episode.id.split('_')[1] || '325'}</p>
-              <p className="text-sm text-muted-foreground italic">Host: {episode.host}</p>
+              <h1 className="display text-xl font-normal text-[var(--parchment)] mb-2">{episode.title}</h1>
+              <p className="eyebrow mb-1">EPISODE {episode.id.split('_')[1] || '325'}</p>
+              <p className="text-sm text-[var(--parchment)]/60 italic">Host: {episode.host}</p>
             </div>
 
             {/* Waveform Visualization */}
@@ -520,7 +520,7 @@ export function ListeningView({
                     <div
                       key={i}
                       className={`w-[3px] rounded-full transition-all duration-150 ${
-                        isActive ? "bg-accent" : "bg-border"
+                        isActive ? "bg-[var(--golden-chestnut)]" : "bg-[var(--parchment)]/20"
                       }`}
                       style={{
                         height: `${height}%`,
@@ -533,17 +533,17 @@ export function ListeningView({
 
               {/* Progress Bar */}
               <div
-                className="group relative h-1.5 cursor-pointer overflow-hidden rounded-full bg-muted mb-2"
+                className="group relative h-1.5 cursor-pointer overflow-hidden rounded-full bg-[var(--parchment)]/10 mb-2"
                 onClick={handleProgressClick}
               >
                 <div
-                  className="absolute inset-y-0 left-0 bg-accent transition-all"
+                  className="absolute inset-y-0 left-0 bg-[var(--golden-chestnut)] transition-all"
                   style={{ width: `${progressPercentage}%` }}
                 />
               </div>
 
               {/* Time Display */}
-              <div className="flex justify-between text-xs font-mono text-muted-foreground">
+              <div className="flex justify-between text-xs mono text-[var(--parchment)]/50">
                 <span>{formatTime(episode.currentTime)}</span>
                 <span>{formatTime(episode.durationSeconds)}</span>
               </div>
@@ -555,7 +555,7 @@ export function ListeningView({
                 size="icon"
                 variant="ghost"
                 onClick={handleSkipBack}
-                className="relative size-12 text-muted-foreground hover:bg-muted hover:text-foreground"
+                className="relative size-12 text-[var(--parchment)]/60 hover:bg-[var(--parchment)]/10 hover:text-[var(--parchment)]"
                 title="Skip back 15 seconds"
               >
                 <RotateCcw className="size-7" />
@@ -565,7 +565,7 @@ export function ListeningView({
               <Button
                 size="icon"
                 onClick={handlePlayPause}
-                className="size-14 rounded-full bg-accent text-accent-foreground shadow-lg hover:bg-accent/90 transition-all hover:scale-105"
+                className="size-14 rounded-full bg-[var(--golden-chestnut)] text-[var(--carbon-black)] shadow-lg hover:bg-[var(--parchment)] transition-all hover:scale-105"
               >
                 {isPlaying ? (
                   <Pause className="size-7" fill="currentColor" />
@@ -578,7 +578,7 @@ export function ListeningView({
                 size="icon"
                 variant="ghost"
                 onClick={handleSkipForward}
-                className="relative size-12 text-muted-foreground hover:bg-muted hover:text-foreground"
+                className="relative size-12 text-[var(--parchment)]/60 hover:bg-[var(--parchment)]/10 hover:text-[var(--parchment)]"
                 title="Skip forward 15 seconds"
               >
                 <RotateCw className="size-7" />
@@ -589,16 +589,16 @@ export function ListeningView({
         </aside>
 
         {/* RIGHT COLUMN - Live Research Stream */}
-        <main className="flex-1 overflow-y-auto bg-muted">
+        <main className="flex-1 overflow-y-auto bg-[var(--carbon-black)]">
           <div className="max-w-4xl mx-auto px-8 py-8">
             {/* Header */}
             <div className="text-center mb-12">
               <div className="inline-flex items-center gap-2 mb-2">
-                <div className="h-px w-16 bg-border" />
-                <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                <div className="h-px w-16 bg-[var(--parchment)]/20" />
+                <h2 className="eyebrow">
                   Live Research Stream
                 </h2>
-                <div className="h-px w-16 bg-border" />
+                <div className="h-px w-16 bg-[var(--parchment)]/20" />
               </div>
             </div>
 
@@ -627,8 +627,7 @@ export function ListeningView({
             {/* Empty State */}
             {!currentClaim && pastClaims.length === 0 && (
               <div className="text-center py-16">
-                <div className="text-6xl mb-4">🎧</div>
-                <p className="text-muted-foreground">Start playing to see research insights appear here</p>
+                <p className="text-[var(--parchment)]/60">Start playing to see research insights appear here</p>
               </div>
             )}
           </div>

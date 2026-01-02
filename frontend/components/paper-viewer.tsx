@@ -80,16 +80,16 @@ export function PaperViewer({ episode, paperId, onBack }: PaperViewerProps) {
   }
 
   return (
-    <div className="min-h-screen bg-[#102216] text-white flex flex-col">
+    <div className="noeron-theme min-h-screen bg-[var(--carbon-black)] text-[var(--parchment)] flex flex-col">
       <NoeronHeader />
 
       {/* Top Navigation Bar */}
-      <header className="sticky top-14 z-40 w-full border-b border-[#28392e] bg-[#102216]/95 backdrop-blur-md px-6 py-3">
+      <header className="sticky top-14 z-40 w-full border-b border-[var(--parchment)]/10 bg-[var(--carbon-black)]/95 backdrop-blur-md px-6 py-3">
         <div className="max-w-[1400px] mx-auto flex items-center justify-between">
           <div className="flex items-center gap-4">
             <button
               onClick={onBack}
-              className="flex items-center gap-2 group text-white hover:text-[#FDA92B] transition-colors"
+              className="flex items-center gap-2 group text-[var(--parchment)] hover:text-[var(--golden-chestnut)] transition-colors"
             >
               <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
               <span className="text-sm font-bold uppercase tracking-wider">Back to Exploration</span>
@@ -101,7 +101,7 @@ export function PaperViewer({ episode, paperId, onBack }: PaperViewerProps) {
                 href={paperData.external_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center justify-center h-9 px-4 rounded-lg bg-[#FDA92B] text-[#102216] font-bold hover:bg-[#FDA92B]/90 transition-colors text-sm gap-2"
+                className="flex items-center justify-center h-9 px-4 rounded-none bg-[var(--golden-chestnut)] text-[var(--carbon-black)] font-bold hover:bg-[var(--golden-chestnut)]/90 transition-colors text-sm gap-2"
               >
                 <ExternalLink className="w-4 h-4" />
                 <span>View Original</span>
@@ -115,8 +115,8 @@ export function PaperViewer({ episode, paperId, onBack }: PaperViewerProps) {
       {isLoading && (
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
-            <Loader2 className="w-10 h-10 text-[#FDA92B] animate-spin mx-auto mb-4" />
-            <p className="text-gray-400">Loading paper...</p>
+            <Loader2 className="w-10 h-10 text-[var(--golden-chestnut)] animate-spin mx-auto mb-4" />
+            <p className="text-[var(--parchment)]/60">Loading paper...</p>
           </div>
         </div>
       )}
@@ -127,10 +127,10 @@ export function PaperViewer({ episode, paperId, onBack }: PaperViewerProps) {
           <div className="text-center max-w-md">
             <AlertCircle className="w-12 h-12 text-red-400 mx-auto mb-4" />
             <h2 className="text-xl font-bold mb-2">Failed to Load Paper</h2>
-            <p className="text-gray-400 mb-4">{error}</p>
+            <p className="text-[var(--parchment)]/60 mb-4">{error}</p>
             <button
               onClick={onBack}
-              className="px-4 py-2 bg-[#28392e] hover:bg-[#364b3d] rounded-lg text-sm font-medium transition-colors"
+              className="px-4 py-2 bg-[var(--parchment)]/10] hover:bg-[var(--warm-gray)] rounded-none text-sm font-medium transition-colors"
             >
               Go Back
             </button>
@@ -142,12 +142,12 @@ export function PaperViewer({ episode, paperId, onBack }: PaperViewerProps) {
       {!paperId && !isLoading && (
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center max-w-md">
-            <Quote className="w-12 h-12 text-gray-600 mx-auto mb-4" />
+            <Quote className="w-12 h-12 text-[var(--parchment)]/40 mx-auto mb-4" />
             <h2 className="text-xl font-bold mb-2">No Paper Selected</h2>
-            <p className="text-gray-400 mb-4">Select a paper from the deep dive to view its contents.</p>
+            <p className="text-[var(--parchment)]/60 mb-4">Select a paper from the deep dive to view its contents.</p>
             <button
               onClick={onBack}
-              className="px-4 py-2 bg-[#28392e] hover:bg-[#364b3d] rounded-lg text-sm font-medium transition-colors"
+              className="px-4 py-2 bg-[var(--parchment)]/10] hover:bg-[var(--warm-gray)] rounded-none text-sm font-medium transition-colors"
             >
               Go Back
             </button>
@@ -161,20 +161,20 @@ export function PaperViewer({ episode, paperId, onBack }: PaperViewerProps) {
           {/* Left Column: Paper Content */}
           <article className="flex-1 min-w-0 max-w-4xl mx-auto lg:mx-0">
             {/* Paper Header */}
-            <div className="mb-8 border-b border-[#28392e] pb-8">
+            <div className="mb-8 border-b border-[var(--parchment)]/10 pb-8">
               <div className="flex flex-wrap gap-2 mb-4">
                 {paperData.venue && (
-                  <span className="px-2 py-1 rounded text-xs font-bold bg-[#FDA92B]/20 text-[#FDA92B] uppercase tracking-wider border border-[#FDA92B]/30">
+                  <span className="px-2 py-1 rounded text-xs font-bold bg-[var(--golden-chestnut)]/20 text-[var(--golden-chestnut)] uppercase tracking-wider border border-[var(--golden-chestnut)]/30">
                     {paperData.venue}
                   </span>
                 )}
                 {paperData.year && (
-                  <span className="px-2 py-1 rounded text-xs font-bold bg-[#28392e] text-gray-300 uppercase tracking-wider">
+                  <span className="px-2 py-1 rounded text-xs font-bold bg-[var(--parchment)]/10] text-[var(--parchment)]/80 uppercase tracking-wider">
                     {paperData.year}
                   </span>
                 )}
                 {!paperData.full_text_available && (
-                  <span className="px-2 py-1 rounded text-xs font-bold bg-gray-700/50 text-gray-400 uppercase tracking-wider">
+                  <span className="px-2 py-1 rounded text-xs font-bold bg-gray-700/50 text-[var(--parchment)]/60 uppercase tracking-wider">
                     Abstract Only
                   </span>
                 )}
@@ -184,8 +184,8 @@ export function PaperViewer({ episode, paperId, onBack }: PaperViewerProps) {
               </h1>
               <div className="flex flex-wrap items-center justify-between gap-6">
                 <div className="flex flex-col gap-1">
-                  <p className="text-lg font-medium text-white">{formatAuthors(paperData.authors)}</p>
-                  <p className="text-[#FDA92B] text-sm font-normal">
+                  <p className="text-lg font-medium text-[var(--parchment)]">{formatAuthors(paperData.authors)}</p>
+                  <p className="text-[var(--golden-chestnut)] text-sm font-normal">
                     {paperData.journal || paperData.venue} {paperData.year && `(${paperData.year})`}
                   </p>
                 </div>
@@ -193,8 +193,8 @@ export function PaperViewer({ episode, paperId, onBack }: PaperViewerProps) {
                 <div className="flex gap-4">
                   {paperData.citation_count > 0 && (
                     <div className="text-center">
-                      <span className="block text-xl font-bold text-white">{paperData.citation_count}</span>
-                      <span className="text-[10px] text-gray-400 uppercase font-bold">Citations</span>
+                      <span className="block text-xl font-bold text-[var(--parchment)]">{paperData.citation_count}</span>
+                      <span className="text-[10px] text-[var(--parchment)]/60 uppercase font-bold">Citations</span>
                     </div>
                   )}
                 </div>
@@ -205,9 +205,9 @@ export function PaperViewer({ episode, paperId, onBack }: PaperViewerProps) {
             <div className="text-lg">
               {paperData.abstract && (
                 <div id="abstract">
-                  <div className="bg-[#182a1e] p-6 rounded-xl border-l-4 border-[#FDA92B]">
-                    <h3 className="text-xl font-bold mb-3 text-white">Abstract</h3>
-                    <p className="text-gray-300 text-base leading-relaxed whitespace-pre-wrap">
+                  <div className="bg-[var(--dark-gray)] p-6 rounded-none border-l-4 border-[var(--golden-chestnut)]">
+                    <h3 className="text-xl font-bold mb-3 text-[var(--parchment)]">Abstract</h3>
+                    <p className="text-[var(--parchment)]/80 text-base leading-relaxed whitespace-pre-wrap">
                       {paperData.abstract}
                     </p>
                   </div>
@@ -220,19 +220,19 @@ export function PaperViewer({ episode, paperId, onBack }: PaperViewerProps) {
           <aside className="w-full lg:w-80 xl:w-96 flex-shrink-0 flex flex-col gap-6">
             <div className="sticky top-24 space-y-6">
               {/* Paper Info */}
-              <div className="bg-[#182a1e] border border-[#28392e] rounded-xl p-5">
-                <h4 className="text-white font-bold text-sm uppercase tracking-wider mb-4">
+              <div className="bg-[var(--dark-gray)] border border-[var(--parchment)]/10 rounded-none p-5">
+                <h4 className="text-[var(--parchment)] font-bold text-sm uppercase tracking-wider mb-4">
                   Paper Info
                 </h4>
                 <div className="space-y-3 text-sm">
                   {paperData.doi && (
                     <div>
-                      <span className="text-gray-500 block text-xs uppercase mb-1">DOI</span>
+                      <span className="text-[var(--parchment)]/50 block text-xs uppercase mb-1">DOI</span>
                       <a
                         href={`https://doi.org/${paperData.doi}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-[#FDA92B] hover:underline break-all"
+                        className="text-[var(--golden-chestnut)] hover:underline break-all"
                       >
                         {paperData.doi}
                       </a>
@@ -240,14 +240,14 @@ export function PaperViewer({ episode, paperId, onBack }: PaperViewerProps) {
                   )}
                   {paperData.authors.length > 0 && (
                     <div>
-                      <span className="text-gray-500 block text-xs uppercase mb-1">Authors</span>
-                      <p className="text-gray-300">{paperData.authors.join(", ")}</p>
+                      <span className="text-[var(--parchment)]/50 block text-xs uppercase mb-1">Authors</span>
+                      <p className="text-[var(--parchment)]/80">{paperData.authors.join(", ")}</p>
                     </div>
                   )}
                   {paperData.source && (
                     <div>
-                      <span className="text-gray-500 block text-xs uppercase mb-1">Source</span>
-                      <p className="text-gray-400 capitalize">{paperData.source.replace(/_/g, " ")}</p>
+                      <span className="text-[var(--parchment)]/50 block text-xs uppercase mb-1">Source</span>
+                      <p className="text-[var(--parchment)]/60 capitalize">{paperData.source.replace(/_/g, " ")}</p>
                     </div>
                   )}
                 </div>
@@ -259,7 +259,7 @@ export function PaperViewer({ episode, paperId, onBack }: PaperViewerProps) {
                   href={paperData.external_url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center justify-center gap-2 w-full py-3 bg-[#FDA92B] text-[#102216] font-bold rounded-xl hover:bg-[#FDA92B]/90 transition-colors"
+                  className="flex items-center justify-center gap-2 w-full py-3 bg-[var(--golden-chestnut)] text-[var(--carbon-black)] font-bold rounded-none hover:bg-[var(--golden-chestnut)]/90 transition-colors"
                 >
                   <ExternalLink className="w-5 h-5" />
                   View Original Paper

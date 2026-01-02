@@ -4,6 +4,7 @@ import { Bodoni_Moda, Manrope } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import { ThemeProvider } from "@/contexts/theme-context"
 import "./globals.css"
+import "./noeron.css"
 
 const bodoniModa = Bodoni_Moda({
   subsets: ["latin"],
