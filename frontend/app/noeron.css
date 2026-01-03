@@ -107,7 +107,7 @@ body.noeron-theme {
   cursor: pointer;
   transition: all 0.3s ease;
   text-transform: uppercase;
-  border-radius: 2px;
+  border-radius: 0;
   border: none;
   display: inline-block;
 }

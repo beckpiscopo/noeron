@@ -4,7 +4,7 @@ import type React from "react"
 
 import { useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Play, Pause, RotateCcw, RotateCw } from "lucide-react"
+import { Play, Pause, RotateCcw, RotateCw, Info } from "lucide-react"
 import { NoeronHeader } from "./noeron-header"
 
 export interface ListeningEpisode {
@@ -135,15 +135,23 @@ function CurrentClaimCard({ claim, currentTimeMs, onDiveDeeper, onViewSource }: 
   
   return (
     <div className="mb-8">
-      <div className="mb-3 flex items-center gap-2 text-xs font-bold text-[var(--golden-chestnut)] uppercase tracking-wider">
-        <span>JUST NOW</span>
-        <span className="relative flex size-2">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--golden-chestnut)] opacity-75"></span>
-          <span className="relative inline-flex size-2 rounded-full bg-[var(--golden-chestnut)]"></span>
-        </span>
-      </div>
-
       <div className="bg-[var(--dark-gray)] rounded-none p-8 shadow-[0_2px_8px_rgba(0,0,0,0.08)] transition-all duration-200 relative hover:shadow-[0_8px_24px_rgba(0,0,0,0.15)] hover:-translate-y-1 border border-[var(--parchment)]/10">
+        {/* Top row: Claim type left, Timestamp right */}
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-[var(--golden-chestnut)] uppercase tracking-wider">
+              {claim.category || 'Scientific Claim'}
+            </span>
+            <span className="relative flex size-2">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--golden-chestnut)] opacity-75"></span>
+              <span className="relative inline-flex size-2 rounded-full bg-[var(--golden-chestnut)]"></span>
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5 text-xs text-[var(--parchment)]/40 mono">
+            <span>{timestamp}</span>
+          </div>
+        </div>
+
         {/* Main distilled claim text - large and prominent */}
         <h3 className="display text-2xl font-normal mb-6 leading-relaxed text-[var(--parchment)]">
           {hasWordTiming && claim.timing?.words ?
@@ -154,32 +162,33 @@ function CurrentClaimCard({ claim, currentTimeMs, onDiveDeeper, onViewSource }: 
 
         {/* Full transcript quote - always visible */}
         {hasDistilledClaim && fullText && (
-          <p className="text-base text-[var(--parchment)]/60 leading-relaxed mb-8">
+          <p className="text-base text-[var(--parchment)]/60 leading-relaxed mb-4">
             "{fullText}"
           </p>
         )}
 
-        {/* Action buttons */}
-        <div className="flex gap-3 mb-2">
+        {/* Confidence score and Dive Deeper button */}
+        <div className="flex items-center justify-between">
+          {claim.confidence_score !== undefined && (
+            <div className="flex items-center gap-2 group relative">
+              <span className="text-xs text-[var(--parchment)]/50 uppercase tracking-wider">Confidence:</span>
+              <span className="text-xs font-bold text-[var(--golden-chestnut)] mono">
+                {Math.round(claim.confidence_score * 100)}%
+              </span>
+              <Info className="w-3 h-3 text-[var(--parchment)]/30 hover:text-[var(--parchment)]/60 cursor-help" />
+              {/* Tooltip */}
+              <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block w-64 p-3 bg-[var(--carbon-black)] border border-[var(--parchment)]/20 text-xs text-[var(--parchment)]/70 leading-relaxed z-50">
+                <p className="font-semibold text-[var(--parchment)] mb-1">How is this calculated?</p>
+                <p>The confidence score indicates how strongly this claim needs scientific backing. Higher scores mean the claim is more extraordinary or counter-intuitive and benefits more from evidence.</p>
+              </div>
+            </div>
+          )}
           <Button
             onClick={() => onDiveDeeper(claim.id)}
-            className="btn-noeron-accent"
+            className="!rounded-none !bg-transparent !border !border-[#BE7C4D] !text-[#BE7C4D] hover:!bg-[#BE7C4D]/10 ml-auto"
           >
             Dive Deeper
           </Button>
-          <Button
-            onClick={() => onViewSource(claim.id)}
-            variant="outline"
-            className="btn-noeron-secondary"
-          >
-            Read Source
-          </Button>
-        </div>
-
-        {/* Timestamp - bottom right */}
-        <div className="absolute bottom-4 right-6 flex items-center gap-1.5 text-xs text-[var(--parchment)]/40 mono">
-          <span>⏱️</span>
-          <span>{timestamp}</span>
         </div>
       </div>
     </div>
@@ -203,18 +212,26 @@ function PastClaimCard({ claim, relativeTime, isSelected, onSelect, onDiveDeeper
 
   return (
     <div>
-      <div className="mb-3 text-xs font-semibold text-[var(--parchment)]/50 uppercase tracking-wider mono">
-        {relativeTime}
-      </div>
-
       <div
         onClick={onSelect}
-        className={`bg-[var(--dark-gray)] rounded-none p-6 cursor-pointer transition-all duration-200 relative border border-[var(--parchment)]/10 ${
+        className={`bg-[var(--dark-gray)] rounded-none p-6 cursor-pointer transition-all duration-200 border border-[var(--parchment)]/10 ${
           isSelected
             ? "shadow-[0_8px_30px_rgba(190,124,77,0.15)] -translate-y-1 border-[var(--golden-chestnut)]/30"
             : "shadow-[0_2px_8px_rgba(0,0,0,0.08)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.15)] hover:-translate-y-1"
         }`}
       >
+        {/* Top row: Claim type left, Timestamp right */}
+        <div className="flex items-center justify-between mb-4">
+          <span className="text-xs font-bold text-[var(--parchment)]/50 uppercase tracking-wider">
+            {claim.category || 'Scientific Claim'}
+          </span>
+          <div className="flex items-center gap-1.5 text-xs text-[var(--parchment)]/40 mono">
+            <span>{timestamp}</span>
+            <span className="text-[var(--parchment)]/30">•</span>
+            <span>{relativeTime}</span>
+          </div>
+        </div>
+
         {/* Distilled claim or title - primary */}
         <h3 className="text-lg font-bold text-[var(--parchment)] mb-4 leading-snug">
           {displayText}
@@ -222,42 +239,39 @@ function PastClaimCard({ claim, relativeTime, isSelected, onSelect, onDiveDeeper
 
         {/* Full quote - always visible */}
         {hasDistilledClaim && fullText && (
-          <p className="text-sm text-[var(--parchment)]/60 leading-relaxed mb-6">
+          <p className="text-sm text-[var(--parchment)]/60 leading-relaxed mb-4">
             "{fullText}"
           </p>
         )}
 
-        {/* Action buttons (shown when selected) */}
-        {isSelected && (
-          <div className="flex gap-3 pt-3 border-t border-[var(--parchment)]/10 mb-6">
+        {/* Confidence score and Dive Deeper button */}
+        <div className="flex items-center justify-between">
+          {claim.confidence_score !== undefined && (
+            <div className="flex items-center gap-2 group relative">
+              <span className="text-xs text-[var(--parchment)]/50 uppercase tracking-wider">Confidence:</span>
+              <span className="text-xs font-bold text-[var(--golden-chestnut)] mono">
+                {Math.round(claim.confidence_score * 100)}%
+              </span>
+              <Info className="w-3 h-3 text-[var(--parchment)]/30 hover:text-[var(--parchment)]/60 cursor-help" />
+              {/* Tooltip */}
+              <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block w-64 p-3 bg-[var(--carbon-black)] border border-[var(--parchment)]/20 text-xs text-[var(--parchment)]/70 leading-relaxed z-50">
+                <p className="font-semibold text-[var(--parchment)] mb-1">How is this calculated?</p>
+                <p>The confidence score indicates how strongly this claim needs scientific backing. Higher scores mean the claim is more extraordinary or counter-intuitive and benefits more from evidence.</p>
+              </div>
+            </div>
+          )}
+          {isSelected && (
             <Button
               onClick={(e) => {
                 e.stopPropagation()
                 onDiveDeeper(claim.id)
               }}
               size="sm"
-              className="btn-noeron-accent"
+              className="!rounded-none !bg-transparent !border !border-[#BE7C4D] !text-[#BE7C4D] hover:!bg-[#BE7C4D]/10 ml-auto"
             >
               Dive Deeper
             </Button>
-            <Button
-              onClick={(e) => {
-                e.stopPropagation()
-                onViewSource(claim.id)
-              }}
-              size="sm"
-              variant="outline"
-              className="btn-noeron-secondary"
-            >
-              View Source
-            </Button>
-          </div>
-        )}
-
-        {/* Timestamp - bottom right */}
-        <div className="absolute bottom-3 right-5 flex items-center gap-1.5 text-xs text-[var(--parchment)]/40 mono">
-          <span>⏱️</span>
-          <span>{timestamp}</span>
+          )}
         </div>
       </div>
     </div>
@@ -595,7 +609,7 @@ export function ListeningView({
             <div className="text-center mb-12">
               <div className="inline-flex items-center gap-2 mb-2">
                 <div className="h-px w-16 bg-[var(--parchment)]/20" />
-                <h2 className="eyebrow">
+                <h2 className="eyebrow" text-2xl>
                   Live Research Stream
                 </h2>
                 <div className="h-px w-16 bg-[var(--parchment)]/20" />
