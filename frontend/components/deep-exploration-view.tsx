@@ -182,7 +182,7 @@ interface EvidenceThreadsResponse {
 }
 
 export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewSourcePaper }: DeepExplorationViewProps) {
-  const [synthesisMode, setSynthesisMode] = useState<"simplified" | "technical" | "ai_summary" | "raw">("technical")
+  const [synthesisMode, setSynthesisMode] = useState<"technical" | "ai_summary">("technical")
   const [contextData, setContextData] = useState<ClaimContextData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -491,16 +491,6 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
                 {/* Segmented Control */}
                 <div className="flex p-1 bg-[var(--carbon-black)] rounded-none">
                   <button
-                    onClick={() => setSynthesisMode("simplified")}
-                    className={`px-3 py-1.5 rounded-none text-sm font-medium transition-all ${
-                      synthesisMode === "simplified"
-                        ? "bg-[var(--dark-gray)] text-[var(--parchment)] shadow-sm"
-                        : "text-[var(--parchment)]/50 hover:text-[var(--parchment)]"
-                    }`}
-                  >
-                    Simplified
-                  </button>
-                  <button
                     onClick={() => setSynthesisMode("technical")}
                     className={`px-3 py-1.5 rounded-none text-sm font-medium transition-all ${
                       synthesisMode === "technical"
@@ -526,35 +516,10 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
                     <Sparkles className="w-3.5 h-3.5" />
                     AI Deep Dive
                   </button>
-                  <button
-                    onClick={() => setSynthesisMode("raw")}
-                    className={`px-3 py-1.5 rounded-none text-sm font-medium transition-all ${
-                      synthesisMode === "raw" ? "bg-[var(--dark-gray)] text-[var(--parchment)] shadow-sm" : "text-[var(--parchment)]/50 hover:text-[var(--parchment)]"
-                    }`}
-                  >
-                    Raw Data
-                  </button>
                 </div>
               </div>
 
               <div className="space-y-4 text-[var(--parchment)]/80 leading-relaxed">
-                {synthesisMode === "raw" && (
-                  <pre className="text-xs bg-[var(--carbon-black)] p-4 rounded-none overflow-x-auto mono">
-                    {JSON.stringify(contextData, null, 2)}
-                  </pre>
-                )}
-
-                {synthesisMode === "simplified" && (
-                  <>
-                    <p className="text-lg">{claim.description}</p>
-                    {synthesis?.rationale && (
-                      <div className="bg-[var(--carbon-black)] border-l-4 border-[var(--golden-chestnut)] p-4 rounded-r-sm">
-                        <p className="text-sm">{synthesis.rationale}</p>
-                      </div>
-                    )}
-                  </>
-                )}
-
                 {synthesisMode === "technical" && (
                   <>
                     <p><strong>Claim:</strong> {synthesis?.claim_text || claim.title}</p>
@@ -1173,33 +1138,6 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
                 )}
               </>
             )}
-          </div>
-
-          {/* Source Material Card */}
-          <div className="bg-gradient-to-br from-[var(--dark-gray)] to-[var(--dark-gray)] border border-[var(--parchment)]/10 rounded-none p-5">
-            <div className="flex items-start gap-4 mb-4">
-              <div className="size-10 rounded bg-[var(--parchment)]/5 flex items-center justify-center shrink-0">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                  />
-                </svg>
-              </div>
-              <div>
-                <h4 className="font-bold text-sm">Source Material</h4>
-                <p className="text-[var(--parchment)]/60 text-xs mt-1">Access the original PDF cited in this segment.</p>
-              </div>
-            </div>
-            <button
-              onClick={onViewSourcePaper}
-              className="w-full flex items-center justify-center gap-2 bg-[var(--golden-chestnut)] hover:bg-[var(--golden-chestnut)]/90 text-[var(--dark-gray)] font-bold py-3 px-4 rounded-none transition-all shadow-[0_4px_14px_rgba(88,61,50,0.2)]"
-            >
-              <span>View Source Paper</span>
-              <ExternalLink className="w-4 h-4" />
-            </button>
           </div>
 
           {/* Stats */}

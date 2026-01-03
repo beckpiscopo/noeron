@@ -96,6 +96,9 @@ BIOELECTRICITY_SYNONYMS = {
         "ca2+ channel", "calcium channels", "cav channel",
         "voltage-gated calcium channel",
     ],
+    "kir4_1": [
+        "kir4.1", "kir41", "kcnj10", "inward rectifying potassium channel 4.1",
+    ],
 
     # Processes
     "regeneration": [

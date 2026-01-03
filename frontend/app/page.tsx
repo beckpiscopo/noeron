@@ -115,6 +115,30 @@ function parseDurationLabelToSeconds(label: string): number {
   return total
 }
 
+const getPlaybackStorageKey = (episodeId: string) => `playback_position:${episodeId}`
+
+const readStoredPlaybackTime = (episodeId: string): number | null => {
+  if (typeof window === "undefined") {
+    return null
+  }
+
+  const storedValue = window.localStorage.getItem(getPlaybackStorageKey(episodeId))
+  const parsed = storedValue ? Number(storedValue) : NaN
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+const persistPlaybackTime = (episodeId: string, time: number) => {
+  if (typeof window === "undefined") {
+    return
+  }
+
+  try {
+    window.localStorage.setItem(getPlaybackStorageKey(episodeId), String(time))
+  } catch (error) {
+    console.warn("Failed to persist playback time", error)
+  }
+}
+
 export default function Home() {
   const [view, setView] = useState<"landing" | "library" | "listening" | "exploration" | "paper">("landing")
   const [selectedEpisode, setSelectedEpisode] = useState<EpisodeMetadata | null>(null)
@@ -184,10 +208,17 @@ export default function Home() {
 
   const handleTimeUpdate = (time: number) => {
     const safeDuration = Math.max(durationSeconds, 1)
-    setCurrentTime(Math.max(0, Math.min(time, safeDuration)))
+    const clampedTime = Math.max(0, Math.min(time, safeDuration))
+    setCurrentTime(clampedTime)
+    persistPlaybackTime(activeEpisode.id, clampedTime)
   }
 
   const handleBackToListening = () => {
+    const fallbackTime = currentExplorationClaim.timestamp || 0
+    const safeDuration = Math.max(durationSeconds, 1)
+    const resumeTime = Math.max(0, Math.min(currentTime > 0 ? currentTime : fallbackTime, safeDuration))
+    setCurrentTime(resumeTime)
+    persistPlaybackTime(activeEpisode.id, resumeTime)
     setView("listening")
   }
 
@@ -204,7 +235,11 @@ export default function Home() {
 
   const handleSelectEpisode = (episode: EpisodeMetadata) => {
     setSelectedEpisode(episode)
-    setCurrentTime(0)
+    const nextDurationSeconds = parseDurationLabelToSeconds(episode.duration)
+    const storedTime = readStoredPlaybackTime(episode.id)
+    const safeDuration = Math.max(nextDurationSeconds, 1)
+    const startTime = storedTime !== null ? Math.max(0, Math.min(storedTime, safeDuration)) : 0
+    setCurrentTime(startTime)
     setView("listening")
   }
 
@@ -299,6 +334,14 @@ export default function Home() {
       cancelled = true
     }
   }, [selectedEpisode])
+
+  useEffect(() => {
+    const storedTime = readStoredPlaybackTime(activeEpisode.id)
+    if (storedTime !== null) {
+      const safeDuration = Math.max(durationSeconds, 1)
+      setCurrentTime(Math.max(0, Math.min(storedTime, safeDuration)))
+    }
+  }, [activeEpisode.id, durationSeconds])
 
   if (view === "landing") {
     return <LandingPage onGetStarted={handleGetStarted} />

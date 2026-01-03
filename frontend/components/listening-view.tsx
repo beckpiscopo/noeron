@@ -320,6 +320,11 @@ export function ListeningView({
   // 3. Calculate: offset_ms = -(actual_time - transcript_time) * 1000
   //    Example: -(557 - 480) * 1000 = -77000
   const AUDIO_OFFSET_MS = 0 // Adjust based on manual testing
+  const handleDiveDeeperWithTimestamp = (claimId: string | number) => {
+    const t = audioRef.current ? audioRef.current.currentTime : episode.currentTime
+    onTimeUpdate(t)
+    onDiveDeeper(claimId)
+  }
   
   const handlePlayPause = () => {
     setIsPlaying(!isPlaying)
@@ -444,6 +449,9 @@ export function ListeningView({
     }
 
     const handleLoadedMetadata = () => {
+      const safeTime = Math.max(0, Math.min(episode.durationSeconds, episode.currentTime))
+      audio.currentTime = safeTime
+      onTimeUpdate(safeTime)
       setIsAudioReady(true)
     }
     const handleTimeUpdate = () => {
@@ -462,7 +470,7 @@ export function ListeningView({
       audio.removeEventListener("timeupdate", handleTimeUpdate)
       audio.removeEventListener("ended", handleEnded)
     }
-  }, [onTimeUpdate])
+  }, [onTimeUpdate, episode.currentTime, episode.durationSeconds])
 
   useEffect(() => {
     const audio = audioRef.current
@@ -537,6 +545,7 @@ export function ListeningView({
               <h1 className="display text-xl font-normal text-[var(--parchment)] mb-2">{episode.title}</h1>
               <p className="eyebrow mb-1">EPISODE {episode.id.split('_')[1] || '325'}</p>
               <p className="text-sm text-[var(--parchment)]/60 italic">Host: {episode.host}</p>
+              <p className="text-sm text-[var(--parchment)]/60 italic">Guest: {episode.guest}</p>
             </div>
 
             {/* Waveform Visualization */}
@@ -622,11 +631,11 @@ export function ListeningView({
           <div className="max-w-4xl mx-auto px-8 py-8">
             {/* Header */}
             <div className="text-center mb-12">
-              <div className="inline-flex items-center gap-2 mb-2">
+              <div className="inline-flex flex-col items-center gap-3">
                 <div className="h-px w-16 bg-[var(--parchment)]/20" />
-                <h2 className="eyebrow" text-2xl>
+                <h1 className="display text-3xl md:text-2xl font-semibold text-[var(--golden-chestnut)]">
                   Live Research Stream
-                </h2>
+                </h1>
                 <div className="h-px w-16 bg-[var(--parchment)]/20" />
               </div>
             </div>
@@ -634,7 +643,12 @@ export function ListeningView({
             {/* Current Topic - Always at Top */}
             {currentClaim && (
               <div ref={currentClaimRef}>
-                <CurrentClaimCard claim={currentClaim} currentTimeMs={episode.currentTime * 1000} onDiveDeeper={onDiveDeeper} onViewSource={onViewSource} />
+                <CurrentClaimCard
+                  claim={currentClaim}
+                  currentTimeMs={episode.currentTime * 1000}
+                  onDiveDeeper={handleDiveDeeperWithTimestamp}
+                  onViewSource={onViewSource}
+                />
               </div>
             )}
 
@@ -647,7 +661,7 @@ export function ListeningView({
                   relativeTime={getRelativeTime(claim)}
                   isSelected={selectedClaimId === claim.id}
                   onSelect={() => setSelectedClaimId(claim.id === selectedClaimId ? null : claim.id)}
-                  onDiveDeeper={onDiveDeeper}
+                  onDiveDeeper={handleDiveDeeperWithTimestamp}
                   onViewSource={onViewSource}
                 />
               ))}
