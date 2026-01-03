@@ -17,6 +17,12 @@ import {
   Mic,
   ArrowUp,
   Loader2,
+  Network,
+  Circle,
+  ArrowRight,
+  Search,
+  Settings,
+  HelpCircle as HelpIcon,
 } from "lucide-react"
 import { NoeronHeader } from "./noeron-header"
 import { callMcpTool } from "@/lib/api"
@@ -59,6 +65,40 @@ interface RelatedConcept {
   paper_title: string
   paper_id: string
   year: string | number
+}
+
+// Knowledge Graph types
+interface KGNode {
+  id: string
+  name: string
+  type: string
+  description?: string
+  aliases?: string[]
+  is_direct_match?: boolean
+  papers?: string[]
+}
+
+interface KGEdge {
+  source: string
+  target: string
+  relationship: string
+  evidence?: string
+  confidence?: number
+}
+
+interface KGSubgraphResponse {
+  claim_text: string
+  matched_entity_ids: string[]
+  matched_entity_names: string[]
+  nodes: KGNode[]
+  edges: KGEdge[]
+  stats: {
+    direct_matches: number
+    total_nodes: number
+    total_edges: number
+  }
+  error?: string
+  message?: string
 }
 
 interface ClaimContextData {
@@ -156,6 +196,11 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
   const [aiEvidenceThreads, setAiEvidenceThreads] = useState<EvidenceThreadsResponse | null>(null)
   const [isLoadingThreads, setIsLoadingThreads] = useState(false)
   const [threadsError, setThreadsError] = useState<string | null>(null)
+
+  // Knowledge Graph subgraph state
+  const [kgSubgraph, setKgSubgraph] = useState<KGSubgraphResponse | null>(null)
+  const [isLoadingKG, setIsLoadingKG] = useState(false)
+  const [kgError, setKgError] = useState<string | null>(null)
 
   // Fetch claim context data on mount
   useEffect(() => {
@@ -266,6 +311,34 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
     }
   }
 
+  // Function to fetch Knowledge Graph subgraph on-demand
+  const fetchKGSubgraph = async () => {
+    if (!claim.id.includes("-")) return
+
+    setIsLoadingKG(true)
+    setKgError(null)
+
+    try {
+      const data = await callMcpTool<KGSubgraphResponse>("get_relevant_kg_subgraph", {
+        claim_id: claim.id,
+        episode_id: episodeId,
+        max_hops: 1,
+        use_gemini_extraction: false,
+      })
+
+      if (data.error) {
+        setKgError(data.error)
+      } else {
+        setKgSubgraph(data)
+      }
+    } catch (err) {
+      setKgError(err instanceof Error ? err.message : "Failed to load knowledge graph")
+      console.error("Error fetching KG subgraph:", err)
+    } finally {
+      setIsLoadingKG(false)
+    }
+  }
+
   const formatTime = (seconds: number) => {
     const hrs = Math.floor(seconds / 3600)
     const mins = Math.floor((seconds % 3600) / 60)
@@ -295,7 +368,22 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
   return (
     <div className="noeron-theme min-h-screen bg-[var(--carbon-black)] text-[var(--parchment)] flex flex-col">
       {/* Noeron Header */}
-      <NoeronHeader />
+      <NoeronHeader
+        actions={
+          <>
+            <button className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--parchment)]/70 transition hover:text-[var(--parchment)]">
+              <Search className="h-4 w-4" />
+            </button>
+            <button className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--parchment)]/70 transition hover:text-[var(--parchment)]">
+              <Settings className="h-4 w-4" />
+            </button>
+            <button className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--parchment)]/70 transition hover:text-[var(--parchment)]">
+              <HelpIcon className="h-4 w-4" />
+            </button>
+          </>
+        }
+        onLogoClick={() => window.location.assign("/")}
+      />
 
       {/* Header */}
       <header className="sticky top-14 z-40 flex items-center justify-between border-b border-[var(--parchment)]/10 bg-[var(--carbon-black)]/95 backdrop-blur-sm px-6 py-3 lg:px-10">
@@ -695,59 +783,172 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
             </div>
           </div>
 
-          {/* Related Concepts Carousel */}
-          {relatedConcepts.length > 0 && (
-            <div className="pt-4">
-              <div className="flex items-center justify-between mb-4">
-                <h4 className="font-bold text-lg">Related Concepts</h4>
-                <div className="flex gap-2">
-                  <button className="size-8 rounded-full bg-[var(--dark-gray)] flex items-center justify-center hover:bg-[var(--golden-chestnut)] hover:text-[var(--carbon-black)] transition-colors">
-                    <ChevronLeft className="w-5 h-5" />
-                  </button>
-                  <button className="size-8 rounded-full bg-[var(--dark-gray)] flex items-center justify-center hover:bg-[var(--golden-chestnut)] hover:text-[var(--carbon-black)] transition-colors">
-                    <ChevronRight className="w-5 h-5" />
-                  </button>
-                </div>
+          {/* Knowledge Graph Relationships */}
+          <div className="pt-4">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Network className="w-5 h-5 text-[var(--golden-chestnut)]" />
+                <h4 className="font-bold text-lg">Knowledge Graph</h4>
               </div>
-              <div className="flex overflow-x-auto gap-4 pb-4 snap-x scrollbar-hide">
-                {relatedConcepts.map((concept, index) => {
-                  const backgroundImage = conceptImages[index % conceptImages.length]
-                  return (
-                    <div
-                      key={index}
-                      className="snap-start min-w-[240px] w-[240px] h-[300px] rounded-none relative group cursor-pointer overflow-hidden border border-[var(--parchment)]/10"
-                      style={{
-                        backgroundImage: `linear-gradient(to top, rgba(16, 34, 22, 0.95), rgba(16, 34, 22, 0.3)), url('${backgroundImage}')`,
-                        backgroundSize: "cover",
-                        backgroundPosition: "center",
-                      }}
-                    >
-                      <div className="absolute inset-0 bg-[var(--golden-chestnut)]/0 group-hover:bg-[var(--golden-chestnut)]/10 transition-colors" />
-                      <div className="absolute bottom-0 left-0 p-4 w-full">
-                        <div className="mb-2 size-8 rounded bg-[var(--golden-chestnut)]/20 flex items-center justify-center text-[var(--golden-chestnut)] backdrop-blur-sm">
-                          <FlaskConical className="w-5 h-5" />
-                        </div>
-                        <h5 className="font-bold text-lg leading-tight mb-1">{concept.title}</h5>
-                        <p className="text-[var(--parchment)]/60 text-xs line-clamp-2">{concept.description}</p>
-                        {concept.year && (
-                          <p className="text-[var(--parchment)]/50 text-[10px] mt-1">
-                            {concept.paper_title} ({concept.year})
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  )
-                })}
-                {/* Add More Card */}
-                <div className="snap-start min-w-[240px] w-[240px] h-[300px] bg-[var(--dark-gray)] rounded-none relative group cursor-pointer overflow-hidden border border-[var(--parchment)]/10 flex flex-col justify-center items-center text-center p-6">
-                  <div className="size-12 rounded-full bg-[var(--golden-chestnut)]/10 flex items-center justify-center text-[var(--golden-chestnut)] mb-4 group-hover:scale-110 transition-transform">
-                    <Plus className="w-6 h-6" />
-                  </div>
-                  <h5 className="font-bold text-lg">Explore All Concepts</h5>
-                </div>
-              </div>
+              {!kgSubgraph && !isLoadingKG && (
+                <button
+                  onClick={fetchKGSubgraph}
+                  className="text-xs text-[var(--golden-chestnut)] hover:underline flex items-center gap-1"
+                >
+                  <Network className="w-3 h-3" />
+                  Load Graph
+                </button>
+              )}
             </div>
-          )}
+
+            {/* Loading State */}
+            {isLoadingKG && (
+              <div className="bg-[var(--dark-gray)] border border-[var(--parchment)]/10 rounded-none p-8">
+                <div className="flex flex-col items-center justify-center">
+                  <Loader2 className="w-6 h-6 text-[var(--golden-chestnut)] animate-spin mb-3" />
+                  <p className="text-[var(--parchment)]/60 text-sm">Loading knowledge graph...</p>
+                </div>
+              </div>
+            )}
+
+            {/* Error State */}
+            {kgError && !isLoadingKG && (
+              <div className="bg-red-500/10 border border-red-500/30 rounded-none p-4">
+                <p className="text-red-400 text-sm">{kgError}</p>
+                <button
+                  onClick={fetchKGSubgraph}
+                  className="mt-2 text-xs text-[var(--golden-chestnut)] hover:underline"
+                >
+                  Try again
+                </button>
+              </div>
+            )}
+
+            {/* KG Content */}
+            {kgSubgraph && !isLoadingKG && !kgError && (
+              <div className="bg-[var(--dark-gray)] border border-[var(--parchment)]/10 rounded-none p-5">
+                {/* Stats bar */}
+                <div className="flex items-center gap-4 text-xs text-[var(--parchment)]/50 pb-3 mb-4 border-b border-[var(--parchment)]/10">
+                  <span>{kgSubgraph.stats.direct_matches} matched entities</span>
+                  <span>{kgSubgraph.stats.total_edges} relationships</span>
+                </div>
+
+                {kgSubgraph.edges.length > 0 ? (
+                  <>
+                    {/* Matched entities pills */}
+                    <div className="flex flex-wrap gap-2 mb-4">
+                      {kgSubgraph.matched_entity_names.map((name, idx) => (
+                        <span
+                          key={idx}
+                          className="px-2.5 py-1 bg-[var(--golden-chestnut)]/20 text-[var(--golden-chestnut)] text-xs font-medium rounded-full border border-[var(--golden-chestnut)]/30"
+                        >
+                          {name}
+                        </span>
+                      ))}
+                    </div>
+
+                    {/* Relationships list */}
+                    <div className="space-y-3">
+                      {kgSubgraph.edges.slice(0, 12).map((edge, idx) => {
+                        const sourceNode = kgSubgraph.nodes.find(n => n.id === edge.source)
+                        const targetNode = kgSubgraph.nodes.find(n => n.id === edge.target)
+                        const sourceName = sourceNode?.name || edge.source
+                        const targetName = targetNode?.name || edge.target
+                        const sourceType = sourceNode?.type || "unknown"
+                        const targetType = targetNode?.type || "unknown"
+
+                        // Color coding by relationship type
+                        const relColors: Record<string, string> = {
+                          regulates: "text-blue-400",
+                          required_for: "text-green-400",
+                          produces: "text-purple-400",
+                          inhibits: "text-red-400",
+                          disrupts: "text-red-400",
+                          activates: "text-emerald-400",
+                          precedes: "text-yellow-400",
+                          measured_by: "text-cyan-400",
+                          expressed_in: "text-orange-400",
+                        }
+                        const relColor = relColors[edge.relationship] || "text-[var(--parchment)]/60"
+
+                        return (
+                          <div
+                            key={idx}
+                            className="flex items-center gap-2 text-sm group hover:bg-[var(--carbon-black)] p-2 -mx-2 rounded transition-colors"
+                          >
+                            {/* Source */}
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <Circle className={`w-2 h-2 shrink-0 ${
+                                sourceNode?.is_direct_match ? "text-[var(--golden-chestnut)] fill-current" : "text-[var(--parchment)]/40"
+                              }`} />
+                              <span className="text-[var(--parchment)] truncate font-medium">
+                                {sourceName}
+                              </span>
+                              <span className="text-[var(--parchment)]/40 text-[10px] shrink-0">
+                                {sourceType}
+                              </span>
+                            </div>
+
+                            {/* Relationship */}
+                            <div className="flex items-center gap-1 shrink-0">
+                              <ArrowRight className={`w-3 h-3 ${relColor}`} />
+                              <span className={`text-xs font-mono ${relColor}`}>
+                                {edge.relationship.replace(/_/g, " ")}
+                              </span>
+                              <ArrowRight className={`w-3 h-3 ${relColor}`} />
+                            </div>
+
+                            {/* Target */}
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <Circle className={`w-2 h-2 shrink-0 ${
+                                targetNode?.is_direct_match ? "text-[var(--golden-chestnut)] fill-current" : "text-[var(--parchment)]/40"
+                              }`} />
+                              <span className="text-[var(--parchment)] truncate font-medium">
+                                {targetName}
+                              </span>
+                              <span className="text-[var(--parchment)]/40 text-[10px] shrink-0">
+                                {targetType}
+                              </span>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+
+                    {kgSubgraph.edges.length > 12 && (
+                      <p className="text-xs text-[var(--parchment)]/50 mt-4 pt-3 border-t border-[var(--parchment)]/10">
+                        Showing 12 of {kgSubgraph.edges.length} relationships
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <div className="text-center py-6">
+                    <Network className="w-8 h-8 text-[var(--parchment)]/40 mx-auto mb-3" />
+                    <p className="text-[var(--parchment)]/50 text-sm">
+                      {kgSubgraph.message || "No matching entities found in knowledge graph"}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Initial state - prompt to load */}
+            {!kgSubgraph && !isLoadingKG && !kgError && (
+              <div className="bg-[var(--dark-gray)] border border-[var(--parchment)]/10 rounded-none p-8 text-center">
+                <Network className="w-10 h-10 text-[var(--parchment)]/40 mx-auto mb-4" />
+                <p className="text-[var(--parchment)]/60 text-sm mb-4">
+                  Explore how concepts in this claim connect to the broader research
+                </p>
+                <button
+                  onClick={fetchKGSubgraph}
+                  className="px-5 py-2 bg-[var(--golden-chestnut)] hover:bg-[var(--golden-chestnut)]/90 text-[var(--dark-gray)] font-bold text-sm rounded-none transition-colors inline-flex items-center gap-2"
+                >
+                  <Network className="w-4 h-4" />
+                  Load Knowledge Graph
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Right Column: Evidence & Actions */}

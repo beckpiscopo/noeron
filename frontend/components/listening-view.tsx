@@ -4,7 +4,7 @@ import type React from "react"
 
 import { useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Play, Pause, RotateCcw, RotateCw, Info } from "lucide-react"
+import { Play, Pause, RotateCcw, RotateCw, Info, Search, Settings, HelpCircle } from "lucide-react"
 import { NoeronHeader } from "./noeron-header"
 
 export interface ListeningEpisode {
@@ -292,6 +292,21 @@ export function ListeningView({
   const [isAudioReady, setIsAudioReady] = useState(false)
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const currentClaimRef = useRef<HTMLDivElement | null>(null)
+  const iconButtonClasses =
+    "flex h-9 w-9 items-center justify-center rounded-full text-[var(--parchment)]/70 transition hover:text-[var(--parchment)]"
+  const headerActions = (
+    <>
+      <button className={iconButtonClasses}>
+        <Search className="h-4 w-4" />
+      </button>
+      <button className={iconButtonClasses}>
+        <Settings className="h-4 w-4" />
+      </button>
+      <button className={iconButtonClasses}>
+        <HelpCircle className="h-4 w-4" />
+      </button>
+    </>
+  )
   
   // Audio offset correction (in milliseconds)
   // Audio offset in milliseconds - adjust this value to sync claims with audio
@@ -498,7 +513,7 @@ export function ListeningView({
 
   return (
     <div className="noeron-theme flex min-h-screen flex-col bg-[var(--carbon-black)] text-[var(--parchment)] font-sans">
-      <NoeronHeader />
+      <NoeronHeader actions={headerActions} onLogoClick={() => window.location.assign("/")} />
       <audio ref={audioRef} preload="metadata" className="hidden" />
 
       {/* Two Column Layout */}

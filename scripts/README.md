@@ -110,10 +110,14 @@ These scripts fix or maintain timing data in transcript/claim caches.
 - `migrate_to_supabase.py`  
   One-time migration of local artifacts into Supabase.
 
+## Project hygiene
+
+- `add_work_log.py`  
+  Appends a short entry to `docs/WORK_LOG.md`.
+
 ## Quick guidance
 
 - If you're ingesting new papers: run the four-step core pipeline.
 - If you're ingesting transcripts: run transcript ingestion, then build windows,
   then the claims/context card pipeline, then rebuild the vector store.
 - If you are fixing data: use the one-off helpers in the timing/maintenance sections.
-

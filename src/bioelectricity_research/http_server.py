@@ -721,6 +721,133 @@ async def http_get_paper(request: Request):
         return JSONResponse({"error": str(e)}, status_code=500)
 
 
+@app.post("/tools/get_relevant_kg_subgraph/execute")
+async def http_get_relevant_kg_subgraph(request: Request):
+    """Get a relevant subgraph from the knowledge graph for a given claim."""
+    try:
+        body = await request.json()
+        claim_id = body.get("claim_id")
+        claim_text = body.get("claim_text")
+        episode_id = body.get("episode_id", "lex_325")
+        max_hops = body.get("max_hops", 1)
+        use_gemini_extraction = body.get("use_gemini_extraction", False)
+
+        # Import helper functions
+        from .server import (
+            _load_claims_cache,
+            _load_knowledge_graph,
+            _find_matching_entities,
+            _extract_subgraph,
+            _extract_entities_with_gemini,
+        )
+
+        # Step 1: Get claim text
+        if not claim_text and claim_id:
+            # Load from claims cache
+            claims_cache = _load_claims_cache()
+
+            parts = claim_id.rsplit("-", 1)
+            if len(parts) != 2:
+                return {"error": f"Invalid claim_id format: {claim_id}"}
+
+            segment_key = parts[0]
+            try:
+                claim_index = int(parts[1])
+            except ValueError:
+                return {"error": f"Invalid claim index in claim_id: {claim_id}"}
+
+            segments = claims_cache.get("segments", {})
+            segment_data = segments.get(segment_key)
+
+            if not segment_data:
+                return {"error": f"Segment not found: {segment_key}"}
+
+            claims_list = segment_data.get("claims", [])
+            if claim_index >= len(claims_list):
+                return {"error": f"Claim index {claim_index} out of range"}
+
+            claim_data = claims_list[claim_index]
+            claim_text = claim_data.get("claim_text", "")
+
+        if not claim_text:
+            return {"error": "No claim text provided. Use claim_id or claim_text parameter."}
+
+        # Step 2: Load knowledge graph
+        kg = _load_knowledge_graph()
+        kg_nodes = kg.get("nodes", [])
+        kg_edges = kg.get("edges", [])
+
+        if not kg_nodes:
+            return {
+                "error": "Knowledge graph is empty. Run the extraction pipeline first.",
+                "hint": "python3 scripts/knowledge_graph/extract_kg_from_papers.py --all"
+            }
+
+        # Step 3: Extract/match entities
+        if use_gemini_extraction:
+            # Use Gemini to extract entity names, then match to KG
+            import asyncio
+            extracted_names = await _extract_entities_with_gemini(claim_text)
+            matched_ids = []
+            for name in extracted_names:
+                ids = _find_matching_entities(name, kg_nodes, min_word_overlap=1)
+                matched_ids.extend(ids)
+            matched_ids = list(set(matched_ids))
+        else:
+            # Direct keyword matching
+            matched_ids = _find_matching_entities(claim_text, kg_nodes, min_word_overlap=2)
+
+        if not matched_ids:
+            # Try with looser matching
+            matched_ids = _find_matching_entities(claim_text, kg_nodes, min_word_overlap=1)
+
+        if not matched_ids:
+            return {
+                "claim_text": claim_text,
+                "matched_entities": [],
+                "nodes": [],
+                "edges": [],
+                "message": "No matching entities found in knowledge graph for this claim."
+            }
+
+        # Step 4: Extract subgraph
+        subgraph = _extract_subgraph(
+            matched_ids,
+            kg_nodes,
+            kg_edges,
+            max_hops=max_hops
+        )
+
+        # Step 5: Format response
+        # Mark which nodes were direct matches vs expanded
+        for node in subgraph["nodes"]:
+            node["is_direct_match"] = node["id"] in matched_ids
+
+        # Sort edges by relationship type for better display
+        subgraph["edges"].sort(key=lambda e: e.get("relationship", ""))
+
+        return {
+            "claim_text": claim_text,
+            "matched_entity_ids": matched_ids,
+            "matched_entity_names": [
+                next((n["name"] for n in kg_nodes if n["id"] == eid), eid)
+                for eid in matched_ids
+            ],
+            "nodes": subgraph["nodes"],
+            "edges": subgraph["edges"],
+            "stats": {
+                "direct_matches": len(matched_ids),
+                "total_nodes": len(subgraph["nodes"]),
+                "total_edges": len(subgraph["edges"]),
+            }
+        }
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
 def run_server(host="127.0.0.1", port=8000):
     """Run the HTTP server."""
     uvicorn.run(app, host=host, port=port)

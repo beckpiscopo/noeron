@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { Play, Clock, Calendar, FileText, Search, Settings, HelpCircle, Brain } from "lucide-react"
 import { callMcpTool } from "@/lib/api"
+import { NoeronHeader } from "./noeron-header"
 
 export interface Episode {
   id: string
@@ -66,6 +67,23 @@ export function EpisodeLibrary({ onSelectEpisode }: EpisodeLibraryProps) {
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [highlightedEpisodeId, setHighlightedEpisodeId] = useState<string | null>(fallbackEpisodes[0]?.id ?? null)
 
+  const iconButtonClasses =
+    "flex h-9 w-9 items-center justify-center rounded-full text-[var(--parchment)]/70 transition hover:text-[var(--parchment)]"
+
+  const headerActions = (
+    <>
+      <button className={iconButtonClasses}>
+        <Search className="h-4 w-4" />
+      </button>
+      <button className={iconButtonClasses}>
+        <Settings className="h-4 w-4" />
+      </button>
+      <button className={iconButtonClasses}>
+        <HelpCircle className="h-4 w-4" />
+      </button>
+    </>
+  )
+
   useEffect(() => {
     let mounted = true
 
@@ -103,28 +121,7 @@ export function EpisodeLibrary({ onSelectEpisode }: EpisodeLibraryProps) {
 
   return (
     <div className="noeron-theme relative flex min-h-screen w-full flex-col bg-[var(--carbon-black)] text-[var(--parchment)]">
-      {/* Sticky Header */}
-      <header className="sticky top-0 z-50 w-full border-b border-[var(--parchment)]/10 px-6 py-4 bg-[var(--carbon-black)]/85 backdrop-blur-xl">
-        <div className="mx-auto max-w-7xl flex items-center justify-between">
-          {/* Branding */}
-          <div className="flex items-center gap-2.5">
-            <span className="display text-2xl font-medium tracking-tight text-[var(--parchment)] italic">noeron</span>
-          </div>
-
-          {/* Utilities */}
-          <div className="flex items-center gap-3">
-            <button className="flex items-center justify-center size-10 rounded-full bg-[var(--parchment)]/5 text-[var(--parchment)]/50 hover:bg-[var(--parchment)]/10 hover:text-[var(--parchment)] transition-colors">
-              <Search className="size-5" />
-            </button>
-            <button className="flex items-center justify-center size-10 rounded-full bg-[var(--parchment)]/5 text-[var(--parchment)]/50 hover:bg-[var(--parchment)]/10 hover:text-[var(--parchment)] transition-colors">
-              <Settings className="size-5" />
-            </button>
-            <button className="flex items-center justify-center size-10 rounded-full bg-[var(--parchment)]/5 text-[var(--parchment)]/50 hover:bg-[var(--parchment)]/10 hover:text-[var(--parchment)] transition-colors">
-              <HelpCircle className="size-5" />
-            </button>
-          </div>
-        </div>
-      </header>
+      <NoeronHeader actions={headerActions} onLogoClick={() => window.location.assign("/")} />
 
       {/* Main Content */}
       <main className="flex-1 w-full px-4 md:px-10 py-8">

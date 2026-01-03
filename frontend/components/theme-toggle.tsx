@@ -8,11 +8,14 @@ export function ThemeToggle() {
   return (
     <button
       onClick={toggleTheme}
-      className="flex items-center justify-center size-9 rounded-full border-2 border-current transition-all hover:scale-110"
+      className="flex h-9 w-9 items-center justify-center rounded-full text-current transition hover:text-[var(--golden-chestnut)]"
       aria-label="Toggle dark mode"
       title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
     >
-      <div className="relative size-4 overflow-hidden rounded-full">
+      <div
+        className="relative h-4 w-4 overflow-hidden rounded-full"
+        aria-hidden="true"
+      >
         <div
           className="absolute inset-0 rounded-full bg-current transition-transform duration-300"
           style={{
@@ -23,4 +26,3 @@ export function ThemeToggle() {
     </button>
   )
 }
-
