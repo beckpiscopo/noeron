@@ -182,15 +182,15 @@ interface EvidenceThreadsResponse {
 }
 
 export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewSourcePaper }: DeepExplorationViewProps) {
-  const [synthesisMode, setSynthesisMode] = useState<"technical" | "ai_summary">("technical")
+  const [synthesisMode, setSynthesisMode] = useState<"simplified" | "technical">("technical")
   const [contextData, setContextData] = useState<ClaimContextData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // Deep dive summary state
-  const [deepDiveSummary, setDeepDiveSummary] = useState<DeepDiveSummary | null>(null)
-  const [isLoadingDeepDive, setIsLoadingDeepDive] = useState(false)
-  const [deepDiveError, setDeepDiveError] = useState<string | null>(null)
+  // Deep dive summary state (per style)
+  const [deepDiveSummaries, setDeepDiveSummaries] = useState<Partial<Record<"simplified" | "technical", DeepDiveSummary>>>({})
+  const [isLoadingDeepDive, setIsLoadingDeepDive] = useState<{ simplified: boolean; technical: boolean }>({ simplified: false, technical: false })
+  const [deepDiveErrors, setDeepDiveErrors] = useState<{ simplified: string | null; technical: string | null }>({ simplified: null, technical: null })
 
   // AI Evidence threads state (narrative research arcs)
   const [aiEvidenceThreads, setAiEvidenceThreads] = useState<EvidenceThreadsResponse | null>(null)
@@ -255,12 +255,12 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
     }
   }, [claim.id, episodeId])
 
-  // Function to fetch deep dive summary on-demand
-  const fetchDeepDiveSummary = async (forceRegenerate = false) => {
+  // Function to fetch deep dive summary on-demand (style-aware)
+  const fetchDeepDiveSummary = async (style: "simplified" | "technical", forceRegenerate = false) => {
     if (!claim.id.includes("-")) return
 
-    setIsLoadingDeepDive(true)
-    setDeepDiveError(null)
+    setIsLoadingDeepDive(prev => ({ ...prev, [style]: true }))
+    setDeepDiveErrors(prev => ({ ...prev, [style]: null }))
 
     try {
       const data = await callMcpTool<DeepDiveSummary>("generate_deep_dive_summary", {
@@ -268,18 +268,19 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
         episode_id: episodeId,
         n_results: 7,
         force_regenerate: forceRegenerate,
+        style,
       })
 
       if (data.error) {
-        setDeepDiveError(data.error)
+        setDeepDiveErrors(prev => ({ ...prev, [style]: data.error || "Failed to generate deep dive summary" }))
       } else {
-        setDeepDiveSummary(data)
+        setDeepDiveSummaries(prev => ({ ...prev, [style]: data }))
       }
     } catch (err) {
-      setDeepDiveError(err instanceof Error ? err.message : "Failed to generate deep dive summary")
+      setDeepDiveErrors(prev => ({ ...prev, [style]: err instanceof Error ? err.message : "Failed to generate deep dive summary" }))
       console.error("Error fetching deep dive summary:", err)
     } finally {
-      setIsLoadingDeepDive(false)
+      setIsLoadingDeepDive(prev => ({ ...prev, [style]: false }))
     }
   }
 
@@ -491,7 +492,27 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
                 {/* Segmented Control */}
                 <div className="flex p-1 bg-[var(--carbon-black)] rounded-none">
                   <button
-                    onClick={() => setSynthesisMode("technical")}
+                    onClick={() => {
+                      setSynthesisMode("simplified")
+                      if (!deepDiveSummaries.simplified && !isLoadingDeepDive.simplified) {
+                        fetchDeepDiveSummary("simplified")
+                      }
+                    }}
+                    className={`px-3 py-1.5 rounded-none text-sm font-medium transition-all ${
+                      synthesisMode === "simplified"
+                        ? "bg-[var(--dark-gray)] text-[var(--parchment)] shadow-sm"
+                        : "text-[var(--parchment)]/50 hover:text-[var(--parchment)]"
+                    }`}
+                  >
+                    Simplified
+                  </button>
+                  <button
+                    onClick={() => {
+                      setSynthesisMode("technical")
+                      if (!deepDiveSummaries.technical && !isLoadingDeepDive.technical) {
+                        fetchDeepDiveSummary("technical")
+                      }
+                    }}
                     className={`px-3 py-1.5 rounded-none text-sm font-medium transition-all ${
                       synthesisMode === "technical"
                         ? "bg-[var(--dark-gray)] text-[var(--parchment)] shadow-sm"
@@ -500,227 +521,174 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
                   >
                     Technical
                   </button>
-                  <button
-                    onClick={() => {
-                      setSynthesisMode("ai_summary")
-                      if (!deepDiveSummary && !isLoadingDeepDive) {
-                        fetchDeepDiveSummary()
-                      }
-                    }}
-                    className={`px-3 py-1.5 rounded-none text-sm font-medium transition-all flex items-center gap-1.5 ${
-                      synthesisMode === "ai_summary"
-                        ? "bg-[var(--dark-gray)] text-[var(--parchment)] shadow-sm"
-                        : "text-[var(--parchment)]/50 hover:text-[var(--parchment)]"
-                    }`}
-                  >
-                    <Sparkles className="w-3.5 h-3.5" />
-                    AI Deep Dive
-                  </button>
                 </div>
               </div>
 
               <div className="space-y-4 text-[var(--parchment)]/80 leading-relaxed">
-                {synthesisMode === "technical" && (
-                  <>
-                    <p><strong>Claim:</strong> {synthesis?.claim_text || claim.title}</p>
-                    {synthesis?.rationale && (
-                      <div className="bg-[var(--carbon-black)] border-l-4 border-[var(--golden-chestnut)] p-4 rounded-r-sm my-4">
-                        <p className="text-sm italic">
-                          <strong>Why this needs verification:</strong> {synthesis.rationale}
+                {/* Loading State */}
+                {isLoadingDeepDive[synthesisMode] && (
+                  <div className="flex items-center justify-center py-12">
+                    <div className="flex flex-col items-center gap-4">
+                      <Loader2 className="w-8 h-8 text-[var(--golden-chestnut)] animate-spin" />
+                      <div className="text-center">
+                        <p className="text-[var(--parchment)]/80 font-medium">
+                          Generating {synthesisMode === "simplified" ? "Simplified" : "Technical"} Summary...
                         </p>
+                        <p className="text-[var(--parchment)]/50 text-sm mt-1">Searching papers and synthesizing evidence</p>
                       </div>
-                    )}
-                    {synthesis?.context_tags && Object.keys(synthesis.context_tags).length > 0 && (
-                      <div className="flex flex-wrap gap-2 mt-4">
-                        {Object.entries(synthesis.context_tags).map(([key, value]) => (
-                          <span
-                            key={key}
-                            className="px-3 py-1 bg-[var(--carbon-black)] border border-[var(--parchment)]/10 rounded-full text-xs"
-                          >
-                            <span className="text-[var(--parchment)]/50">{key}:</span>{" "}
-                            <span className="text-[var(--golden-chestnut)]">{value}</span>
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                    {evidenceThreads.length > 0 && (
-                      <p className="mt-4">
-                        This claim is supported by {evidenceThreads.length} research paper
-                        {evidenceThreads.length !== 1 ? "s" : ""}, with{" "}
-                        {confidenceMetrics?.evidence_counts.primary || 0} primary source
-                        {confidenceMetrics?.evidence_counts.primary !== 1 ? "s" : ""},{" "}
-                        {confidenceMetrics?.evidence_counts.replication || 0} replication stud
-                        {confidenceMetrics?.evidence_counts.replication !== 1 ? "ies" : "y"}, and{" "}
-                        {confidenceMetrics?.evidence_counts.counter || 0} counter-evidence paper
-                        {confidenceMetrics?.evidence_counts.counter !== 1 ? "s" : ""}.
-                      </p>
-                    )}
-                  </>
+                    </div>
+                  </div>
                 )}
 
-                {synthesisMode === "ai_summary" && (
-                  <div className="space-y-4">
-                    {/* Loading State */}
-                    {isLoadingDeepDive && (
-                      <div className="flex items-center justify-center py-12">
-                        <div className="flex flex-col items-center gap-4">
-                          <Loader2 className="w-8 h-8 text-[var(--golden-chestnut)] animate-spin" />
-                          <div className="text-center">
-                            <p className="text-[var(--parchment)]/80 font-medium">Generating AI Deep Dive...</p>
-                            <p className="text-[var(--parchment)]/50 text-sm mt-1">Searching papers and synthesizing evidence</p>
-                          </div>
-                        </div>
-                      </div>
-                    )}
+                {/* Error State */}
+                {deepDiveErrors[synthesisMode] && !isLoadingDeepDive[synthesisMode] && (
+                  <div className="bg-red-500/10 border border-red-500/30 rounded-none p-4">
+                    <p className="text-red-400 text-sm">{deepDiveErrors[synthesisMode]}</p>
+                    <button
+                      onClick={() => fetchDeepDiveSummary(synthesisMode, true)}
+                      className="mt-3 text-sm text-[var(--golden-chestnut)] hover:underline"
+                    >
+                      Try again
+                    </button>
+                  </div>
+                )}
 
-                    {/* Error State */}
-                    {deepDiveError && !isLoadingDeepDive && (
-                      <div className="bg-red-500/10 border border-red-500/30 rounded-none p-4">
-                        <p className="text-red-400 text-sm">{deepDiveError}</p>
+                {/* Summary Content */}
+                {deepDiveSummaries[synthesisMode] && !isLoadingDeepDive[synthesisMode] && !deepDiveErrors[synthesisMode] && (() => {
+                  const currentSummary = deepDiveSummaries[synthesisMode]!
+                  return (
+                    <>
+                      {/* Metadata bar */}
+                      <div className="flex items-center justify-between text-xs text-[var(--parchment)]/50 pb-3 border-b border-[var(--parchment)]/10">
+                        <div className="flex items-center gap-4">
+                          <span>{currentSummary.papers_retrieved} papers analyzed</span>
+                          {currentSummary.cached && (
+                            <span className="px-2 py-0.5 bg-[var(--dark-gray)] rounded text-[var(--parchment)]/60">Cached</span>
+                          )}
+                        </div>
                         <button
-                          onClick={() => fetchDeepDiveSummary(true)}
-                          className="mt-3 text-sm text-[var(--golden-chestnut)] hover:underline"
+                          onClick={() => fetchDeepDiveSummary(synthesisMode, true)}
+                          className="text-[var(--golden-chestnut)] hover:underline flex items-center gap-1"
                         >
-                          Try again
+                          <ArrowUp className="w-3 h-3 rotate-45" />
+                          Regenerate
                         </button>
                       </div>
-                    )}
 
-                    {/* Summary Content */}
-                    {deepDiveSummary && !isLoadingDeepDive && !deepDiveError && (
-                      <>
-                        {/* Metadata bar */}
-                        <div className="flex items-center justify-between text-xs text-[var(--parchment)]/50 pb-3 border-b border-[var(--parchment)]/10">
-                          <div className="flex items-center gap-4">
-                            <span>{deepDiveSummary.papers_retrieved} papers analyzed</span>
-                            {deepDiveSummary.cached && (
-                              <span className="px-2 py-0.5 bg-[var(--dark-gray)] rounded text-[var(--parchment)]/60">Cached</span>
-                            )}
-                          </div>
-                          <button
-                            onClick={() => fetchDeepDiveSummary(true)}
-                            className="text-[var(--golden-chestnut)] hover:underline flex items-center gap-1"
-                          >
-                            <ArrowUp className="w-3 h-3 rotate-45" />
-                            Regenerate
-                          </button>
-                        </div>
-
-                        {/* Render markdown-like summary */}
-                        <div className="prose prose-invert prose-sm max-w-none">
-                          {deepDiveSummary.summary.split('\n\n').map((paragraph, idx) => {
-                            // Handle bold headers like **Finding**:
-                            if (paragraph.startsWith('**')) {
-                              const match = paragraph.match(/^\*\*([^*]+)\*\*:?\s*(.*)/)
-                              if (match) {
-                                const [, header, content] = match
-                                return (
-                                  <div key={idx} className="mb-4">
-                                    <h4 className="text-[var(--golden-chestnut)] font-bold text-sm uppercase tracking-wider mb-2">
-                                      {header}
-                                    </h4>
-                                    <p className="text-[var(--parchment)]/80">{content}</p>
-                                  </div>
-                                )
-                              }
-                            }
-                            // Handle bullet points
-                            if (paragraph.includes('\n- ') || paragraph.startsWith('- ')) {
-                              const lines = paragraph.split('\n')
+                      {/* Render markdown-like summary */}
+                      <div className="prose prose-invert prose-sm max-w-none">
+                        {currentSummary.summary.split('\n\n').map((paragraph, idx) => {
+                          // Handle bold headers like **Finding**:
+                          if (paragraph.startsWith('**')) {
+                            const match = paragraph.match(/^\*\*([^*]+)\*\*:?\s*(.*)/)
+                            if (match) {
+                              const [, header, content] = match
                               return (
-                                <ul key={idx} className="list-disc list-inside space-y-1 text-[var(--parchment)]/80 mb-4">
-                                  {lines.map((line, lineIdx) => {
-                                    const bulletContent = line.replace(/^-\s*/, '').trim()
-                                    if (bulletContent) {
-                                      return <li key={lineIdx}>{bulletContent}</li>
-                                    }
-                                    return null
-                                  })}
-                                </ul>
+                                <div key={idx} className="mb-4">
+                                  <h4 className="text-[var(--golden-chestnut)] font-bold text-sm uppercase tracking-wider mb-2">
+                                    {header}
+                                  </h4>
+                                  <p className="text-[var(--parchment)]/80">{content}</p>
+                                </div>
                               )
                             }
-                            // Regular paragraph
-                            return paragraph.trim() ? (
-                              <p key={idx} className="text-[var(--parchment)]/80 mb-3">{paragraph}</p>
-                            ) : null
-                          })}
-                        </div>
-
-                        {/* Papers used */}
-                        {deepDiveSummary.papers && deepDiveSummary.papers.length > 0 && (() => {
-                          // Dedupe papers by paper_id
-                          const uniquePapers = [...deepDiveSummary.papers]
-                            .filter((paper, index, self) =>
-                              index === self.findIndex(p => p.paper_id === paper.paper_id)
+                          }
+                          // Handle bullet points
+                          if (paragraph.includes('\n- ') || paragraph.startsWith('- ')) {
+                            const lines = paragraph.split('\n')
+                            return (
+                              <ul key={idx} className="list-disc list-inside space-y-1 text-[var(--parchment)]/80 mb-4">
+                                {lines.map((line, lineIdx) => {
+                                  const bulletContent = line.replace(/^-\s*/, '').trim()
+                                  if (bulletContent) {
+                                    return <li key={lineIdx}>{bulletContent}</li>
+                                  }
+                                  return null
+                                })}
+                              </ul>
                             )
-                            .sort((a, b) => {
-                              const yearA = parseInt(a.year) || 0
-                              const yearB = parseInt(b.year) || 0
-                              return yearB - yearA // newest first
-                            })
+                          }
+                          // Regular paragraph
+                          return paragraph.trim() ? (
+                            <p key={idx} className="text-[var(--parchment)]/80 mb-3">{paragraph}</p>
+                          ) : null
+                        })}
+                      </div>
 
-                          return (
-                            <div className="mt-6 pt-4 border-t border-[var(--parchment)]/10">
-                              <h5 className="text-xs uppercase tracking-wider text-[var(--parchment)]/50 font-semibold mb-4">
-                                Sources Retrieved ({uniquePapers.length} paper{uniquePapers.length !== 1 ? 's' : ''})
-                              </h5>
-                              <div className="space-y-5">
-                                {uniquePapers.map((paper, idx) => (
-                                  <div key={idx} className="group">
-                                    <div className="flex items-start gap-2">
-                                      <span className="text-sm font-mono text-[var(--parchment)]/50 shrink-0 pt-0.5">
-                                        {paper.year || "n/a"}
-                                      </span>
-                                      <span className="text-[var(--parchment)]/50 shrink-0 pt-0.5">•</span>
-                                      <div className="flex-1 min-w-0">
-                                        <p className="text-sm text-[var(--parchment)]/80 leading-relaxed">
-                                          {paper.title}
+                      {/* Papers used */}
+                      {currentSummary.papers && currentSummary.papers.length > 0 && (() => {
+                        // Dedupe papers by paper_id
+                        const uniquePapers = [...currentSummary.papers]
+                          .filter((paper, index, self) =>
+                            index === self.findIndex(p => p.paper_id === paper.paper_id)
+                          )
+                          .sort((a, b) => {
+                            const yearA = parseInt(a.year) || 0
+                            const yearB = parseInt(b.year) || 0
+                            return yearB - yearA // newest first
+                          })
+
+                        return (
+                          <div className="mt-6 pt-4 border-t border-[var(--parchment)]/10">
+                            <h5 className="text-xs uppercase tracking-wider text-[var(--parchment)]/50 font-semibold mb-4">
+                              Sources Retrieved ({uniquePapers.length} paper{uniquePapers.length !== 1 ? 's' : ''})
+                            </h5>
+                            <div className="space-y-5">
+                              {uniquePapers.map((paper, idx) => (
+                                <div key={idx} className="group">
+                                  <div className="flex items-start gap-2">
+                                    <span className="text-sm font-mono text-[var(--parchment)]/50 shrink-0 pt-0.5">
+                                      {paper.year || "n/a"}
+                                    </span>
+                                    <span className="text-[var(--parchment)]/50 shrink-0 pt-0.5">•</span>
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-sm text-[var(--parchment)]/80 leading-relaxed">
+                                        {paper.title}
+                                      </p>
+                                      {paper.key_finding && (
+                                        <p className="text-xs text-[var(--parchment)]/60 mt-2 leading-relaxed">
+                                          <span className="text-[var(--parchment)]/50">Key finding:</span> {paper.key_finding}
                                         </p>
-                                        {paper.key_finding && (
-                                          <p className="text-xs text-[var(--parchment)]/60 mt-2 leading-relaxed">
-                                            <span className="text-[var(--parchment)]/50">Key finding:</span> {paper.key_finding}
-                                          </p>
+                                      )}
+                                      <div className="flex flex-wrap items-center gap-2 mt-2">
+                                        {paper.section && (
+                                          <span className="text-[10px] text-[var(--parchment)]/50 px-1.5 py-0.5 bg-[var(--dark-gray)] rounded">
+                                            {paper.section}
+                                          </span>
                                         )}
-                                        <div className="flex flex-wrap items-center gap-2 mt-2">
-                                          {paper.section && (
-                                            <span className="text-[10px] text-[var(--parchment)]/50 px-1.5 py-0.5 bg-[var(--dark-gray)] rounded">
-                                              {paper.section}
-                                            </span>
-                                          )}
-                                          <button
-                                            onClick={() => onViewSourcePaper(paper.paper_id)}
-                                            className="text-[10px] text-[var(--golden-chestnut)] hover:text-[var(--golden-chestnut)]/80 transition-colors flex items-center gap-1"
-                                          >
-                                            View Paper
-                                            <ExternalLink className="w-2.5 h-2.5" />
-                                          </button>
-                                        </div>
+                                        <button
+                                          onClick={() => onViewSourcePaper(paper.paper_id)}
+                                          className="text-[10px] text-[var(--golden-chestnut)] hover:text-[var(--golden-chestnut)]/80 transition-colors flex items-center gap-1"
+                                        >
+                                          View Paper
+                                          <ExternalLink className="w-2.5 h-2.5" />
+                                        </button>
                                       </div>
                                     </div>
                                   </div>
-                                ))}
-                              </div>
+                                </div>
+                              ))}
                             </div>
-                          )
-                        })()}
-                      </>
-                    )}
+                          </div>
+                        )
+                      })()}
+                    </>
+                  )
+                })()}
 
-                    {/* Initial state - no summary yet */}
-                    {!deepDiveSummary && !isLoadingDeepDive && !deepDiveError && (
-                      <div className="text-center py-8">
-                        <Sparkles className="w-10 h-10 text-[var(--golden-chestnut)]/50 mx-auto mb-4" />
-                        <p className="text-[var(--parchment)]/60 mb-4">
-                          Generate an AI-powered deep dive summary for this claim
-                        </p>
-                        <button
-                          onClick={() => fetchDeepDiveSummary()}
-                          className="px-6 py-2.5 bg-[var(--golden-chestnut)] hover:bg-[var(--golden-chestnut)]/90 text-[var(--dark-gray)] font-bold rounded-none transition-colors"
-                        >
-                          Generate Deep Dive
-                        </button>
-                      </div>
-                    )}
+                {/* Initial state - no summary yet */}
+                {!deepDiveSummaries[synthesisMode] && !isLoadingDeepDive[synthesisMode] && !deepDiveErrors[synthesisMode] && (
+                  <div className="text-center py-8">
+                    <Sparkles className="w-10 h-10 text-[var(--golden-chestnut)]/50 mx-auto mb-4" />
+                    <p className="text-[var(--parchment)]/60 mb-4">
+                      Generate {synthesisMode === "simplified" ? "a simplified" : "a technical"} AI-powered summary for this claim
+                    </p>
+                    <button
+                      onClick={() => fetchDeepDiveSummary(synthesisMode)}
+                      className="px-6 py-2.5 bg-[var(--golden-chestnut)] hover:bg-[var(--golden-chestnut)]/90 text-[var(--dark-gray)] font-bold rounded-none transition-colors"
+                    >
+                      Generate {synthesisMode === "simplified" ? "Simplified" : "Technical"} Summary
+                    </button>
                   </div>
                 )}
               </div>

@@ -217,6 +217,7 @@ export default function Home() {
     const fallbackTime = currentExplorationClaim.timestamp || 0
     const safeDuration = Math.max(durationSeconds, 1)
     const resumeTime = Math.max(0, Math.min(currentTime > 0 ? currentTime : fallbackTime, safeDuration))
+    console.log(`[Back to Podcast] currentTime state=${currentTime.toFixed(2)}s, fallbackTime=${fallbackTime.toFixed(2)}s, resumeTime=${resumeTime.toFixed(2)}s`)
     setCurrentTime(resumeTime)
     persistPlaybackTime(activeEpisode.id, resumeTime)
     setView("listening")

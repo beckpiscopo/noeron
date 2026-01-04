@@ -291,6 +291,18 @@ export function ListeningView({
   const [selectedClaimId, setSelectedClaimId] = useState<string | number | null>(null)
   const [isAudioReady, setIsAudioReady] = useState(false)
   const audioRef = useRef<HTMLAudioElement | null>(null)
+  // Track if we've completed the initial seek (to prevent timeupdate from resetting position)
+  const hasCompletedInitialSeekRef = useRef(false)
+  // Store the target resume time at mount (before any effects can modify it)
+  const initialResumeTimeRef = useRef(episode.currentTime)
+
+  // Log initial mount props for debugging
+  useEffect(() => {
+    console.log(`[ListeningView Mount] episode.currentTime=${episode.currentTime.toFixed(2)}s, episode.durationSeconds=${episode.durationSeconds}`)
+    // Capture the resume time at mount
+    initialResumeTimeRef.current = episode.currentTime
+    hasCompletedInitialSeekRef.current = false
+  }, [])
   const currentClaimRef = useRef<HTMLDivElement | null>(null)
   const iconButtonClasses =
     "flex h-9 w-9 items-center justify-center rounded-full text-[var(--parchment)]/70 transition hover:text-[var(--parchment)]"
@@ -322,6 +334,7 @@ export function ListeningView({
   const AUDIO_OFFSET_MS = 0 // Adjust based on manual testing
   const handleDiveDeeperWithTimestamp = (claimId: string | number) => {
     const t = audioRef.current ? audioRef.current.currentTime : episode.currentTime
+    console.log(`[Dive Deeper] Saving position: ${t.toFixed(2)}s (from ${audioRef.current ? 'audio element' : 'episode prop'})`)
     onTimeUpdate(t)
     onDiveDeeper(claimId)
   }
@@ -449,12 +462,21 @@ export function ListeningView({
     }
 
     const handleLoadedMetadata = () => {
-      const safeTime = Math.max(0, Math.min(episode.durationSeconds, episode.currentTime))
+      // Use the ref value captured at mount, not the prop which may have been updated by timeupdate events
+      const targetTime = initialResumeTimeRef.current
+      const safeTime = Math.max(0, Math.min(episode.durationSeconds, targetTime))
+      console.log(`[Audio Load] loadedmetadata fired - targetTime (from ref)=${targetTime.toFixed(2)}s, episode.durationSeconds=${episode.durationSeconds}, safeTime=${safeTime.toFixed(2)}s`)
       audio.currentTime = safeTime
+      hasCompletedInitialSeekRef.current = true
       onTimeUpdate(safeTime)
       setIsAudioReady(true)
     }
     const handleTimeUpdate = () => {
+      // Don't update parent state until after initial seek is complete
+      // This prevents the audio's initial 0 position from overwriting the resume time
+      if (!hasCompletedInitialSeekRef.current) {
+        return
+      }
       onTimeUpdate(audio.currentTime)
     }
     const handleEnded = () => {

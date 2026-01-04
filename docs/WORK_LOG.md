@@ -71,6 +71,47 @@ python3 scripts/knowledge_graph/deduplicate_entities.py data/knowledge_graph/kno
 
 ---
 
+## 2026-01-04: Style-Specific Deep Dive Summaries (Simplified/Technical Tabs)
+
+**Task:** Implement tab-specific prompts for deep dive summaries with separate caching per style
+
+**Summary:**
+- Backend already had `DEEP_DIVE_PROMPT_TEMPLATE_TECHNICAL` and `DEEP_DIVE_PROMPT_TEMPLATE_SIMPLIFIED` with a `style` parameter on `generate_deep_dive_summary` tool
+- Cache key format changed from `episode:claim_id` to `episode:claim_id:style`
+- Updated frontend `DeepExplorationView` to track state per style:
+  - `deepDiveSummaries[synthesisMode]` - cached summaries per tab
+  - `isLoadingDeepDive[synthesisMode]` - loading state per tab
+  - `deepDiveErrors[synthesisMode]` - error state per tab
+- Replaced dual-mode rendering (old "technical" showing raw synthesis + "ai_summary" showing deep dive) with unified renderer using per-style state
+- Migrated 10 existing cache entries to include `:technical` suffix
+
+**Key Files:**
+```
+src/bioelectricity_research/server.py
+├── DEEP_DIVE_PROMPT_TEMPLATE_TECHNICAL  # Detailed, mechanistic output
+├── DEEP_DIVE_PROMPT_TEMPLATE_SIMPLIFIED # Accessible, plain-language output
+└── generate_deep_dive_summary()         # style param, cache key with :style
+
+frontend/components/deep-exploration-view.tsx
+├── State: deepDiveSummaries, isLoadingDeepDive, deepDiveErrors (per style)
+├── Tabs: "Simplified" / "Technical" (was "AI Summary" / "Technical")
+└── Unified rendering block using deepDiveSummaries[synthesisMode]
+
+cache/deep_dive_summaries.json
+└── Keys now: "lex_325:claim_id:technical" or "lex_325:claim_id:simplified"
+```
+
+**Decisions/Gotchas:**
+- Removed the old "technical" view that showed raw claim/synthesis data - now both tabs show AI-generated summaries
+- Existing cache entries were all generated with technical prompt, so migrated with `:technical` suffix
+- Simplified summaries will generate on-demand when users first click that tab
+
+**Next Steps:**
+- Consider pre-generating simplified summaries for popular claims
+- Could add a toggle to show the raw claim context alongside the AI summary
+
+---
+
 Template:
 
 Date:

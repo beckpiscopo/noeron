@@ -71,9 +71,9 @@ def _ensure_gemini_client_ready() -> None:
     _GENAI_CLIENT = genai.Client(api_key=api_key)
 
 
-DEEP_DIVE_PROMPT_TEMPLATE = """You are a science journalist explaining research findings to an educated but non-specialist audience.
+DEEP_DIVE_PROMPT_TEMPLATE_TECHNICAL = """You are a scientific reviewer writing for a technically literate audience (graduate-level biology/biophysics).
 
-Given a scientific claim from a podcast and supporting research papers, write a clear, scannable summary that helps the reader understand the evidence.
+Given a podcast claim and supporting research papers, produce a concise but technical synthesis that foregrounds mechanisms, quantitative findings, and study design quality.
 
 ## CLAIM FROM PODCAST
 "{claim_text}"
@@ -85,19 +85,17 @@ Why this needs backing: {needs_backing}
 {evidence_summary}
 
 ## YOUR TASK
-Write a 200-300 word summary with this exact structure:
+Write a 250-400 word synthesis with this exact structure:
 
-**Finding**: State what the research shows in one clear sentence. Be specific about what was measured/observed.
+**Finding (technical)**: 2-3 sentences stating what the evidence shows. Include quantitative effects (with units) and directionality when present.
 
-**Why It Matters**: Explain the biological or medical significance in 2-3 sentences. Why should someone care about this?
+**Mechanism / Pathway**: 2-4 sentences describing the mechanistic model. Name relevant pathways, molecules, tissues, model systems, and causal links proposed or demonstrated.
 
-**Evidence Strength**: Classify as one of:
-- "Strong" (multiple independent replications, high-impact journals, consistent findings)
-- "Emerging" (promising initial studies, needs more replication)
-- "Contested" (conflicting results, ongoing debate)
-Then briefly explain your classification in 1-2 sentences.
+**Evidence Appraisal**: 3-5 bullet points. Each bullet must note study design (e.g., RCT, observational, in vitro, in vivo), model/organism, sample size (n or replicates), key result (magnitude/direction), and whether it is a replication/extension.
 
-**Key Uncertainties**: List 2-3 important caveats, limitations, or open questions. Be honest about what we don't know.
+**Limitations & Open Questions**: 2-4 bullet points on uncertainties, conflicting findings, methodological gaps, or external validity issues.
+
+**Implications**: 1-2 sentences on what the evidence enables (e.g., therapeutic targets, experimental follow-ups, engineering applications).
 
 ## ALSO REQUIRED - PER-PAPER KEY FINDINGS
 At the end, include a section with key findings for each paper. Use this exact format:
@@ -110,11 +108,53 @@ Paper 3: <one sentence summarizing this paper's key contribution to the claim>
 [/PAPER_KEY_FINDINGS]
 
 ## GUIDELINES
-- Write in active voice, present tense where possible
-- Avoid jargon; if you must use technical terms, briefly explain them
-- Be precise about what the evidence actually shows vs. what's speculated
-- If the evidence is weak or limited, say so clearly
-- Don't oversell or undersell the findings
+- Keep language precise and technical; avoid hand-waving
+- Prefer concrete numbers, effect sizes, and experimental conditions over generalities
+- Distinguish clearly between demonstrated findings and speculation
+- If evidence is weak, heterogeneous, or conflicting, say so explicitly
+- Keep output scannable while preserving detail (bullets where specified)
+
+Respond with ONLY the structured summary followed by the paper key findings section, no preamble."""
+
+DEEP_DIVE_PROMPT_TEMPLATE_SIMPLIFIED = """You are a science communicator explaining research to an educated but non-specialist audience.
+
+Given a podcast claim and supporting papers, write a clear, scannable summary that highlights what the evidence actually shows.
+
+## CLAIM FROM PODCAST
+"{claim_text}"
+
+Speaker's stance: {speaker_stance}
+Why this needs backing: {needs_backing}
+
+## SUPPORTING EVIDENCE FROM RAG RETRIEVAL
+{evidence_summary}
+
+## YOUR TASK
+Write a 180-260 word summary with this exact structure:
+
+**Finding**: One sentence stating what the studies collectively show (be specific).
+
+**Why It Matters**: 2-3 sentences on the biological/medical significance in plain language.
+
+**Evidence Strength**: Classify as "Strong", "Emerging", or "Contested" and justify in 1-2 sentences.
+
+**Key Uncertainties**: 2-3 bullet points of caveats, gaps, or disagreements.
+
+## ALSO REQUIRED - PER-PAPER KEY FINDINGS
+At the end, include a section with key findings for each paper. Use this exact format:
+
+[PAPER_KEY_FINDINGS]
+Paper 1: <one sentence summarizing this paper's key contribution to the claim>
+Paper 2: <one sentence summarizing this paper's key contribution to the claim>
+Paper 3: <one sentence summarizing this paper's key contribution to the claim>
+(continue for all papers listed above)
+[/PAPER_KEY_FINDINGS]
+
+## GUIDELINES
+- Use active voice and concrete details; avoid jargon
+- Separate demonstrated findings from speculation
+- If evidence is weak or limited, say so clearly
+- Keep the tone clear and honest; no preamble
 
 Respond with ONLY the structured summary followed by the paper key findings section, no preamble."""
 
@@ -1410,6 +1450,10 @@ class GenerateDeepDiveSummaryInput(BaseModel):
         default=False,
         description="If True, regenerate even if cached summary exists"
     )
+    style: Literal["technical", "simplified"] = Field(
+        default="technical",
+        description="Controls prompt depth. 'technical' for detailed/mechanistic, 'simplified' for accessible summary."
+    )
 
 
 @mcp.tool()
@@ -1427,7 +1471,7 @@ async def generate_deep_dive_summary(params: GenerateDeepDiveSummaryInput) -> di
     """
     try:
         # Check cache first (unless force_regenerate)
-        cache_key = f"{params.episode_id}:{params.claim_id}"
+        cache_key = f"{params.episode_id}:{params.claim_id}:{params.style}"
 
         if not params.force_regenerate:
             cache = _load_deep_dive_cache()
@@ -1496,7 +1540,12 @@ async def generate_deep_dive_summary(params: GenerateDeepDiveSummaryInput) -> di
         # Step 5: Format evidence and build prompt
         evidence_summary = _format_rag_results_for_prompt(rag_results, papers_collection)
 
-        prompt = DEEP_DIVE_PROMPT_TEMPLATE.format(
+        if params.style == "simplified":
+            prompt_template = DEEP_DIVE_PROMPT_TEMPLATE_SIMPLIFIED
+        else:
+            prompt_template = DEEP_DIVE_PROMPT_TEMPLATE_TECHNICAL
+
+        prompt = prompt_template.format(
             claim_text=claim_data.get("claim_text", ""),
             speaker_stance=claim_data.get("speaker_stance", "assertion"),
             needs_backing=claim_data.get("needs_backing_because", "No specific reason provided"),
@@ -2078,4 +2127,3 @@ async def get_relevant_kg_subgraph(params: GetRelevantKGSubgraphInput) -> dict[s
 
 if __name__ == "__main__":
     mcp.run()
-
