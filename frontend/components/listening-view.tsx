@@ -4,7 +4,7 @@ import type React from "react"
 
 import { useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Play, Pause, RotateCcw, RotateCw, Info, Search, Settings, HelpCircle } from "lucide-react"
+import { Play, Pause, RotateCcw, RotateCw, Info, Search, Settings, HelpCircle, Network } from "lucide-react"
 import { NoeronHeader } from "./noeron-header"
 
 export interface ListeningEpisode {
@@ -66,6 +66,7 @@ interface ListeningViewProps {
   onViewSource: (claimId: string | number) => void
   onAskQuestion: (question: string) => void
   onTimeUpdate: (time: number) => void
+  onExploreGraph?: (conceptName: string) => void
 }
 
 function formatTime(seconds: number): string {
@@ -102,9 +103,10 @@ interface CurrentClaimCardProps {
   currentTimeMs: number
   onDiveDeeper: (id: string | number) => void
   onViewSource: (id: string | number) => void
+  onExploreGraph?: (conceptName: string) => void
 }
 
-function CurrentClaimCard({ claim, currentTimeMs, onDiveDeeper, onViewSource }: CurrentClaimCardProps) {
+function CurrentClaimCard({ claim, currentTimeMs, onDiveDeeper, onViewSource, onExploreGraph }: CurrentClaimCardProps) {
   const hasWordTiming = claim.timing?.words && claim.timing.words.length > 0
   const hasDistilledClaim = !!claim.distilled_claim
   const displayText = getClaimDisplayText(claim)
@@ -167,7 +169,7 @@ function CurrentClaimCard({ claim, currentTimeMs, onDiveDeeper, onViewSource }: 
           </p>
         )}
 
-        {/* Confidence score and Dive Deeper button */}
+        {/* Confidence score and action buttons */}
         <div className="flex items-center justify-between">
           {claim.confidence_score !== undefined && (
             <div className="flex items-center gap-2 group relative">
@@ -183,12 +185,24 @@ function CurrentClaimCard({ claim, currentTimeMs, onDiveDeeper, onViewSource }: 
               </div>
             </div>
           )}
-          <Button
-            onClick={() => onDiveDeeper(claim.id)}
-            className="!rounded-none !bg-transparent !border !border-[#BE7C4D] !text-[#BE7C4D] hover:!bg-[#BE7C4D]/10 ml-auto"
-          >
-            Dive Deeper
-          </Button>
+          <div className="flex items-center gap-2 ml-auto">
+            {onExploreGraph && (
+              <Button
+                onClick={() => onExploreGraph(displayText)}
+                className="!rounded-none !bg-transparent !border !border-[var(--parchment)]/30 !text-[var(--parchment)]/70 hover:!border-[#BE7C4D] hover:!text-[#BE7C4D] hover:!bg-[#BE7C4D]/10"
+                size="sm"
+              >
+                <Network className="w-4 h-4 mr-1.5" />
+                Explore Graph
+              </Button>
+            )}
+            <Button
+              onClick={() => onDiveDeeper(claim.id)}
+              className="!rounded-none !bg-transparent !border !border-[#BE7C4D] !text-[#BE7C4D] hover:!bg-[#BE7C4D]/10"
+            >
+              Dive Deeper
+            </Button>
+          </div>
         </div>
       </div>
     </div>
@@ -285,6 +299,7 @@ export function ListeningView({
   onViewSource,
   onAskQuestion,
   onTimeUpdate,
+  onExploreGraph,
 }: ListeningViewProps) {
   const [isPlaying, setIsPlaying] = useState(false)
   const [question, setQuestion] = useState("")
@@ -670,6 +685,7 @@ export function ListeningView({
                   currentTimeMs={episode.currentTime * 1000}
                   onDiveDeeper={handleDiveDeeperWithTimestamp}
                   onViewSource={onViewSource}
+                  onExploreGraph={onExploreGraph}
                 />
               </div>
             )}

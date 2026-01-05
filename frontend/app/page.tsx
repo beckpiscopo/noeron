@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import { callMcpTool } from "@/lib/api"
 import { getClaimsForEpisode } from "@/lib/supabase"
 import type { Claim as SupabaseClaim } from "@/lib/supabase"
@@ -140,6 +141,7 @@ const persistPlaybackTime = (episodeId: string, time: number) => {
 }
 
 export default function Home() {
+  const router = useRouter()
   const [view, setView] = useState<"landing" | "library" | "listening" | "exploration" | "paper">("landing")
   const [selectedEpisode, setSelectedEpisode] = useState<EpisodeMetadata | null>(null)
   const [currentTime, setCurrentTime] = useState(0)
@@ -204,6 +206,10 @@ export default function Home() {
   const handleAskQuestion = (question: string) => {
     console.log("User asked:", question)
     // Send question to AI
+  }
+
+  const handleExploreGraph = (conceptName: string) => {
+    router.push(`/graph?concept=${encodeURIComponent(conceptName)}`)
   }
 
   const handleTimeUpdate = (time: number) => {
@@ -376,6 +382,7 @@ export default function Home() {
       onViewSource={handleViewSource}
       onAskQuestion={handleAskQuestion}
       onTimeUpdate={handleTimeUpdate}
+      onExploreGraph={handleExploreGraph}
     />
   )
 }

@@ -514,3 +514,4 @@ This prompt works because:
 
 The result: 94% success rate generating scannable, engaging summaries that solve your problem of hard-to-scan research cards.
 
+

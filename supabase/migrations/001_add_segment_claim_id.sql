@@ -15,3 +15,4 @@ WHERE segment_claim_id IS NOT NULL;
 COMMENT ON COLUMN claims.segment_claim_id IS 
 'Segment-based claim identifier in format "segment_key-index" (e.g., "lex_325|00:00:00.160|1-0"). Required for MCP server get_claim_context tool.';
 
+

@@ -26,6 +26,7 @@ import {
 } from "lucide-react"
 import { NoeronHeader } from "./noeron-header"
 import { callMcpTool } from "@/lib/api"
+import { ConceptExpansionGraph, convertKGSubgraph } from "./concept-graph"
 
 interface DeepExplorationViewProps {
   episode: {
@@ -757,13 +758,14 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
               </div>
             )}
 
-            {/* KG Content */}
+            {/* KG Content - Interactive Concept Expansion Graph */}
             {kgSubgraph && !isLoadingKG && !kgError && (
-              <div className="bg-[var(--dark-gray)] border border-[var(--parchment)]/10 rounded-none p-5">
+              <div>
                 {/* Stats bar */}
-                <div className="flex items-center gap-4 text-xs text-[var(--parchment)]/50 pb-3 mb-4 border-b border-[var(--parchment)]/10">
+                <div className="flex items-center gap-4 text-xs text-[var(--parchment)]/50 pb-3 mb-3">
                   <span>{kgSubgraph.stats.direct_matches} matched entities</span>
                   <span>{kgSubgraph.stats.total_edges} relationships</span>
+                  <span className="text-[var(--golden-chestnut)]">Double-click nodes to expand with AI</span>
                 </div>
 
                 {kgSubgraph.edges.length > 0 ? (
@@ -780,82 +782,18 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
                       ))}
                     </div>
 
-                    {/* Relationships list */}
-                    <div className="space-y-3">
-                      {kgSubgraph.edges.slice(0, 12).map((edge, idx) => {
-                        const sourceNode = kgSubgraph.nodes.find(n => n.id === edge.source)
-                        const targetNode = kgSubgraph.nodes.find(n => n.id === edge.target)
-                        const sourceName = sourceNode?.name || edge.source
-                        const targetName = targetNode?.name || edge.target
-                        const sourceType = sourceNode?.type || "unknown"
-                        const targetType = targetNode?.type || "unknown"
-
-                        // Color coding by relationship type
-                        const relColors: Record<string, string> = {
-                          regulates: "text-blue-400",
-                          required_for: "text-green-400",
-                          produces: "text-purple-400",
-                          inhibits: "text-red-400",
-                          disrupts: "text-red-400",
-                          activates: "text-emerald-400",
-                          precedes: "text-yellow-400",
-                          measured_by: "text-cyan-400",
-                          expressed_in: "text-orange-400",
-                        }
-                        const relColor = relColors[edge.relationship] || "text-[var(--parchment)]/60"
-
-                        return (
-                          <div
-                            key={idx}
-                            className="flex items-center gap-2 text-sm group hover:bg-[var(--carbon-black)] p-2 -mx-2 rounded transition-colors"
-                          >
-                            {/* Source */}
-                            <div className="flex items-center gap-1.5 min-w-0">
-                              <Circle className={`w-2 h-2 shrink-0 ${
-                                sourceNode?.is_direct_match ? "text-[var(--golden-chestnut)] fill-current" : "text-[var(--parchment)]/40"
-                              }`} />
-                              <span className="text-[var(--parchment)] truncate font-medium">
-                                {sourceName}
-                              </span>
-                              <span className="text-[var(--parchment)]/40 text-[10px] shrink-0">
-                                {sourceType}
-                              </span>
-                            </div>
-
-                            {/* Relationship */}
-                            <div className="flex items-center gap-1 shrink-0">
-                              <ArrowRight className={`w-3 h-3 ${relColor}`} />
-                              <span className={`text-xs font-mono ${relColor}`}>
-                                {edge.relationship.replace(/_/g, " ")}
-                              </span>
-                              <ArrowRight className={`w-3 h-3 ${relColor}`} />
-                            </div>
-
-                            {/* Target */}
-                            <div className="flex items-center gap-1.5 min-w-0">
-                              <Circle className={`w-2 h-2 shrink-0 ${
-                                targetNode?.is_direct_match ? "text-[var(--golden-chestnut)] fill-current" : "text-[var(--parchment)]/40"
-                              }`} />
-                              <span className="text-[var(--parchment)] truncate font-medium">
-                                {targetName}
-                              </span>
-                              <span className="text-[var(--parchment)]/40 text-[10px] shrink-0">
-                                {targetType}
-                              </span>
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-
-                    {kgSubgraph.edges.length > 12 && (
-                      <p className="text-xs text-[var(--parchment)]/50 mt-4 pt-3 border-t border-[var(--parchment)]/10">
-                        Showing 12 of {kgSubgraph.edges.length} relationships
-                      </p>
-                    )}
+                    {/* Interactive Graph */}
+                    <ConceptExpansionGraph
+                      initialNodes={convertKGSubgraph(kgSubgraph).nodes}
+                      initialEdges={convertKGSubgraph(kgSubgraph).edges}
+                      matchedEntityIds={kgSubgraph.matched_entity_ids}
+                      initialDepth={0}
+                      sourceClaimId={claim.id}
+                      sourceClaimText={synthesis?.claim_text || claim.description}
+                    />
                   </>
                 ) : (
-                  <div className="text-center py-6">
+                  <div className="bg-[var(--dark-gray)] border border-[var(--parchment)]/10 rounded-none p-6 text-center">
                     <Network className="w-8 h-8 text-[var(--parchment)]/40 mx-auto mb-3" />
                     <p className="text-[var(--parchment)]/50 text-sm">
                       {kgSubgraph.message || "No matching entities found in knowledge graph"}

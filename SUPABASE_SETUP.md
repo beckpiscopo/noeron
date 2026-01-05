@@ -127,3 +127,4 @@ SUPABASE_ANON_KEY=...          # Public key (frontend)
 SUPABASE_SERVICE_KEY=...       # Secret key (backend scripts)
 ```
 
+
