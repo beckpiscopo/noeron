@@ -31,8 +31,10 @@ The knowledge graph (KG) is a structured representation of bioelectricity resear
 |------|---------|
 | `data/knowledge_graph/knowledge_graph.json` | Merged KG (661 entities, 999 relationships) |
 | `data/knowledge_graph/entity_aliases.json` | Synonym mappings (2,900+ aliases) |
+| `data/knowledge_graph/claim_entity_relevance.json` | Pre-computed claim-entity relevance |
 | `data/knowledge_graph/raw_extractions/` | Per-paper extraction cache |
 | `scripts/knowledge_graph/extract_kg_from_papers.py` | Extraction pipeline |
+| `scripts/knowledge_graph/generate_claim_relevance.py` | Claim-entity relevance generation |
 | `scripts/knowledge_graph/deduplicate_entities.py` | Entity deduplication |
 | `scripts/knowledge_graph/validate_kg.py` | Quality validation |
 
@@ -440,33 +442,38 @@ organism:              34 (5.1%)
 - Builds cross-episode value proposition
 - Could extend to cross-episode: "This concept also appears in Episode X at timestamp Y"
 
-#### 7. Claim → Entity Relationship Explainability
+#### 7. Claim → Entity Relationship Explainability ✅ DONE
 **Problem:** Graph shows entities from papers that support a claim, but users can't understand WHY those entities are relevant. For example, a claim about "blastoderm splitting" shows entities like "Ethylene Glycol" (a cryoprotectant) without explaining the connection.
 
-**Current state (partially implemented):**
+**Implementation (completed):**
 - [x] Edge hover shows evidence quotes
 - [x] Edge click shows full evidence panel
 - [x] Node tooltips show entity type and description
 - [x] Direct match nodes are visually distinguished
+- [x] **Pre-computed claim-entity relevance** via batch script
+- [x] **`relevance_to_claim` field** added to nodes in `get_relevant_kg_subgraph` response
+- [x] **`claim_role` field** categorizes entities (claim_concept, experimental_technique, mechanism, supporting_context)
+- [x] **Frontend displays relevance** in node panel with "Why relevant" section
+- [x] **Tooltips show relevance** instead of generic description
+- [x] **Role badges** show entity's relationship to the claim
 
-**Still needed - Backend (Claim-Aware Relevance):**
-Modify `get_relevant_kg_subgraph` MCP tool to generate claim-specific relevance explanations:
-- Add `relevance_to_claim` field to each returned entity
-- Update Gemini prompt to explain WHY each entity matters for THIS claim
-- Example outputs:
-  - "Ethylene Glycol → Cryoprotectant used in the experimental setup that preserved embryos during blastoderm manipulation"
-  - "Left-Right Patterning → The claim relates to how mechanical forces disrupt normal embryonic axis formation"
-- Store relevance context per claim-entity pair, not just generic entity descriptions
+**Files:**
+- `scripts/knowledge_graph/generate_claim_relevance.py` - Batch script to pre-compute relevance
+- `data/knowledge_graph/claim_entity_relevance.json` - Cache of claim-entity relevance explanations
+- `src/bioelectricity_research/server.py` - Backend loads and injects relevance into response
+- `frontend/components/concept-graph/` - Frontend displays relevance in UI
 
-**Still needed - Frontend:**
-- Display `relevance_to_claim` prominently in node panel (not just generic description)
-- Add "Why relevant?" expandable section
-- Show paper title where entity was found
-- Distinguish entity types visually:
-  - **Claim concepts**: Entities mentioned in the claim text itself
-  - **Experimental techniques**: Methods/tools used in supporting studies
-  - **Supporting context**: Other entities from the paper
-- Color-code or badge nodes by their relationship to the claim
+**Usage:**
+```bash
+# Generate relevance for all claims
+python scripts/knowledge_graph/generate_claim_relevance.py --all
+
+# Generate for specific claims
+python scripts/knowledge_graph/generate_claim_relevance.py --claim-ids "lex_325|00:00:00-0"
+
+# Force re-generate (overwrite cache)
+python scripts/knowledge_graph/generate_claim_relevance.py --all --force
+```
 
 ### Medium Priority
 

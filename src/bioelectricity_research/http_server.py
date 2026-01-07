@@ -736,6 +736,7 @@ async def http_get_relevant_kg_subgraph(request: Request):
         from .server import (
             _load_claims_cache,
             _load_knowledge_graph,
+            _load_claim_relevance_cache,
             _find_matching_entities,
             _extract_subgraph,
             _extract_entities_with_gemini,
@@ -822,6 +823,21 @@ async def http_get_relevant_kg_subgraph(request: Request):
         # Mark which nodes were direct matches vs expanded
         for node in subgraph["nodes"]:
             node["is_direct_match"] = node["id"] in matched_ids
+
+        # Step 6: Inject pre-computed claim-entity relevance
+        if claim_id:
+            relevance_cache = _load_claim_relevance_cache()
+            claim_relevance = relevance_cache.get("claims", {}).get(claim_id, {}).get("entities", {})
+
+            for node in subgraph["nodes"]:
+                node_id = node["id"]
+                if node_id in claim_relevance:
+                    node["relevance_to_claim"] = claim_relevance[node_id].get("relevance_to_claim")
+                    node["claim_role"] = claim_relevance[node_id].get("claim_role")
+                else:
+                    # Fallback for entities not in cache
+                    node["relevance_to_claim"] = None
+                    node["claim_role"] = "supporting_context"
 
         # Sort edges by relationship type for better display
         subgraph["edges"].sort(key=lambda e: e.get("relationship", ""))

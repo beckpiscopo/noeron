@@ -52,6 +52,7 @@ CLAIMS_CACHE_PATH = Path(__file__).resolve().parent.parent.parent / "cache" / "p
 DEEP_DIVE_CACHE_PATH = Path(__file__).resolve().parent.parent.parent / "cache" / "deep_dive_summaries.json"
 EVIDENCE_THREADS_CACHE_PATH = Path(__file__).resolve().parent.parent.parent / "cache" / "evidence_threads.json"
 KNOWLEDGE_GRAPH_PATH = Path(__file__).resolve().parent.parent.parent / "data" / "knowledge_graph" / "knowledge_graph.json"
+CLAIM_RELEVANCE_CACHE_PATH = Path(__file__).resolve().parent.parent.parent / "data" / "knowledge_graph" / "claim_entity_relevance.json"
 
 
 # ============================================================================
@@ -157,6 +158,9 @@ Paper 3: <one sentence summarizing this paper's key contribution to the claim>
 - Keep the tone clear and honest; no preamble
 
 Respond with ONLY the structured summary followed by the paper key findings section, no preamble."""
+
+# Alias for backwards compatibility (http_server.py uses this)
+DEEP_DIVE_PROMPT_TEMPLATE = DEEP_DIVE_PROMPT_TEMPLATE_SIMPLIFIED
 
 
 def _parse_paper_key_findings(summary: str, num_papers: int) -> list[str]:
@@ -1807,6 +1811,17 @@ def _load_knowledge_graph() -> dict[str, Any]:
         return {"nodes": [], "edges": [], "metadata": {}}
 
 
+def _load_claim_relevance_cache() -> dict[str, Any]:
+    """Load pre-computed claim-entity relevance explanations."""
+    if not CLAIM_RELEVANCE_CACHE_PATH.exists():
+        return {"claims": {}}
+    try:
+        with CLAIM_RELEVANCE_CACHE_PATH.open() as fh:
+            return json_module.load(fh)
+    except json_module.JSONDecodeError:
+        return {"claims": {}}
+
+
 def _normalize_for_matching(text: str) -> str:
     """Normalize text for fuzzy matching."""
     import re
@@ -2097,6 +2112,21 @@ async def get_relevant_kg_subgraph(params: GetRelevantKGSubgraphInput) -> dict[s
         # Mark which nodes were direct matches vs expanded
         for node in subgraph["nodes"]:
             node["is_direct_match"] = node["id"] in matched_ids
+
+        # Step 6: Inject pre-computed claim-entity relevance
+        if params.claim_id:
+            relevance_cache = _load_claim_relevance_cache()
+            claim_relevance = relevance_cache.get("claims", {}).get(params.claim_id, {}).get("entities", {})
+
+            for node in subgraph["nodes"]:
+                node_id = node["id"]
+                if node_id in claim_relevance:
+                    node["relevance_to_claim"] = claim_relevance[node_id].get("relevance_to_claim")
+                    node["claim_role"] = claim_relevance[node_id].get("claim_role")
+                else:
+                    # Fallback for entities not in cache
+                    node["relevance_to_claim"] = None
+                    node["claim_role"] = "supporting_context"
 
         # Sort edges by relationship type for better display
         subgraph["edges"].sort(key=lambda e: e.get("relationship", ""))

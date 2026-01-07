@@ -636,7 +636,8 @@ export function ConceptExpansionGraph({
         <div className="absolute bottom-0 left-0 right-0 p-4 bg-[var(--dark-gray)]/95 border-t border-[var(--parchment)]/10">
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1">
+              {/* Type and Role badges */}
+              <div className="flex items-center gap-2 mb-1 flex-wrap">
                 <span
                   className="w-3 h-3 rounded-full"
                   style={{ backgroundColor: nodeColors[selectedNode.type]?.background }}
@@ -644,15 +645,37 @@ export function ConceptExpansionGraph({
                 <span className="text-xs text-[var(--parchment)]/50 uppercase tracking-wide">
                   {selectedNode.type.replace(/_/g, " ")}
                 </span>
+                {selectedNode.claimRole && (
+                  <span className="px-2 py-0.5 bg-[var(--golden-chestnut)]/20 text-[var(--golden-chestnut)] text-xs font-medium rounded">
+                    {selectedNode.claimRole === "claim_concept" ? "Claim Concept" :
+                     selectedNode.claimRole === "experimental_technique" ? "Technique" :
+                     selectedNode.claimRole === "mechanism" ? "Mechanism" : "Context"}
+                  </span>
+                )}
               </div>
+
+              {/* Entity name */}
               <h4 className="font-semibold text-[var(--parchment)] truncate">
                 {selectedNode.label}
               </h4>
-              {selectedNode.description && (
+
+              {/* WHY RELEVANT (primary - from claim relevance cache) */}
+              {selectedNode.relevanceToClaim && (
+                <div className="mt-2 p-2 bg-[var(--golden-chestnut)]/10 border-l-2 border-[var(--golden-chestnut)]">
+                  <span className="text-xs text-[var(--golden-chestnut)] uppercase font-medium">Why relevant</span>
+                  <p className="text-sm text-[var(--parchment)]/90 mt-1">
+                    {selectedNode.relevanceToClaim}
+                  </p>
+                </div>
+              )}
+
+              {/* Original description (secondary - only show if no relevance) */}
+              {!selectedNode.relevanceToClaim && selectedNode.description && (
                 <p className="text-sm text-[var(--parchment)]/70 line-clamp-2 mt-1">
                   {selectedNode.description}
                 </p>
               )}
+
               {selectedNode.papers.length > 0 && (
                 <p className="text-xs text-[var(--golden-chestnut)] mt-2">
                   {selectedNode.papers.length} paper{selectedNode.papers.length !== 1 ? "s" : ""}
@@ -790,6 +813,8 @@ export function convertKGSubgraph(kgSubgraph: {
     aliases: kgNode.aliases,
     mentions: kgNode.mentions,
     isDirectMatch: kgNode.is_direct_match ?? false,
+    relevanceToClaim: kgNode.relevance_to_claim,
+    claimRole: kgNode.claim_role as GraphNode["claimRole"],
   }))
 
   const edges: GraphEdge[] = kgSubgraph.edges.map((kgEdge, idx) => ({

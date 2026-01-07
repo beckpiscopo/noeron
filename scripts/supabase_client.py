@@ -214,3 +214,4 @@ if __name__ == "__main__":
         print("✗ Connection failed. Check your SUPABASE_URL and keys in .env")
 
 
+

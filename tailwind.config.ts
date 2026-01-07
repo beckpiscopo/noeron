@@ -54,3 +54,4 @@ const tailwindConfig: Config = {
 export default tailwindConfig
 
 
+

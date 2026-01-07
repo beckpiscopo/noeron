@@ -227,18 +227,32 @@ export function toVisNode(node: {
   isLoading?: boolean
   isExpanded?: boolean
   isDirectMatch?: boolean
+  relevanceToClaim?: string
+  claimRole?: string
 }): Node {
   const colors = nodeColors[node.type] || nodeColors.concept
   const shape = nodeShapes[node.type] || "dot"
 
-  // Build informative tooltip
+  // Build informative tooltip - prefer relevance over generic description
   let tooltip = node.label
   const typeLabel = node.type.replace(/_/g, " ")
   tooltip = `${node.label}\n[${typeLabel}]`
   if (node.isDirectMatch) {
     tooltip += "\n★ Direct match"
   }
-  if (node.description) {
+  if (node.claimRole) {
+    const roleLabel = node.claimRole === "claim_concept" ? "Claim Concept" :
+                      node.claimRole === "experimental_technique" ? "Technique" :
+                      node.claimRole === "mechanism" ? "Mechanism" : "Context"
+    tooltip += `\n[${roleLabel}]`
+  }
+  // Prefer relevanceToClaim over generic description
+  if (node.relevanceToClaim) {
+    const truncatedRel = node.relevanceToClaim.length > 200
+      ? node.relevanceToClaim.substring(0, 200) + "..."
+      : node.relevanceToClaim
+    tooltip += `\n\n${truncatedRel}`
+  } else if (node.description) {
     const truncatedDesc = node.description.length > 200
       ? node.description.substring(0, 200) + "..."
       : node.description

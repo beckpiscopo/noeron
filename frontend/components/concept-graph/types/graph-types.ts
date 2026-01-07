@@ -15,6 +15,13 @@ export type NodeType =
   | "process"           // Biological process
   | "phenomenon"        // Scientific phenomenon
 
+// Claim role types for entity relevance
+export type ClaimRole =
+  | "claim_concept"          // Directly mentioned in the claim
+  | "experimental_technique" // Methods/tools used to study this
+  | "mechanism"              // Underlying molecular/cellular process
+  | "supporting_context"     // Background context from papers
+
 // Relationship types from the existing knowledge graph
 export type RelationshipType =
   | "regulates"
@@ -60,6 +67,9 @@ export interface GraphNode {
   // For collapsed graph feature
   isDirectMatch?: boolean  // True if this node directly matches the search/claim
   hopDistance?: number     // Distance from nearest seed node (0 = seed, 1 = 1-hop, etc.)
+  // Claim-specific relevance (from pre-computed cache)
+  relevanceToClaim?: string  // Why this entity is relevant to the specific claim
+  claimRole?: ClaimRole      // Role category: claim_concept, experimental_technique, mechanism, supporting_context
 }
 
 export interface GraphEdge {
@@ -166,6 +176,9 @@ export interface KGNode {
   mentions?: number
   papers?: string[]
   is_direct_match?: boolean
+  // Claim-specific relevance (from pre-computed cache)
+  relevance_to_claim?: string
+  claim_role?: string
 }
 
 export interface KGEdge {

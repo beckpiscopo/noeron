@@ -9,7 +9,7 @@ interface LandingPageProps {
 
 export function LandingPage({ onGetStarted }: LandingPageProps) {
   const [currentSection, setCurrentSection] = useState(0)
-  const totalSections = 9
+  const totalSections = 8
 
   const goToSection = useCallback((index: number) => {
     if (index < 0 || index >= totalSections) return
@@ -66,7 +66,7 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
         </div>
         <button
           onClick={() => goToSection(5)}
-          className="btn-noeron-secondary !py-2.5 !px-6 !text-[13px]"
+          className="btn-noeron-secondary !py-2.5 !px-6 !text-sm"
         >
           Access Demo →
         </button>
@@ -141,7 +141,7 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
               <button className="btn-noeron btn-noeron-secondary flex items-center gap-2.5 group">
                 <Play className="w-3 h-3 fill-current group-hover:scale-110 transition-transform" />
                 <span>Demo Video</span>
-                <span className="mono text-[10px] opacity-60">3M</span>
+                <span className="mono text-xs opacity-60">3M</span>
               </button>
             </div>
           </div>
@@ -149,58 +149,306 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
         </section>
 
         {/* Section 2: The Problem */}
-        <section className="min-w-[100vw] h-screen flex flex-col justify-center items-center px-6 md:px-[60px] py-[100px] pb-[120px] relative overflow-y-auto bg-[var(--dark-gray)]">
-          <div className="blueprint-pattern" />
+        <section className="min-w-[100vw] h-screen flex flex-col justify-start items-center px-6 md:px-[60px] pt-[120px] pb-[80px] relative overflow-y-auto bg-[var(--carbon-black)]">
+          <div className="blueprint-pattern opacity-[0.08]" />
           <div className="max-w-[1200px] w-full relative z-10">
-            <h2 className="display text-4xl md:text-5xl font-normal mb-10 tracking-[-0.5px]">THE PROBLEM</h2>
-            <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_1fr] gap-[60px] items-center">
+            {/* Header row */}
+            <div className="flex justify-between items-start mb-2">
               <div>
-                <p className="text-lg leading-[1.7] text-[var(--parchment)]/90 mb-8">
-                  Podcasts make research accessible, but citations invisible.
-                </p>
-                <div className="bg-[rgba(42,43,45,0.6)] border border-[var(--golden-chestnut)]/30 p-8 my-8">
-                  <div className="mono text-2xl font-medium text-[var(--golden-chestnut)] mb-2">150M+ MONTHLY LISTENERS</div>
-                  <div className="text-sm text-[var(--parchment)]/70 mb-5">Deep science podcast ecosystem</div>
-                  <div className="mono text-2xl font-medium text-[var(--golden-chestnut)] mb-2">0% REAL-TIME VERIFICATION</div>
-                  <div className="text-sm text-[var(--parchment)]/70">Citations buried or non-existent</div>
+                <div className="mono text-xs tracking-[0.15em] text-[var(--golden-chestnut)] mb-3">
+                  SEC. 02 // SYSTEM DIAGNOSTICS
                 </div>
-                <p className="text-lg leading-[1.7] text-[var(--parchment)]/90 mb-8">
-                  When Michael Levin says "bioelectric gradients control morphogenesis,"
-                  where's the evidence?
-                </p>
-                <p className="text-lg leading-[1.7] text-[var(--parchment)]/90">
-                  Traditional approach:<br />
-                  → Hope listeners Google it later (they don't)<br />
-                  → Trust without verification<br />
-                  → Knowledge remains disconnected from source
-                </p>
+                <h2 className="display text-4xl md:text-5xl font-normal tracking-[-0.5px]">THE PROBLEM</h2>
               </div>
-              <div className="flex items-center justify-center p-[60px] border border-dashed border-[var(--parchment)]/30">
-                <div className="mono text-sm text-[var(--parchment)]/50 text-center">
-                  [ VISUAL: Podcast → ??? → Research Paper ]
+              <div className="text-right mono text-xs text-[var(--parchment)]/60 leading-relaxed hidden md:block">
+                <div>STATUS: <span className="text-[var(--parchment)]">CRITICAL</span></div>
+                <div>ERR_CODE: <span className="text-[var(--parchment)]">404_VERACITY</span></div>
+              </div>
+            </div>
+
+            {/* Main content grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_1fr] gap-12 mt-10 items-start">
+              {/* Left column */}
+              <div>
+                <h3 className="text-2xl md:text-3xl font-normal mb-6 leading-tight">
+                  The Information Gap in <span className="text-[var(--golden-chestnut)]">Audio Media</span>
+                </h3>
+
+                <p className="text-base leading-[1.8] text-[var(--parchment)]/85 mb-8 border-l-2 border-[var(--parchment)]/20 pl-5">
+                  While podcast consumption is at an all-time high, the bridge between spoken assertions and verifiable facts remains nonexistent. Listeners are passive consumers of unverified data streams, creating a critical vulnerability in global information architecture.
+                </p>
+
+                {/* Stats box */}
+                <div className="bg-[#2a2b2d] border border-[var(--parchment)]/10 p-6 mb-8">
+                  <div className="grid grid-cols-2 divide-x divide-[var(--parchment)]/10">
+                    <div className="pr-6">
+                      <div className="flex items-center gap-2 mb-2">
+                        <svg className="w-4 h-4 text-[var(--parchment)]/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M9 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                        <span className="mono text-xs tracking-[0.1em] text-[var(--parchment)]/60 uppercase">Monthly Listeners</span>
+                      </div>
+                      <div className="mono text-3xl font-medium text-[var(--parchment)] mb-1">150M+</div>
+                      <div className="mono text-xs text-[var(--parchment)]/50 uppercase">Source: Global Audio Data</div>
+                    </div>
+                    <div className="pl-6">
+                      <div className="flex items-center gap-2 mb-2">
+                        <svg className="w-4 h-4 text-[var(--parchment)]/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span className="mono text-xs tracking-[0.1em] text-[var(--parchment)]/60 uppercase">Real-Time Verification</span>
+                      </div>
+                      <div className="mono text-3xl font-medium text-[var(--golden-chestnut)] mb-1">0.0%</div>
+                      <div className="mono text-xs text-[var(--parchment)]/50 uppercase">Status: System Failure</div>
+                    </div>
+                  </div>
                 </div>
+
+                {/* Diagnostic Report */}
+                <div className="mono text-xs tracking-[0.15em] text-[var(--parchment)]/50 uppercase mb-4">
+                  Diagnostic Report // Failure Points
+                </div>
+
+                <div className="space-y-5">
+                  <div>
+                    <div className="flex items-baseline gap-3 mb-1">
+                      <span className="mono text-sm text-[var(--golden-chestnut)]">01</span>
+                      <span className="font-medium text-[var(--parchment)]">Citation Void</span>
+                    </div>
+                    <p className="text-base leading-relaxed text-[var(--parchment)]/70 ml-7">
+                      Unlike academic papers or journalism, audio content lacks immediate, clickable citations, leaving claims stranded without proof.
+                    </p>
+                  </div>
+                  <div>
+                    <div className="flex items-baseline gap-3 mb-1">
+                      <span className="mono text-sm text-[var(--golden-chestnut)]">02</span>
+                      <span className="font-medium text-[var(--parchment)]">Hallucination Risk</span>
+                    </div>
+                    <p className="text-base leading-relaxed text-[var(--parchment)]/70 ml-7">
+                      Without real-time grounding, AI transcription and summary tools amplify errors rather than correcting them.
+                    </p>
+                  </div>
+                  <div>
+                    <div className="flex items-baseline gap-3 mb-1">
+                      <span className="mono text-sm text-[var(--golden-chestnut)]">03</span>
+                      <span className="font-medium text-[var(--parchment)]">Ephemeral Context</span>
+                    </div>
+                    <p className="text-base leading-relaxed text-[var(--parchment)]/70 ml-7">
+                      Context is lost the moment audio is played. Historical data and counter-arguments are inaccessible during playback.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right column - Signal Loss Diagram */}
+              <div className="border border-[var(--parchment)]/10 bg-[#232426] p-6 relative hidden lg:block">
+                <div className="mono text-xs tracking-[0.15em] text-[var(--golden-chestnut)] mb-6">
+                  FIG 1.1 // SIGNAL LOSS
+                </div>
+
+                {/* Diagram container */}
+                <div className="relative h-[380px]">
+                  {/* Grid lines */}
+                  <div className="absolute inset-0 opacity-20">
+                    <div className="w-full h-full" style={{
+                      backgroundImage: 'linear-gradient(to right, var(--parchment) 1px, transparent 1px), linear-gradient(to bottom, var(--parchment) 1px, transparent 1px)',
+                      backgroundSize: '40px 40px'
+                    }} />
+                  </div>
+
+                  {/* Audio Input box */}
+                  <div className="absolute top-4 left-1/2 -translate-x-1/2">
+                    <div className="w-16 h-16 border border-[var(--parchment)]/30 bg-[var(--carbon-black)] flex items-center justify-center">
+                      <svg className="w-6 h-6 text-[var(--golden-chestnut)]" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
+                        <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+                      </svg>
+                    </div>
+                    <div className="mono text-xs text-center mt-2 text-[var(--parchment)]/70 uppercase tracking-wider">Audio Input</div>
+                    {/* RAW_DATA label */}
+                    <div className="absolute -right-20 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                      <div className="w-8 h-[1px] bg-[var(--parchment)]/30" />
+                      <span className="mono text-sm text-[var(--golden-chestnut)]">RAW_DATA</span>
+                    </div>
+                  </div>
+
+                  {/* Disconnected label */}
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+                    <div className="border border-[var(--golden-chestnut)] px-3 py-1 bg-[var(--carbon-black)]">
+                      <span className="mono text-xs text-[var(--golden-chestnut)] tracking-wider">DISCONNECTED</span>
+                    </div>
+                  </div>
+
+                  {/* Dashed connection lines */}
+                  <svg className="absolute inset-0 w-full h-full" style={{ pointerEvents: 'none' }}>
+                    <line x1="50%" y1="100" x2="50%" y2="160" stroke="var(--parchment)" strokeOpacity="0.2" strokeDasharray="4 4" />
+                    <line x1="50%" y1="200" x2="50%" y2="280" stroke="var(--parchment)" strokeOpacity="0.2" strokeDasharray="4 4" />
+                  </svg>
+
+                  {/* Truth Layer box */}
+                  <div className="absolute bottom-8 left-1/2 -translate-x-1/2">
+                    <div className="w-16 h-16 border border-dashed border-[var(--parchment)]/30 bg-[var(--carbon-black)] flex items-center justify-center">
+                      <svg className="w-5 h-5 text-[var(--parchment)]/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                    </div>
+                    <div className="mono text-xs text-center mt-2 text-[var(--parchment)]/50 uppercase tracking-wider">Truth Layer</div>
+                  </div>
+
+                  {/* Scale indicator */}
+                  <div className="absolute bottom-0 right-0 mono text-sm text-[var(--parchment)]/40">
+                    SCALE 1:1
+                  </div>
+
+                  {/* Corner markers */}
+                  <div className="absolute top-0 right-0 w-3 h-3 border-t border-r border-[var(--parchment)]/30" />
+                  <div className="absolute bottom-0 left-0 w-3 h-3 border-b border-l border-[var(--parchment)]/30" />
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="flex justify-between items-center mt-10 pt-6 border-t border-[var(--parchment)]/10">
+              <div className="mono text-sm text-[var(--parchment)]/40 uppercase tracking-wider">
+                Noeron Systems // Div. 02
+              </div>
+              <div className="mono text-sm text-[var(--parchment)]/40 uppercase tracking-wider">
+                Gemini 3 Hackathon Build
               </div>
             </div>
           </div>
         </section>
 
         {/* Section 3: How It Works */}
-        <section className="min-w-[100vw] h-screen flex flex-col justify-center items-center px-6 md:px-[60px] py-[100px] pb-[120px] relative overflow-y-auto bg-[var(--parchment)] text-[var(--carbon-black)]">
+        <section className="min-w-[100vw] h-screen flex flex-col justify-start items-center px-6 md:px-[60px] pt-[120px] pb-[80px] relative overflow-y-auto bg-[var(--carbon-black)]">
+          <div className="blueprint-pattern opacity-[0.08]" />
           <div className="max-w-[1200px] w-full relative z-10">
-            <h2 className="display text-4xl md:text-5xl font-normal mb-10 tracking-[-0.5px] text-[var(--carbon-black)]">HOW IT WORKS</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-10 mt-[60px]">
-              {[
-                { num: "01", title: "LISTEN", text: "Podcast plays naturally\nReal-time transcript processing\nAssemblyAI integration" },
-                { num: "02", title: "DETECT", text: "AI identifies scientific claims\nSemantic search across 500+ papers\nGemini 3 powered detection" },
-                { num: "03", title: "VERIFY", text: "Research appears synchronized\nInteractive visualizations\nCross-episode connections" },
-              ].map((panel) => (
-                <div key={panel.num} className="p-10 border border-[var(--carbon-black)]/10 bg-[var(--carbon-black)]/[0.02]">
-                  <div className="mono text-4xl font-light text-[var(--golden-chestnut)] mb-5">{panel.num}</div>
-                  <div className="display text-2xl mb-4 text-[var(--carbon-black)]">{panel.title}</div>
-                  <div className="text-base leading-relaxed text-[var(--carbon-black)]/80 whitespace-pre-line">{panel.text}</div>
+            {/* Header row */}
+            <div className="flex justify-between items-start mb-8">
+              <div>
+                <div className="mono text-xs tracking-[0.15em] text-[var(--golden-chestnut)] mb-3">
+                  SEC. 03 // SYSTEM ARCHITECTURE
                 </div>
-              ))}
+                <h2 className="display text-4xl md:text-5xl font-normal tracking-[-0.5px]">HOW IT WORKS</h2>
+              </div>
+              <div className="text-right mono text-xs text-[var(--parchment)]/60 leading-relaxed hidden md:block">
+                <div>MODE: <span className="text-[var(--parchment)]">REAL-TIME</span></div>
+                <div>LATENCY: <span className="text-[var(--golden-chestnut)]">&lt; 3s</span></div>
+              </div>
             </div>
+
+            {/* Pipeline visualization */}
+            <div className="relative mt-12">
+              {/* Connection line - desktop */}
+              <div className="hidden md:block absolute top-[60px] left-[16.66%] right-[16.66%] h-[2px]">
+                <div className="w-full h-full bg-gradient-to-r from-[var(--golden-chestnut)]/60 via-[var(--golden-chestnut)] to-[var(--golden-chestnut)]/60" />
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex gap-[33%] w-full justify-center">
+                  <div className="w-2 h-2 rotate-45 bg-[var(--golden-chestnut)] border border-[var(--golden-chestnut)]" />
+                  <div className="w-2 h-2 rotate-45 bg-[var(--golden-chestnut)] border border-[var(--golden-chestnut)]" />
+                </div>
+              </div>
+
+              {/* Pipeline nodes */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                {[
+                  {
+                    num: "01",
+                    title: "LISTEN",
+                    subtitle: "Audio Ingestion",
+                    benefit: "Podcast plays naturally while we process every word in real-time",
+                    specs: [
+                      { label: "INPUT", value: "Audio Stream" },
+                      { label: "ENGINE", value: "AssemblyAI" },
+                      { label: "OUTPUT", value: "Timestamped Transcript" },
+                    ],
+                    icon: (
+                      <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
+                        <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+                      </svg>
+                    ),
+                  },
+                  {
+                    num: "02",
+                    title: "DETECT",
+                    subtitle: "Claim Extraction",
+                    benefit: "AI identifies scientific assertions and maps them to verifiable sources",
+                    specs: [
+                      { label: "MODEL", value: "Gemini 2.5 Pro" },
+                      { label: "CORPUS", value: "500+ Papers" },
+                      { label: "METHOD", value: "Semantic Search" },
+                    ],
+                    icon: (
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                      </svg>
+                    ),
+                  },
+                  {
+                    num: "03",
+                    title: "VERIFY",
+                    subtitle: "Evidence Synthesis",
+                    benefit: "Research surfaces synchronized with the conversation, fully contextualized",
+                    specs: [
+                      { label: "SYNC", value: "Real-time" },
+                      { label: "VISUAL", value: "Knowledge Graph" },
+                      { label: "DEPTH", value: "Cross-Episode" },
+                    ],
+                    icon: (
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                      </svg>
+                    ),
+                  },
+                ].map((step, index) => (
+                  <div key={step.num} className="relative">
+                    {/* Node circle */}
+                    <div className="flex justify-center mb-6">
+                      <div className="w-[120px] h-[120px] rounded-full border-2 border-[var(--golden-chestnut)] bg-[var(--carbon-black)] flex items-center justify-center relative">
+                        <div className="absolute inset-2 rounded-full border border-[var(--parchment)]/10" />
+                        <div className="text-[var(--golden-chestnut)]">
+                          {step.icon}
+                        </div>
+                        {/* Step number badge */}
+                        <div className="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-[var(--golden-chestnut)] flex items-center justify-center">
+                          <span className="mono text-xs font-bold text-[var(--carbon-black)]">{step.num}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Content card */}
+                    <div className="border border-[var(--parchment)]/10 bg-[#1d1e20] p-6">
+                      <div className="text-center mb-4">
+                        <div className="display text-xl text-[var(--parchment)] mb-1">{step.title}</div>
+                        <div className="mono text-xs tracking-[0.1em] text-[var(--golden-chestnut)] uppercase">{step.subtitle}</div>
+                      </div>
+
+                      <p className="text-base leading-relaxed text-[var(--parchment)]/80 text-center mb-5 min-h-[48px]">
+                        {step.benefit}
+                      </p>
+
+                      {/* Technical specs */}
+                      <div className="border-t border-[var(--parchment)]/10 pt-4 space-y-2">
+                        {step.specs.map((spec) => (
+                          <div key={spec.label} className="flex justify-between items-center">
+                            <span className="mono text-sm tracking-[0.1em] text-[var(--parchment)]/50 uppercase">{spec.label}</span>
+                            <span className="mono text-sm text-[var(--parchment)]">{spec.value}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Mobile connector */}
+                    {index < 2 && (
+                      <div className="md:hidden flex justify-center my-4">
+                        <div className="w-[2px] h-8 bg-gradient-to-b from-[var(--golden-chestnut)] to-[var(--golden-chestnut)]/30" />
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
           </div>
         </section>
 
@@ -247,34 +495,123 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
         </section>
 
         {/* Section 5: Technical Architecture */}
-        <section className="min-w-[100vw] h-screen flex flex-col justify-center items-center px-6 md:px-[60px] py-[100px] pb-[120px] relative overflow-y-auto bg-[var(--parchment)] text-[var(--carbon-black)]">
+        <section className="min-w-[100vw] h-screen flex flex-col justify-start items-center px-6 md:px-[60px] pt-[120px] pb-[80px] relative overflow-y-auto bg-[var(--carbon-black)]">
+          <div className="blueprint-pattern opacity-[0.08]" />
           <div className="max-w-[1200px] w-full relative z-10">
-            <h2 className="display text-4xl md:text-5xl font-normal mb-10 tracking-[-0.5px] text-[var(--carbon-black)]">TECHNICAL IMPLEMENTATION</h2>
-            <div className="text-center my-[60px] mono text-sm leading-[2]">
-              {["AssemblyAI Transcription", "Gemini 3 Claim Detection", "Semantic Scholar API", "ChromaDB Vector Search", "Paper Retrieval & Ranking", "Gemini 3 Synthesis", "Visual Generation + Knowledge Graph"].map((step, i, arr) => (
-                <div key={step}>
-                  <div className="text-[var(--carbon-black)]">{step}</div>
-                  {i < arr.length - 1 && <div className="text-[var(--golden-chestnut)]">↓</div>}
+            {/* Header row */}
+            <div className="flex justify-between items-start mb-8">
+              <div>
+                <div className="mono text-sm tracking-[0.15em] text-[var(--golden-chestnut)] mb-3">
+                  SEC. 05 // SYSTEM ARCHITECTURE
                 </div>
-              ))}
+                <h2 className="display text-4xl md:text-5xl font-normal tracking-[-0.5px]">TECHNICAL STACK</h2>
+              </div>
+              <div className="text-right mono text-sm text-[var(--parchment)]/60 leading-relaxed hidden md:block">
+                <div>PROTOCOL: <span className="text-[var(--parchment)]">MCP</span></div>
+                <div>STATUS: <span className="text-[var(--golden-chestnut)]">OPERATIONAL</span></div>
+              </div>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-8">
-              {[
-                { label: "CORPUS", value: "500+", extra: "papers\n1993-2025" },
-                { label: "ACCURACY", value: "75%", extra: "claim-to-paper\nmatching" },
-                { label: "LATENCY", value: "< 3s", extra: "query-result" },
-                { label: "EMBEDDINGS", value: "", extra: "SentenceTransformer\nall-MiniLM-L6-v2" },
-                { label: "ARCHITECTURE", value: "", extra: "FastMCP Server\nRESTful API" },
-                { label: "PROCESSING", value: "", extra: "GROBID PDF extraction\nRolling 3-min windows" },
-              ].map((spec) => (
-                <div key={spec.label} className="p-8 border border-[var(--carbon-black)]/20 bg-[var(--carbon-black)]/[0.02]">
-                  <div className="mono text-[11px] uppercase tracking-[1px] text-[var(--carbon-black)]/60 mb-2.5">{spec.label}</div>
-                  <div className="mono text-base text-[var(--carbon-black)] leading-[1.5] whitespace-pre-line">
-                    {spec.value && <span className="text-[var(--golden-chestnut)] font-medium">{spec.value}</span>}
-                    {spec.value && " "}{spec.extra}
+
+            {/* Main content grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.4fr] gap-10 mt-8">
+              {/* Left column - Pipeline */}
+              <div className="border border-[var(--parchment)]/10 bg-[#1d1e20] p-6">
+                <div className="mono text-sm tracking-[0.15em] text-[var(--golden-chestnut)] mb-6">
+                  DATA PIPELINE
+                </div>
+                <div className="space-y-1">
+                  {[
+                    { step: "01", label: "INGEST", desc: "Semantic Scholar API + ArXiv" },
+                    { step: "02", label: "EXTRACT", desc: "GROBID TEI Processing" },
+                    { step: "03", label: "TRANSCRIBE", desc: "AssemblyAI + Diarization" },
+                    { step: "04", label: "CHUNK", desc: "400 tokens / 50 overlap" },
+                    { step: "05", label: "EMBED", desc: "all-MiniLM-L6-v2" },
+                    { step: "06", label: "INDEX", desc: "ChromaDB Vector Store" },
+                    { step: "07", label: "DETECT", desc: "Gemini Claim Extraction" },
+                    { step: "08", label: "VERIFY", desc: "RAG + Citation Scoring" },
+                  ].map((item, i, arr) => (
+                    <div key={item.step} className="flex items-center gap-4">
+                      <div className="flex flex-col items-center">
+                        <div className="w-8 h-8 rounded-full border border-[var(--golden-chestnut)] flex items-center justify-center">
+                          <span className="mono text-xs text-[var(--golden-chestnut)]">{item.step}</span>
+                        </div>
+                        {i < arr.length - 1 && <div className="w-[1px] h-4 bg-[var(--parchment)]/20" />}
+                      </div>
+                      <div className="flex-1 py-2">
+                        <div className="flex justify-between items-baseline">
+                          <span className="mono text-sm text-[var(--parchment)]">{item.label}</span>
+                          <span className="text-sm text-[var(--parchment)]/60">{item.desc}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Right column - Tech specs grid */}
+              <div className="space-y-6">
+                {/* Architecture boxes */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="border border-[var(--parchment)]/10 bg-[#1d1e20] p-5">
+                    <div className="mono text-xs tracking-[0.1em] text-[var(--parchment)]/50 uppercase mb-2">Backend</div>
+                    <div className="text-lg text-[var(--parchment)] mb-1">Python + FastMCP</div>
+                    <div className="text-sm text-[var(--parchment)]/60">MCP protocol server with HTTP adapter</div>
+                  </div>
+                  <div className="border border-[var(--parchment)]/10 bg-[#1d1e20] p-5">
+                    <div className="mono text-xs tracking-[0.1em] text-[var(--parchment)]/50 uppercase mb-2">Frontend</div>
+                    <div className="text-lg text-[var(--parchment)] mb-1">Next.js + React</div>
+                    <div className="text-sm text-[var(--parchment)]/60">Real-time sync via API proxy routes</div>
+                  </div>
+                  <div className="border border-[var(--parchment)]/10 bg-[#1d1e20] p-5">
+                    <div className="mono text-xs tracking-[0.1em] text-[var(--parchment)]/50 uppercase mb-2">Vector Store</div>
+                    <div className="text-lg text-[var(--parchment)] mb-1">ChromaDB</div>
+                    <div className="text-sm text-[var(--parchment)]/60">Persistent embeddings + metadata</div>
+                  </div>
+                  <div className="border border-[var(--parchment)]/10 bg-[#1d1e20] p-5">
+                    <div className="mono text-xs tracking-[0.1em] text-[var(--parchment)]/50 uppercase mb-2">AI Engine</div>
+                    <div className="text-lg text-[var(--parchment)] mb-1">Gemini 2.5 Pro</div>
+                    <div className="text-sm text-[var(--parchment)]/60">Claim detection + synthesis</div>
                   </div>
                 </div>
-              ))}
+
+                {/* Stats row */}
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="border border-[var(--parchment)]/10 bg-[#1d1e20] p-4 text-center">
+                    <div className="mono text-2xl text-[var(--golden-chestnut)] font-medium">500+</div>
+                    <div className="mono text-xs text-[var(--parchment)]/50 uppercase mt-1">Papers Indexed</div>
+                  </div>
+                  <div className="border border-[var(--parchment)]/10 bg-[#1d1e20] p-4 text-center">
+                    <div className="mono text-2xl text-[var(--golden-chestnut)] font-medium">&lt; 3s</div>
+                    <div className="mono text-xs text-[var(--parchment)]/50 uppercase mt-1">Query Latency</div>
+                  </div>
+                  <div className="border border-[var(--parchment)]/10 bg-[#1d1e20] p-4 text-center">
+                    <div className="mono text-2xl text-[var(--golden-chestnut)] font-medium">384</div>
+                    <div className="mono text-xs text-[var(--parchment)]/50 uppercase mt-1">Embedding Dims</div>
+                  </div>
+                </div>
+
+                {/* MCP Tools */}
+                <div className="border border-[var(--parchment)]/10 bg-[#1d1e20] p-5">
+                  <div className="mono text-sm tracking-[0.15em] text-[var(--golden-chestnut)] mb-4">
+                    EXPOSED MCP TOOLS
+                  </div>
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-2">
+                    {[
+                      "rag_search",
+                      "save_paper",
+                      "save_author_papers",
+                      "get_saved_paper",
+                      "list_saved_papers",
+                      "rag_stats",
+                    ].map((tool) => (
+                      <div key={tool} className="flex items-center gap-2">
+                        <div className="w-1.5 h-1.5 rounded-full bg-[var(--golden-chestnut)]" />
+                        <span className="mono text-sm text-[var(--parchment)]/80">{tool}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </section>
@@ -350,7 +687,7 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
                 { quarter: "Q3 2025", title: "PLATFORM EXPANSION", items: ["5 researcher verticals", "Cross-domain graphs", "Educational licensing"] },
                 { quarter: "Q4 2025", title: "PUBLIC LAUNCH", items: ["Open platform", "Publisher partnerships", "Research collaboration tools"] },
               ].map((card) => (
-                <div key={card.quarter} className="p-10 border border-[var(--parchment)]/20 bg-[rgba(42,43,45,0.3)]">
+                <div key={card.quarter} className="p-10 border border-[var(--parchment)]/20 bg-[#272829]">
                   <div className="mono text-lg text-[var(--golden-chestnut)] mb-4">{card.quarter}</div>
                   <div className="display text-2xl mb-5">{card.title}</div>
                   <ul className="list-none text-sm leading-[1.8] text-[var(--parchment)]/80">
@@ -366,39 +703,10 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
           </div>
         </section>
 
-        {/* Section 9: Final CTA */}
-        <section className="min-w-[100vw] h-screen flex flex-col justify-center items-center px-6 md:px-[60px] py-[100px] pb-[120px] relative overflow-y-auto bg-[var(--carbon-black)]">
-          <div className="blueprint-pattern" />
-          <div className="max-w-[1200px] w-full relative z-10 text-center">
-            <div className="eyebrow eyebrow-ornament mb-[60px]">
-              Built for Gemini 3 Global Hackathon
-            </div>
-            <h2 className="display text-4xl md:text-[56px] font-normal mb-8 text-[var(--parchment)] leading-[1.2]">
-              Transform how knowledge flows<br />
-              from conversation to evidence.
-            </h2>
-            <p className="text-xl text-[var(--parchment)]/85 mb-12 leading-relaxed">
-              Bridging the gap between accessible conversation<br />
-              and rigorous evidence.
-            </p>
-            <div className="flex gap-5 justify-center flex-wrap">
-              <button className="btn-noeron btn-noeron-primary">
-                Watch 3-Min Demo
-              </button>
-              <button onClick={onGetStarted} className="btn-noeron btn-noeron-secondary">
-                Try Live Demo
-              </button>
-            </div>
-            <div className="mt-[60px] text-sm text-[var(--parchment)]/60">
-              Created by Beck Piscopo<br />
-              Atlanta, GA
-            </div>
-          </div>
-        </section>
       </div>
 
       {/* Dot Navigation */}
-      <div className="dot-nav">
+      <div className="dot-nav" style={{ bottom: '60px' }}>
         {Array.from({ length: totalSections }).map((_, i) => (
           <button
             key={i}
@@ -408,6 +716,13 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
           />
         ))}
       </div>
+
+      {/* Sticky Footer */}
+      <footer className="fixed bottom-0 left-0 right-0 h-10 bg-black border-t border-[var(--parchment)]/10 flex items-center justify-end px-6 md:px-[60px] z-[1000]">
+        <span className="mono text-sm text-[var(--parchment)]/60 tracking-wide">
+          &lt;/&gt; Built for Gemini 3 Global Hackathon
+        </span>
+      </footer>
     </div>
   )
 }
