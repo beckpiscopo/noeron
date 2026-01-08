@@ -4,32 +4,32 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  /* Noeron Color Palette - Always available */
-  --carbon-black: #1D1E20;
-  --parchment: #F2E9E4;
-  --dark-gray: #2A2B2D;
+  /* Noeron Color Palette - Light mode overrides */
+  --carbon-black: #3d2817;
+  --parchment: #3d2817;
+  --dark-gray: #DDD4C4;
   --golden-chestnut: #BE7C4D;
   --rosy-copper: #BE5A38;
   --warm-gray: #6B5D52;
 
-  /* Light mode - Cream/Beige palette inspired by portfolio */
-  --background: #f5e6d3;
+  /* Light mode - Cream/Beige palette with #EBE2D2 background */
+  --background: #EBE2D2;
   --foreground: #3d2817;
-  --card: #ebe2d2;
+  --card: #DDD4C4;
   --card-foreground: #3d2817;
-  --popover: #ebe2d2;
+  --popover: #DDD4C4;
   --popover-foreground: #3d2817;
   --primary: #583d32;
-  --primary-foreground: #f5e6d3;
+  --primary-foreground: #EBE2D2;
   --secondary: #d4c5b0;
   --secondary-foreground: #3d2817;
   --muted: #d4c5b0;
   --muted-foreground: #6b5842;
-  --accent: #FDA92B;
+  --accent: #BE7C4D;
   --accent-foreground: #3d2817;
   --destructive: oklch(0.577 0.245 27.325);
   --destructive-foreground: oklch(0.577 0.245 27.325);
-  --border: #d4c5b0;
+  --border: #c9bfae;
   --input: #d4c5b0;
   --ring: #9d8b74;
   --chart-1: oklch(0.646 0.222 41.116);
@@ -38,13 +38,13 @@
   --chart-4: oklch(0.828 0.189 84.429);
   --chart-5: oklch(0.769 0.188 70.08);
   --radius: 0.625rem;
-  --sidebar: #ebe2d2;
+  --sidebar: #DDD4C4;
   --sidebar-foreground: #3d2817;
   --sidebar-primary: #583d32;
-  --sidebar-primary-foreground: #f5e6d3;
+  --sidebar-primary-foreground: #EBE2D2;
   --sidebar-accent: #d4c5b0;
   --sidebar-accent-foreground: #3d2817;
-  --sidebar-border: #d4c5b0;
+  --sidebar-border: #c9bfae;
   --sidebar-ring: #9d8b74;
 }
 

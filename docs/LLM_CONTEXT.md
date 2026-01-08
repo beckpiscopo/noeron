@@ -51,6 +51,7 @@ listed under your task category.
 
 ## Current defaults and gotchas
 
+- **Always use gemini-3 as the LLM for this project.**
 - MCP server reads `os.environ` only; `.env` is not auto-loaded.
 - `scripts/build_vector_store.py` runs `prepare_texts.process_all_papers()` in memory and
   appends any JSONs in `data/cleaned_papers/`.

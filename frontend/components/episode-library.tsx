@@ -68,7 +68,7 @@ export function EpisodeLibrary({ onSelectEpisode }: EpisodeLibraryProps) {
   const [highlightedEpisodeId, setHighlightedEpisodeId] = useState<string | null>(fallbackEpisodes[0]?.id ?? null)
 
   const iconButtonClasses =
-    "flex h-9 w-9 items-center justify-center rounded-full text-[var(--parchment)]/70 transition hover:text-[var(--parchment)]"
+    "flex h-9 w-9 items-center justify-center rounded-full text-foreground/70 transition hover:text-foreground"
 
   const headerActions = (
     <>
@@ -120,7 +120,7 @@ export function EpisodeLibrary({ onSelectEpisode }: EpisodeLibraryProps) {
   }, [])
 
   return (
-    <div className="noeron-theme relative flex min-h-screen w-full flex-col bg-[var(--carbon-black)] text-[var(--parchment)]">
+    <div className="noeron-theme relative flex min-h-screen w-full flex-col bg-background text-foreground">
       <NoeronHeader actions={headerActions} onLogoClick={() => window.location.assign("/")} />
 
       {/* Main Content */}
@@ -129,15 +129,15 @@ export function EpisodeLibrary({ onSelectEpisode }: EpisodeLibraryProps) {
           {/* Page Title */}
           <div className="mb-8">
             <div className="eyebrow mb-2">Library</div>
-            <h1 className="display text-3xl md:text-4xl font-normal leading-tight tracking-[-0.02em] text-[var(--parchment)] mb-2">
+            <h1 className="display text-3xl md:text-4xl font-normal leading-tight tracking-[-0.02em] text-foreground mb-2">
               Podcast Episode Library
             </h1>
-            <p className="text-[var(--parchment)]/60 text-sm md:text-base font-normal">
+            <p className="text-foreground/60 text-sm md:text-base font-normal">
               Podcast interviews exploring morphogenesis, bioelectricity, and collective intelligence
             </p>
           </div>
 
-          <div className="mb-4 text-xs font-semibold uppercase tracking-[0.3em] text-[var(--parchment)]/40 mono">
+          <div className="mb-4 text-xs font-semibold uppercase tracking-[0.3em] text-foreground/40 mono">
             {status === "loading" && "Refreshing episode catalog…"}
             {status === "error" && `Snapshot stale (${errorMessage})`}
             {status === "idle" && "Episode catalog synced"}
@@ -150,22 +150,22 @@ export function EpisodeLibrary({ onSelectEpisode }: EpisodeLibraryProps) {
               setHighlightedEpisodeId(episode.id)
               onSelectEpisode(episode)
             }}
-            className={`group relative flex flex-col border border-[var(--parchment)]/10 p-6 cursor-pointer transition-all duration-300 hover:scale-[1.02] hover:bg-[var(--dark-gray)] hover:shadow-[0_0_25px_rgba(190,124,77,0.2)] hover:border-[var(--golden-chestnut)]/30 ${
-              episode.id === highlightedEpisodeId ? "bg-[var(--dark-gray)]" : "bg-[var(--dark-gray)]/50"
+            className={`group relative flex flex-col border border-border p-6 cursor-pointer transition-all duration-300 hover:scale-[1.02] hover:bg-card hover:shadow-[0_0_25px_rgba(190,124,77,0.2)] hover:border-[var(--golden-chestnut)]/30 ${
+              episode.id === highlightedEpisodeId ? "bg-card" : "bg-card/50"
             }`}
             >
               {/* Info Stack */}
               <div className="flex flex-1 flex-col gap-3">
                 <div className="flex flex-col gap-2">
                   <span className="text-[var(--golden-chestnut)] text-xs font-bold uppercase tracking-wider mono">{episode.podcast}</span>
-                  <h3 className="text-[var(--parchment)] text-lg font-bold leading-tight">{episode.title}</h3>
+                  <h3 className="text-foreground text-lg font-bold leading-tight">{episode.title}</h3>
                 </div>
-                <p className="text-[var(--parchment)]/60 text-sm font-medium">
+                <p className="text-foreground/60 text-sm font-medium">
                   Host: {episode.host} • Guest: {episode.guest}
                 </p>
 
                 {/* Metadata Stack */}
-                <div className="flex flex-col gap-2 mt-2 text-sm text-[var(--parchment)]/50">
+                <div className="flex flex-col gap-2 mt-2 text-sm text-foreground/50">
                   <div className="flex items-center gap-1.5">
                     <Clock className="size-4" />
                     <span>{episode.duration}</span>
@@ -191,12 +191,12 @@ export function EpisodeLibrary({ onSelectEpisode }: EpisodeLibraryProps) {
           ))}
 
           {/* Explore Section */}
-          <div className="flex flex-col items-center justify-center gap-4 py-8 px-4 bg-gradient-to-b from-transparent to-[var(--dark-gray)]/50 text-center border border-[var(--parchment)]/10">
+          <div className="flex flex-col items-center justify-center gap-4 py-8 px-4 bg-gradient-to-b from-transparent to-card/50 text-center border border-border">
             <div className="size-12 rounded-full bg-[var(--golden-chestnut)]/10 flex items-center justify-center">
               <Brain className="size-6 text-[var(--golden-chestnut)]" />
             </div>
-            <h3 className="text-lg font-bold text-[var(--parchment)]">Explore Research Papers</h3>
-            <p className="text-[var(--parchment)]/60 text-sm">Dive deeper into the cited literature and hypotheses.</p>
+            <h3 className="text-lg font-bold text-foreground">Explore Research Papers</h3>
+            <p className="text-foreground/60 text-sm">Dive deeper into the cited literature and hypotheses.</p>
             <button className="btn-noeron btn-noeron-secondary flex items-center gap-2">
               <span>Browse Citations</span>
               <FileText className="size-4" />
@@ -207,9 +207,9 @@ export function EpisodeLibrary({ onSelectEpisode }: EpisodeLibraryProps) {
       </main>
 
       {/* Footer */}
-      <footer className="mt-auto py-8 text-center border-t border-[var(--parchment)]/10 bg-[var(--carbon-black)]">
+      <footer className="mt-auto py-8 text-center border-t border-border bg-background">
         <div className="flex flex-col gap-2 items-center justify-center">
-          <p className="text-[var(--parchment)]/40 text-xs font-medium tracking-wide uppercase mono">
+          <p className="text-foreground/40 text-xs font-medium tracking-wide uppercase mono">
             Built with Gemini 3 API • Designed with Google Stitch
           </p>
         </div>

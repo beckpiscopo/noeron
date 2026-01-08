@@ -123,7 +123,7 @@ function CurrentClaimCard({ claim, currentTimeMs, onDiveDeeper, onViewSource, on
           return (
             <span
               key={idx}
-              className={`transition-colors duration-200 text-[var(--parchment)] ${
+              className={`transition-colors duration-200 text-foreground ${
                 isHighlighted ? 'font-semibold text-[var(--golden-chestnut)]' : ''
               }`}
             >
@@ -137,7 +137,7 @@ function CurrentClaimCard({ claim, currentTimeMs, onDiveDeeper, onViewSource, on
   
   return (
     <div className="mb-8">
-      <div className="bg-[var(--dark-gray)] rounded-none p-8 shadow-[0_2px_8px_rgba(0,0,0,0.08)] transition-all duration-200 relative hover:shadow-[0_8px_24px_rgba(0,0,0,0.15)] hover:-translate-y-1 border border-[var(--parchment)]/10">
+      <div className="bg-card rounded-none p-8 shadow-[0_2px_8px_rgba(0,0,0,0.08)] transition-all duration-200 relative hover:shadow-[0_8px_24px_rgba(0,0,0,0.15)] hover:-translate-y-1 border border-border">
         {/* Top row: Claim type left, Timestamp right */}
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
@@ -149,13 +149,13 @@ function CurrentClaimCard({ claim, currentTimeMs, onDiveDeeper, onViewSource, on
               <span className="relative inline-flex size-2 rounded-full bg-[var(--golden-chestnut)]"></span>
             </span>
           </div>
-          <div className="flex items-center gap-1.5 text-xs text-[var(--parchment)]/40 mono">
+          <div className="flex items-center gap-1.5 text-xs text-foreground/40 mono">
             <span>{timestamp}</span>
           </div>
         </div>
 
         {/* Main distilled claim text - large and prominent */}
-        <h3 className="display text-2xl font-normal mb-6 leading-relaxed text-[var(--parchment)]">
+        <h3 className="display text-2xl font-normal mb-6 leading-relaxed text-foreground">
           {hasWordTiming && claim.timing?.words ?
             renderWithWordHighlighting(displayText, claim.timing.words) :
             <span className="transition-colors duration-500">{displayText}</span>
@@ -164,7 +164,7 @@ function CurrentClaimCard({ claim, currentTimeMs, onDiveDeeper, onViewSource, on
 
         {/* Full transcript quote - always visible */}
         {hasDistilledClaim && fullText && (
-          <p className="text-base text-[var(--parchment)]/60 leading-relaxed mb-4">
+          <p className="text-base text-foreground/60 leading-relaxed mb-4">
             "{fullText}"
           </p>
         )}
@@ -173,14 +173,14 @@ function CurrentClaimCard({ claim, currentTimeMs, onDiveDeeper, onViewSource, on
         <div className="flex items-center justify-between">
           {claim.confidence_score !== undefined && (
             <div className="flex items-center gap-2 group relative">
-              <span className="text-xs text-[var(--parchment)]/50 uppercase tracking-wider">Confidence:</span>
+              <span className="text-xs text-foreground/50 uppercase tracking-wider">Confidence:</span>
               <span className="text-xs font-bold text-[var(--golden-chestnut)] mono">
                 {Math.round(claim.confidence_score * 100)}%
               </span>
-              <Info className="w-3 h-3 text-[var(--parchment)]/30 hover:text-[var(--parchment)]/60 cursor-help" />
+              <Info className="w-3 h-3 text-foreground/30 hover:text-foreground/60 cursor-help" />
               {/* Tooltip */}
-              <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block w-64 p-3 bg-[var(--carbon-black)] border border-[var(--parchment)]/20 text-xs text-[var(--parchment)]/70 leading-relaxed z-50">
-                <p className="font-semibold text-[var(--parchment)] mb-1">How is this calculated?</p>
+              <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block w-64 p-3 bg-popover border border-border text-xs text-foreground/70 leading-relaxed z-50">
+                <p className="font-semibold text-foreground mb-1">How is this calculated?</p>
                 <p>The confidence score indicates how strongly this claim needs scientific backing. Higher scores mean the claim is more extraordinary or counter-intuitive and benefits more from evidence.</p>
               </div>
             </div>
@@ -228,7 +228,7 @@ function PastClaimCard({ claim, relativeTime, isSelected, onSelect, onDiveDeeper
     <div>
       <div
         onClick={onSelect}
-        className={`bg-[var(--dark-gray)] rounded-none p-6 cursor-pointer transition-all duration-200 border border-[var(--parchment)]/10 ${
+        className={`bg-card rounded-none p-6 cursor-pointer transition-all duration-200 border border-border ${
           isSelected
             ? "shadow-[0_8px_30px_rgba(190,124,77,0.15)] -translate-y-1 border-[var(--golden-chestnut)]/30"
             : "shadow-[0_2px_8px_rgba(0,0,0,0.08)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.15)] hover:-translate-y-1"
@@ -236,24 +236,24 @@ function PastClaimCard({ claim, relativeTime, isSelected, onSelect, onDiveDeeper
       >
         {/* Top row: Claim type left, Timestamp right */}
         <div className="flex items-center justify-between mb-4">
-          <span className="text-xs font-bold text-[var(--parchment)]/50 uppercase tracking-wider">
+          <span className="text-xs font-bold text-foreground/50 uppercase tracking-wider">
             {claim.category || 'Scientific Claim'}
           </span>
-          <div className="flex items-center gap-1.5 text-xs text-[var(--parchment)]/40 mono">
+          <div className="flex items-center gap-1.5 text-xs text-foreground/40 mono">
             <span>{timestamp}</span>
-            <span className="text-[var(--parchment)]/30">•</span>
+            <span className="text-foreground/30">•</span>
             <span>{relativeTime}</span>
           </div>
         </div>
 
         {/* Distilled claim or title - primary */}
-        <h3 className="text-lg font-bold text-[var(--parchment)] mb-4 leading-snug">
+        <h3 className="text-lg font-bold text-foreground mb-4 leading-snug">
           {displayText}
         </h3>
 
         {/* Full quote - always visible */}
         {hasDistilledClaim && fullText && (
-          <p className="text-sm text-[var(--parchment)]/60 leading-relaxed mb-4">
+          <p className="text-sm text-foreground/60 leading-relaxed mb-4">
             "{fullText}"
           </p>
         )}
@@ -262,14 +262,14 @@ function PastClaimCard({ claim, relativeTime, isSelected, onSelect, onDiveDeeper
         <div className="flex items-center justify-between">
           {claim.confidence_score !== undefined && (
             <div className="flex items-center gap-2 group relative">
-              <span className="text-xs text-[var(--parchment)]/50 uppercase tracking-wider">Confidence:</span>
+              <span className="text-xs text-foreground/50 uppercase tracking-wider">Confidence:</span>
               <span className="text-xs font-bold text-[var(--golden-chestnut)] mono">
                 {Math.round(claim.confidence_score * 100)}%
               </span>
-              <Info className="w-3 h-3 text-[var(--parchment)]/30 hover:text-[var(--parchment)]/60 cursor-help" />
+              <Info className="w-3 h-3 text-foreground/30 hover:text-foreground/60 cursor-help" />
               {/* Tooltip */}
-              <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block w-64 p-3 bg-[var(--carbon-black)] border border-[var(--parchment)]/20 text-xs text-[var(--parchment)]/70 leading-relaxed z-50">
-                <p className="font-semibold text-[var(--parchment)] mb-1">How is this calculated?</p>
+              <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block w-64 p-3 bg-popover border border-border text-xs text-foreground/70 leading-relaxed z-50">
+                <p className="font-semibold text-foreground mb-1">How is this calculated?</p>
                 <p>The confidence score indicates how strongly this claim needs scientific backing. Higher scores mean the claim is more extraordinary or counter-intuitive and benefits more from evidence.</p>
               </div>
             </div>
@@ -320,7 +320,7 @@ export function ListeningView({
   }, [])
   const currentClaimRef = useRef<HTMLDivElement | null>(null)
   const iconButtonClasses =
-    "flex h-9 w-9 items-center justify-center rounded-full text-[var(--parchment)]/70 transition hover:text-[var(--parchment)]"
+    "flex h-9 w-9 items-center justify-center rounded-full text-foreground/70 transition hover:text-foreground"
   const headerActions = (
     <>
       <button className={iconButtonClasses}>
@@ -557,18 +557,18 @@ export function ListeningView({
   }, [claims.length, validClaims.length])
 
   return (
-    <div className="noeron-theme flex min-h-screen flex-col bg-[var(--carbon-black)] text-[var(--parchment)] font-sans">
+    <div className="noeron-theme flex min-h-screen flex-col bg-background text-foreground font-sans">
       <NoeronHeader actions={headerActions} onLogoClick={() => window.location.assign("/")} />
       <audio ref={audioRef} preload="metadata" className="hidden" />
 
       {/* Two Column Layout */}
       <div className="flex flex-1">
         {/* LEFT COLUMN - Sticky Podcast Player */}
-        <aside className="w-[380px] shrink-0 border-r border-[var(--parchment)]/10 bg-[var(--dark-gray)] sticky top-0 h-screen overflow-y-auto">
+        <aside className="w-[380px] shrink-0 border-r border-border bg-card sticky top-0 h-screen overflow-y-auto">
           <div className="p-6 w-full flex flex-col justify-center min-h-full">
             {/* Episode Artwork */}
             <div className="mb-6">
-              <div className="aspect-square w-full rounded-none shadow-lg overflow-hidden border border-[var(--parchment)]/10">
+              <div className="aspect-square w-full rounded-none shadow-lg overflow-hidden border border-border">
                 <img
                   src="/images/wavelengths.jpg"
                   alt={episode.title}
@@ -579,10 +579,10 @@ export function ListeningView({
 
             {/* Episode Info */}
             <div className="mb-6">
-              <h1 className="display text-xl font-normal text-[var(--parchment)] mb-2">{episode.title}</h1>
+              <h1 className="display text-xl font-normal text-foreground mb-2">{episode.title}</h1>
               <p className="eyebrow mb-1">EPISODE {episode.id.split('_')[1] || '325'}</p>
-              <p className="text-sm text-[var(--parchment)]/60 italic">Host: {episode.host}</p>
-              <p className="text-sm text-[var(--parchment)]/60 italic">Guest: {episode.guest}</p>
+              <p className="text-sm text-foreground/60 italic">Host: {episode.host}</p>
+              <p className="text-sm text-foreground/60 italic">Guest: {episode.guest}</p>
             </div>
 
             {/* Waveform Visualization */}
@@ -595,7 +595,7 @@ export function ListeningView({
                     <div
                       key={i}
                       className={`w-[3px] rounded-full transition-all duration-150 ${
-                        isActive ? "bg-[var(--golden-chestnut)]" : "bg-[var(--parchment)]/20"
+                        isActive ? "bg-[var(--golden-chestnut)]" : "bg-foreground/20"
                       }`}
                       style={{
                         height: `${height}%`,
@@ -608,7 +608,7 @@ export function ListeningView({
 
               {/* Progress Bar */}
               <div
-                className="group relative h-1.5 cursor-pointer overflow-hidden rounded-full bg-[var(--parchment)]/10 mb-2"
+                className="group relative h-1.5 cursor-pointer overflow-hidden rounded-full bg-foreground/10 mb-2"
                 onClick={handleProgressClick}
               >
                 <div
@@ -618,7 +618,7 @@ export function ListeningView({
               </div>
 
               {/* Time Display */}
-              <div className="flex justify-between text-xs mono text-[var(--parchment)]/50">
+              <div className="flex justify-between text-xs mono text-foreground/50">
                 <span>{formatTime(episode.currentTime)}</span>
                 <span>{formatTime(episode.durationSeconds)}</span>
               </div>
@@ -630,7 +630,7 @@ export function ListeningView({
                 size="icon"
                 variant="ghost"
                 onClick={handleSkipBack}
-                className="relative size-12 text-[var(--parchment)]/60 hover:bg-[var(--parchment)]/10 hover:text-[var(--parchment)]"
+                className="relative size-12 text-foreground/60 hover:bg-foreground/10 hover:text-foreground"
                 title="Skip back 15 seconds"
               >
                 <RotateCcw className="size-7" />
@@ -640,7 +640,7 @@ export function ListeningView({
               <Button
                 size="icon"
                 onClick={handlePlayPause}
-                className="size-14 rounded-full bg-[var(--golden-chestnut)] text-[var(--carbon-black)] shadow-lg hover:bg-[var(--parchment)] transition-all hover:scale-105"
+                className="size-14 rounded-full bg-[var(--golden-chestnut)] text-background shadow-lg hover:bg-primary transition-all hover:scale-105"
               >
                 {isPlaying ? (
                   <Pause className="size-7" fill="currentColor" />
@@ -653,7 +653,7 @@ export function ListeningView({
                 size="icon"
                 variant="ghost"
                 onClick={handleSkipForward}
-                className="relative size-12 text-[var(--parchment)]/60 hover:bg-[var(--parchment)]/10 hover:text-[var(--parchment)]"
+                className="relative size-12 text-foreground/60 hover:bg-foreground/10 hover:text-foreground"
                 title="Skip forward 15 seconds"
               >
                 <RotateCw className="size-7" />
@@ -664,16 +664,16 @@ export function ListeningView({
         </aside>
 
         {/* RIGHT COLUMN - Live Research Stream */}
-        <main className="flex-1 overflow-y-auto bg-[var(--carbon-black)]">
+        <main className="flex-1 overflow-y-auto bg-background">
           <div className="max-w-4xl mx-auto px-8 py-8">
             {/* Header */}
             <div className="text-center mb-12">
               <div className="inline-flex flex-col items-center gap-3">
-                <div className="h-px w-16 bg-[var(--parchment)]/20" />
+                <div className="h-px w-16 bg-foreground/20" />
                 <h1 className="display text-3xl md:text-2xl font-semibold text-[var(--golden-chestnut)]">
                   Live Research Stream
                 </h1>
-                <div className="h-px w-16 bg-[var(--parchment)]/20" />
+                <div className="h-px w-16 bg-foreground/20" />
               </div>
             </div>
 
@@ -708,7 +708,7 @@ export function ListeningView({
             {/* Empty State */}
             {!currentClaim && pastClaims.length === 0 && (
               <div className="text-center py-16">
-                <p className="text-[var(--parchment)]/60">Start playing to see research insights appear here</p>
+                <p className="text-foreground/60">Start playing to see research insights appear here</p>
               </div>
             )}
           </div>

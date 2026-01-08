@@ -167,11 +167,15 @@ body.noeron-theme {
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: rgba(242, 233, 228, 0.3);
+  background: rgba(44, 49, 56, 0.25);
   cursor: pointer;
   transition: all 0.3s ease;
   border: none;
   padding: 0;
+}
+
+.dark .dot {
+  background: rgba(242, 233, 228, 0.3);
 }
 
 .dot:hover {

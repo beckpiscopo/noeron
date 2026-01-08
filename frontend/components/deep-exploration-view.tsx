@@ -368,18 +368,18 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
   ]
 
   return (
-    <div className="noeron-theme min-h-screen bg-[var(--carbon-black)] text-[var(--parchment)] flex flex-col">
+    <div className="noeron-theme min-h-screen bg-background text-foreground flex flex-col">
       {/* Noeron Header */}
       <NoeronHeader
         actions={
           <>
-            <button className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--parchment)]/70 transition hover:text-[var(--parchment)]">
+            <button className="flex h-9 w-9 items-center justify-center rounded-full text-foreground/70 transition hover:text-foreground">
               <Search className="h-4 w-4" />
             </button>
-            <button className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--parchment)]/70 transition hover:text-[var(--parchment)]">
+            <button className="flex h-9 w-9 items-center justify-center rounded-full text-foreground/70 transition hover:text-foreground">
               <Settings className="h-4 w-4" />
             </button>
-            <button className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--parchment)]/70 transition hover:text-[var(--parchment)]">
+            <button className="flex h-9 w-9 items-center justify-center rounded-full text-foreground/70 transition hover:text-foreground">
               <HelpIcon className="h-4 w-4" />
             </button>
           </>
@@ -388,20 +388,20 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
       />
 
       {/* Header */}
-      <header className="sticky top-14 z-40 flex items-center justify-between border-b border-[var(--parchment)]/10 bg-[var(--carbon-black)]/95 backdrop-blur-sm px-6 py-3 lg:px-10">
+      <header className="sticky top-14 z-40 flex items-center justify-between border-b border-border bg-background/95 backdrop-blur-sm px-6 py-3 lg:px-10">
         <div className="flex items-center gap-4">
           <div className="size-6 text-[var(--golden-chestnut)]">
             <FlaskConical className="w-6 h-6" />
           </div>
           <div>
             <h2 className="text-lg font-bold leading-tight">{episode.title}</h2>
-            <p className="text-xs text-[var(--parchment)]/50">{episode.category}</p>
+            <p className="text-xs text-foreground/50">{episode.category}</p>
           </div>
         </div>
         <div className="flex items-center gap-4">
-          <div className="hidden md:flex items-center gap-3 bg-[var(--dark-gray)] py-1.5 px-3 rounded-none border border-[var(--parchment)]/10">
+          <div className="hidden md:flex items-center gap-3 bg-card py-1.5 px-3 rounded-none border border-border">
             <div className="size-2 rounded-full bg-[var(--golden-chestnut)] animate-pulse" />
-            <span className="text-xs font-medium text-[var(--parchment)]/70 mono">Paused at {formatTime(episode.currentTime)}</span>
+            <span className="text-xs font-medium text-foreground/70 mono">Paused at {formatTime(episode.currentTime)}</span>
           </div>
           <button
             onClick={onBack}
@@ -418,7 +418,7 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
         <div className="flex-1 flex items-center justify-center">
           <div className="flex flex-col items-center gap-4">
             <Loader2 className="w-8 h-8 text-[var(--golden-chestnut)] animate-spin" />
-            <p className="text-[var(--parchment)]/60">Loading claim context...</p>
+            <p className="text-foreground/60">Loading claim context...</p>
           </div>
         </div>
       )}
@@ -444,7 +444,7 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
           {/* Left Column: Core Exploration */}
           <div className="lg:col-span-8 flex flex-col gap-6">
             {/* Anchor Claim */}
-            <div className="relative overflow-hidden rounded-none bg-gradient-to-br from-[var(--dark-gray)] to-[var(--carbon-black)] border border-[var(--parchment)]/10 shadow-lg">
+            <div className="relative overflow-hidden rounded-none bg-gradient-to-br from-card to-background border border-border shadow-lg">
               <div className="blueprint-pattern" />
               <div className="absolute top-0 right-0 p-4 opacity-10">
                 <Quote className="w-36 h-36" />
@@ -454,19 +454,19 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
                   <span className="px-2 py-1 rounded-none bg-[var(--golden-chestnut)]/20 text-[var(--golden-chestnut)] text-xs font-bold uppercase tracking-wider border border-[var(--golden-chestnut)]/30 mono">
                     {synthesis?.claim_type || "Claim"}
                   </span>
-                  <span className="text-xs text-[var(--parchment)]/50 mono">
+                  <span className="text-xs text-foreground/50 mono">
                     @ {formatTime(claim.timestamp)}
                   </span>
                 </div>
 
                 {/* Distilled claim as header */}
-                <h1 className="display text-2xl md:text-3xl font-normal leading-tight mb-4 text-[var(--parchment)]">
+                <h1 className="display text-2xl md:text-3xl font-normal leading-tight mb-4 text-foreground">
                   {claim.title}
                 </h1>
 
                 {/* Full quote from transcript */}
                 {synthesis?.claim_text && synthesis.claim_text !== claim.title && (
-                  <p className="text-base text-[var(--parchment)]/80 leading-relaxed mb-6">
+                  <p className="text-base text-foreground/80 leading-relaxed mb-6">
                     "{synthesis.claim_text}"
                   </p>
                 )}
@@ -475,15 +475,15 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
                   <div className="h-8 w-8 rounded-full bg-[var(--golden-chestnut)]/20 flex items-center justify-center text-[var(--golden-chestnut)] text-sm font-bold">
                     {episode.guest.split(' ').map(n => n[0]).join('')}
                   </div>
-                  <p className="text-sm font-medium text-[var(--parchment)]/80">
-                    {episode.guest} • <span className="text-[var(--parchment)]/50">{synthesis?.speaker_stance || "assertion"}</span>
+                  <p className="text-sm font-medium text-foreground/80">
+                    {episode.guest} • <span className="text-foreground/50">{synthesis?.speaker_stance || "assertion"}</span>
                   </p>
                 </div>
               </div>
             </div>
 
             {/* Synthesis Section */}
-            <div className="bg-[var(--dark-gray)] border border-[var(--parchment)]/10 rounded-none p-6 md:p-8 shadow-sm">
+            <div className="bg-card border border-border rounded-none p-6 md:p-8 shadow-sm">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
                 <h3 className="text-xl font-bold flex items-center gap-2">
                   <Sparkles className="w-5 h-5 text-[var(--golden-chestnut)]" />
@@ -491,7 +491,7 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
                 </h3>
 
                 {/* Segmented Control */}
-                <div className="flex p-1 bg-[var(--carbon-black)] rounded-none">
+                <div className="flex p-1 bg-background rounded-none">
                   <button
                     onClick={() => {
                       setSynthesisMode("simplified")
@@ -501,8 +501,8 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
                     }}
                     className={`px-3 py-1.5 rounded-none text-sm font-medium transition-all ${
                       synthesisMode === "simplified"
-                        ? "bg-[var(--dark-gray)] text-[var(--parchment)] shadow-sm"
-                        : "text-[var(--parchment)]/50 hover:text-[var(--parchment)]"
+                        ? "bg-card text-foreground shadow-sm"
+                        : "text-foreground/50 hover:text-foreground"
                     }`}
                   >
                     Simplified
@@ -516,8 +516,8 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
                     }}
                     className={`px-3 py-1.5 rounded-none text-sm font-medium transition-all ${
                       synthesisMode === "technical"
-                        ? "bg-[var(--dark-gray)] text-[var(--parchment)] shadow-sm"
-                        : "text-[var(--parchment)]/50 hover:text-[var(--parchment)]"
+                        ? "bg-card text-foreground shadow-sm"
+                        : "text-foreground/50 hover:text-foreground"
                     }`}
                   >
                     Technical
@@ -525,17 +525,17 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
                 </div>
               </div>
 
-              <div className="space-y-4 text-[var(--parchment)]/80 leading-relaxed">
+              <div className="space-y-4 text-foreground/80 leading-relaxed">
                 {/* Loading State */}
                 {isLoadingDeepDive[synthesisMode] && (
                   <div className="flex items-center justify-center py-12">
                     <div className="flex flex-col items-center gap-4">
                       <Loader2 className="w-8 h-8 text-[var(--golden-chestnut)] animate-spin" />
                       <div className="text-center">
-                        <p className="text-[var(--parchment)]/80 font-medium">
+                        <p className="text-foreground/80 font-medium">
                           Generating {synthesisMode === "simplified" ? "Simplified" : "Technical"} Summary...
                         </p>
-                        <p className="text-[var(--parchment)]/50 text-sm mt-1">Searching papers and synthesizing evidence</p>
+                        <p className="text-foreground/50 text-sm mt-1">Searching papers and synthesizing evidence</p>
                       </div>
                     </div>
                   </div>
@@ -560,11 +560,11 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
                   return (
                     <>
                       {/* Metadata bar */}
-                      <div className="flex items-center justify-between text-xs text-[var(--parchment)]/50 pb-3 border-b border-[var(--parchment)]/10">
+                      <div className="flex items-center justify-between text-xs text-foreground/50 pb-3 border-b border-border">
                         <div className="flex items-center gap-4">
                           <span>{currentSummary.papers_retrieved} papers analyzed</span>
                           {currentSummary.cached && (
-                            <span className="px-2 py-0.5 bg-[var(--dark-gray)] rounded text-[var(--parchment)]/60">Cached</span>
+                            <span className="px-2 py-0.5 bg-card rounded text-foreground/60">Cached</span>
                           )}
                         </div>
                         <button
@@ -589,7 +589,7 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
                                   <h4 className="text-[var(--golden-chestnut)] font-bold text-sm uppercase tracking-wider mb-2">
                                     {header}
                                   </h4>
-                                  <p className="text-[var(--parchment)]/80">{content}</p>
+                                  <p className="text-foreground/80">{content}</p>
                                 </div>
                               )
                             }
@@ -598,7 +598,7 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
                           if (paragraph.includes('\n- ') || paragraph.startsWith('- ')) {
                             const lines = paragraph.split('\n')
                             return (
-                              <ul key={idx} className="list-disc list-inside space-y-1 text-[var(--parchment)]/80 mb-4">
+                              <ul key={idx} className="list-disc list-inside space-y-1 text-foreground/80 mb-4">
                                 {lines.map((line, lineIdx) => {
                                   const bulletContent = line.replace(/^-\s*/, '').trim()
                                   if (bulletContent) {
@@ -611,7 +611,7 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
                           }
                           // Regular paragraph
                           return paragraph.trim() ? (
-                            <p key={idx} className="text-[var(--parchment)]/80 mb-3">{paragraph}</p>
+                            <p key={idx} className="text-foreground/80 mb-3">{paragraph}</p>
                           ) : null
                         })}
                       </div>
@@ -630,30 +630,30 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
                           })
 
                         return (
-                          <div className="mt-6 pt-4 border-t border-[var(--parchment)]/10">
-                            <h5 className="text-xs uppercase tracking-wider text-[var(--parchment)]/50 font-semibold mb-4">
+                          <div className="mt-6 pt-4 border-t border-border">
+                            <h5 className="text-xs uppercase tracking-wider text-foreground/50 font-semibold mb-4">
                               Sources Retrieved ({uniquePapers.length} paper{uniquePapers.length !== 1 ? 's' : ''})
                             </h5>
                             <div className="space-y-5">
                               {uniquePapers.map((paper, idx) => (
                                 <div key={idx} className="group">
                                   <div className="flex items-start gap-2">
-                                    <span className="text-sm font-mono text-[var(--parchment)]/50 shrink-0 pt-0.5">
+                                    <span className="text-sm font-mono text-foreground/50 shrink-0 pt-0.5">
                                       {paper.year || "n/a"}
                                     </span>
-                                    <span className="text-[var(--parchment)]/50 shrink-0 pt-0.5">•</span>
+                                    <span className="text-foreground/50 shrink-0 pt-0.5">•</span>
                                     <div className="flex-1 min-w-0">
-                                      <p className="text-sm text-[var(--parchment)]/80 leading-relaxed">
+                                      <p className="text-sm text-foreground/80 leading-relaxed">
                                         {paper.title}
                                       </p>
                                       {paper.key_finding && (
-                                        <p className="text-xs text-[var(--parchment)]/60 mt-2 leading-relaxed">
-                                          <span className="text-[var(--parchment)]/50">Key finding:</span> {paper.key_finding}
+                                        <p className="text-xs text-foreground/60 mt-2 leading-relaxed">
+                                          <span className="text-foreground/50">Key finding:</span> {paper.key_finding}
                                         </p>
                                       )}
                                       <div className="flex flex-wrap items-center gap-2 mt-2">
                                         {paper.section && (
-                                          <span className="text-[10px] text-[var(--parchment)]/50 px-1.5 py-0.5 bg-[var(--dark-gray)] rounded">
+                                          <span className="text-[10px] text-foreground/50 px-1.5 py-0.5 bg-card rounded">
                                             {paper.section}
                                           </span>
                                         )}
@@ -681,12 +681,12 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
                 {!deepDiveSummaries[synthesisMode] && !isLoadingDeepDive[synthesisMode] && !deepDiveErrors[synthesisMode] && (
                   <div className="text-center py-8">
                     <Sparkles className="w-10 h-10 text-[var(--golden-chestnut)]/50 mx-auto mb-4" />
-                    <p className="text-[var(--parchment)]/60 mb-4">
+                    <p className="text-foreground/60 mb-4">
                       Generate {synthesisMode === "simplified" ? "a simplified" : "a technical"} AI-powered summary for this claim
                     </p>
                     <button
                       onClick={() => fetchDeepDiveSummary(synthesisMode)}
-                      className="px-6 py-2.5 bg-[var(--golden-chestnut)] hover:bg-[var(--golden-chestnut)]/90 text-[var(--dark-gray)] font-bold rounded-none transition-colors"
+                      className="px-6 py-2.5 bg-[var(--golden-chestnut)] hover:bg-[var(--golden-chestnut)]/90 text-background font-bold rounded-none transition-colors"
                     >
                       Generate {synthesisMode === "simplified" ? "Simplified" : "Technical"} Summary
                     </button>
@@ -697,7 +697,7 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
 
           {/* Guided Prompts */}
           <div>
-            <h4 className="text-sm uppercase tracking-wider text-[var(--parchment)]/50 font-semibold mb-3">
+            <h4 className="text-sm uppercase tracking-wider text-foreground/50 font-semibold mb-3">
               Deepen Your Understanding
             </h4>
             <div className="flex flex-wrap gap-3">
@@ -706,7 +706,7 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
                 return (
                   <button
                     key={index}
-                    className="flex items-center gap-2 bg-[var(--dark-gray)] hover:bg-[var(--parchment)]/10] text-[var(--golden-chestnut)] hover:text-[var(--parchment)] border border-[var(--parchment)]/10 px-4 py-2.5 rounded-full text-sm font-medium transition-all group"
+                    className="flex items-center gap-2 bg-card hover:bg-foreground/10 text-[var(--golden-chestnut)] hover:text-foreground border border-border px-4 py-2.5 rounded-full text-sm font-medium transition-all group"
                   >
                     <Icon className="w-4 h-4" />
                     {prompt.text}
@@ -737,10 +737,10 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
 
             {/* Loading State */}
             {isLoadingKG && (
-              <div className="bg-[var(--dark-gray)] border border-[var(--parchment)]/10 rounded-none p-8">
+              <div className="bg-card border border-border rounded-none p-8">
                 <div className="flex flex-col items-center justify-center">
                   <Loader2 className="w-6 h-6 text-[var(--golden-chestnut)] animate-spin mb-3" />
-                  <p className="text-[var(--parchment)]/60 text-sm">Loading knowledge graph...</p>
+                  <p className="text-foreground/60 text-sm">Loading knowledge graph...</p>
                 </div>
               </div>
             )}
@@ -762,7 +762,7 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
             {kgSubgraph && !isLoadingKG && !kgError && (
               <div>
                 {/* Stats bar */}
-                <div className="flex items-center gap-4 text-xs text-[var(--parchment)]/50 pb-3 mb-3">
+                <div className="flex items-center gap-4 text-xs text-foreground/50 pb-3 mb-3">
                   <span>{kgSubgraph.stats.direct_matches} matched entities</span>
                   <span>{kgSubgraph.stats.total_edges} relationships</span>
                   <span className="text-[var(--golden-chestnut)]">Double-click nodes to expand with AI</span>
@@ -793,9 +793,9 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
                     />
                   </>
                 ) : (
-                  <div className="bg-[var(--dark-gray)] border border-[var(--parchment)]/10 rounded-none p-6 text-center">
-                    <Network className="w-8 h-8 text-[var(--parchment)]/40 mx-auto mb-3" />
-                    <p className="text-[var(--parchment)]/50 text-sm">
+                  <div className="bg-card border border-border rounded-none p-6 text-center">
+                    <Network className="w-8 h-8 text-foreground/40 mx-auto mb-3" />
+                    <p className="text-foreground/50 text-sm">
                       {kgSubgraph.message || "No matching entities found in knowledge graph"}
                     </p>
                   </div>
@@ -805,14 +805,14 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
 
             {/* Initial state - prompt to load */}
             {!kgSubgraph && !isLoadingKG && !kgError && (
-              <div className="bg-[var(--dark-gray)] border border-[var(--parchment)]/10 rounded-none p-8 text-center">
-                <Network className="w-10 h-10 text-[var(--parchment)]/40 mx-auto mb-4" />
-                <p className="text-[var(--parchment)]/60 text-sm mb-4">
+              <div className="bg-card border border-border rounded-none p-8 text-center">
+                <Network className="w-10 h-10 text-foreground/40 mx-auto mb-4" />
+                <p className="text-foreground/60 text-sm mb-4">
                   Explore how concepts in this claim connect to the broader research
                 </p>
                 <button
                   onClick={fetchKGSubgraph}
-                  className="px-5 py-2 bg-[var(--golden-chestnut)] hover:bg-[var(--golden-chestnut)]/90 text-[var(--dark-gray)] font-bold text-sm rounded-none transition-colors inline-flex items-center gap-2"
+                  className="px-5 py-2 bg-[var(--golden-chestnut)] hover:bg-[var(--golden-chestnut)]/90 text-background font-bold text-sm rounded-none transition-colors inline-flex items-center gap-2"
                 >
                   <Network className="w-4 h-4" />
                   Load Knowledge Graph
@@ -825,7 +825,7 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
         {/* Right Column: Evidence & Actions */}
         <div className="lg:col-span-4 flex flex-col gap-6">
           {/* AI Evidence Threads */}
-          <div className="bg-[var(--dark-gray)] border border-[var(--parchment)]/10 rounded-none p-5 h-fit">
+          <div className="bg-card border border-border rounded-none p-5 h-fit">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <GitBranch className="w-5 h-5 text-[var(--golden-chestnut)]" />
@@ -846,8 +846,8 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
             {isLoadingThreads && (
               <div className="flex flex-col items-center justify-center py-8">
                 <Loader2 className="w-6 h-6 text-[var(--golden-chestnut)] animate-spin mb-3" />
-                <p className="text-[var(--parchment)]/60 text-sm">Analyzing research patterns...</p>
-                <p className="text-[var(--parchment)]/50 text-xs mt-1">Identifying narrative threads</p>
+                <p className="text-foreground/60 text-sm">Analyzing research patterns...</p>
+                <p className="text-foreground/50 text-xs mt-1">Identifying narrative threads</p>
               </div>
             )}
 
@@ -868,7 +868,7 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
             {aiEvidenceThreads && !isLoadingThreads && !threadsError && (
               <>
                 {/* Metadata bar */}
-                <div className="flex items-center justify-between text-[10px] text-[var(--parchment)]/50 pb-3 mb-4 border-b border-[var(--parchment)]/10">
+                <div className="flex items-center justify-between text-[10px] text-foreground/50 pb-3 mb-4 border-b border-border">
                   <span>{aiEvidenceThreads.papers_analyzed} papers analyzed</span>
                   <button
                     onClick={() => fetchEvidenceThreads(true)}
@@ -902,16 +902,16 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
                             )}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <h4 className="font-medium text-sm text-[var(--parchment)] leading-tight">{thread.name}</h4>
+                            <h4 className="font-medium text-sm text-foreground leading-tight">{thread.name}</h4>
                             <div className="flex items-center gap-2 mt-1">
                               <span className={`text-[10px] px-1.5 py-0.5 rounded ${
                                 thread.strength === "foundational" ? "bg-green-500/20 text-green-400" :
                                 thread.strength === "developing" ? "bg-yellow-500/20 text-yellow-400" :
-                                "bg-gray-500/20 text-[var(--parchment)]/60"
+                                "bg-gray-500/20 text-foreground/60"
                               }`}>
                                 {thread.strength}
                               </span>
-                              <span className="text-[10px] text-[var(--parchment)]/50 capitalize">
+                              <span className="text-[10px] text-foreground/50 capitalize">
                                 {thread.type.replace(/_/g, " ")}
                               </span>
                             </div>
@@ -919,11 +919,11 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
                         </div>
 
                         {/* Timeline Milestones */}
-                        <div className="relative pl-4 ml-3 border-l border-[var(--parchment)]/10 space-y-3">
+                        <div className="relative pl-4 ml-3 border-l border-border space-y-3">
                           {thread.milestones.map((milestone, milestoneIndex) => (
                             <div key={milestoneIndex} className="relative pl-4 group">
                               {/* Timeline dot */}
-                              <div className="absolute -left-[7px] top-1.5 w-2.5 h-2.5 rounded-full bg-[var(--parchment)]/10] border-2 border-[var(--golden-chestnut)] group-hover:bg-[var(--golden-chestnut)] transition-colors" />
+                              <div className="absolute -left-[7px] top-1.5 w-2.5 h-2.5 rounded-full bg-foreground/10 border-2 border-[var(--golden-chestnut)] group-hover:bg-[var(--golden-chestnut)] transition-colors" />
 
                               {/* Year badge */}
                               <span className="text-[10px] font-mono text-[var(--golden-chestnut)] font-bold">
@@ -931,12 +931,12 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
                               </span>
 
                               {/* Finding */}
-                              <p className="text-xs text-[var(--parchment)]/80 mt-0.5 leading-relaxed">
+                              <p className="text-xs text-foreground/80 mt-0.5 leading-relaxed">
                                 {milestone.finding}
                               </p>
 
                               {/* Paper reference */}
-                              <p className="text-[10px] text-[var(--parchment)]/50 mt-1 truncate" title={milestone.paper_title}>
+                              <p className="text-[10px] text-foreground/50 mt-1 truncate" title={milestone.paper_title}>
                                 {milestone.paper_title.length > 50
                                   ? milestone.paper_title.slice(0, 50) + "..."
                                   : milestone.paper_title}
@@ -947,25 +947,25 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
 
                         {/* Thread Narrative */}
                         <div className="mt-3 ml-3 pl-4 border-l border-transparent">
-                          <p className="text-xs text-[var(--parchment)]/60 italic leading-relaxed">
+                          <p className="text-xs text-foreground/60 italic leading-relaxed">
                             {thread.narrative}
                           </p>
                         </div>
 
                         {/* Divider between threads */}
                         {threadIndex < aiEvidenceThreads.threads.length - 1 && (
-                          <div className="mt-5 mb-2 border-t border-[var(--parchment)]/10" />
+                          <div className="mt-5 mb-2 border-t border-border" />
                         )}
                       </div>
                     ))}
                   </div>
                 ) : (
                   <div className="text-center py-6">
-                    <p className="text-[var(--parchment)]/50 text-sm">
+                    <p className="text-foreground/50 text-sm">
                       {!aiEvidenceThreads.eligible ? (
                         <>
                           <span className="block mb-1">Unable to generate threads</span>
-                          <span className="text-xs text-[var(--parchment)]/40">
+                          <span className="text-xs text-foreground/40">
                             {aiEvidenceThreads.eligibility_reason.includes("insufficient_papers")
                               ? "Need 4+ papers to identify patterns"
                               : aiEvidenceThreads.eligibility_reason.includes("insufficient_year")
@@ -987,7 +987,7 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
               <>
                 {evidenceThreads.length > 0 ? (
                   <>
-                    <div className="relative pl-2 border-l border-[var(--parchment)]/10 ml-2 space-y-6">
+                    <div className="relative pl-2 border-l border-border ml-2 space-y-6">
                       {evidenceThreads.slice(0, 3).map((thread, index) => (
                         <div
                           key={index}
@@ -999,7 +999,7 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
                           }}
                         >
                           {thread.highlighted ? (
-                            <div className="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-[var(--golden-chestnut)] border-4 border-[var(--carbon-black)] shadow-[0_0_0_1px_var(--golden-chestnut)]" />
+                            <div className="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-[var(--golden-chestnut)] border-4 border-background shadow-[0_0_0_1px_var(--golden-chestnut)]" />
                           ) : (
                             <div className="absolute -left-[5px] top-1.5 w-2 h-2 rounded-full bg-[var(--warm-gray)]" />
                           )}
@@ -1013,14 +1013,14 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
                           <h4 className="font-medium text-sm mb-1 group-hover:text-[var(--golden-chestnut)] transition-colors">
                             {thread.title}
                           </h4>
-                          <p className="text-[var(--parchment)]/60 text-xs mb-1">{thread.description}</p>
+                          <p className="text-foreground/60 text-xs mb-1">{thread.description}</p>
                         </div>
                       ))}
                     </div>
-                    <div className="mt-4 pt-4 border-t border-[var(--parchment)]/10">
+                    <div className="mt-4 pt-4 border-t border-border">
                       <button
                         onClick={() => fetchEvidenceThreads()}
-                        className="w-full py-2 flex items-center justify-center gap-2 text-xs font-medium bg-[var(--dark-gray)] hover:bg-[var(--parchment)]/10] text-[var(--golden-chestnut)] rounded-none transition-colors"
+                        className="w-full py-2 flex items-center justify-center gap-2 text-xs font-medium bg-card hover:bg-foreground/10 text-[var(--golden-chestnut)] rounded-none transition-colors"
                       >
                         <Sparkles className="w-3.5 h-3.5" />
                         <span>Generate Research Narratives</span>
@@ -1029,13 +1029,13 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
                   </>
                 ) : (
                   <div className="text-center py-6">
-                    <GitBranch className="w-8 h-8 text-[var(--parchment)]/40 mx-auto mb-3" />
-                    <p className="text-[var(--parchment)]/50 text-sm mb-3">
+                    <GitBranch className="w-8 h-8 text-foreground/40 mx-auto mb-3" />
+                    <p className="text-foreground/50 text-sm mb-3">
                       No evidence threads available yet
                     </p>
                     <button
                       onClick={() => fetchEvidenceThreads()}
-                      className="px-4 py-2 text-xs font-medium bg-[var(--dark-gray)] hover:bg-[var(--parchment)]/10] text-[var(--golden-chestnut)] rounded-none transition-colors inline-flex items-center gap-2"
+                      className="px-4 py-2 text-xs font-medium bg-card hover:bg-foreground/10 text-[var(--golden-chestnut)] rounded-none transition-colors inline-flex items-center gap-2"
                     >
                       <Sparkles className="w-3.5 h-3.5" />
                       Generate with AI
@@ -1048,8 +1048,8 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
 
           {/* Stats */}
           <div className="grid grid-cols-2 gap-3">
-            <div className="bg-[var(--dark-gray)] p-3 rounded-none border border-[var(--parchment)]/10">
-              <p className="text-[var(--parchment)]/50 text-[10px] uppercase font-bold tracking-wider mb-1">Confidence</p>
+            <div className="bg-card p-3 rounded-none border border-border">
+              <p className="text-foreground/50 text-[10px] uppercase font-bold tracking-wider mb-1">Confidence</p>
               <p className="text-lg font-bold flex items-center gap-1">
                 {confidenceMetrics?.confidence_level || "Unknown"}
                 <span
@@ -1063,8 +1063,8 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
                 />
               </p>
             </div>
-            <div className="bg-[var(--dark-gray)] p-3 rounded-none border border-[var(--parchment)]/10">
-              <p className="text-[var(--parchment)]/50 text-[10px] uppercase font-bold tracking-wider mb-1">Consensus</p>
+            <div className="bg-card p-3 rounded-none border border-border">
+              <p className="text-foreground/50 text-[10px] uppercase font-bold tracking-wider mb-1">Consensus</p>
               <p className="text-lg font-bold">{confidenceMetrics?.consensus_percentage || 0}%</p>
             </div>
           </div>
@@ -1073,21 +1073,21 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
       )}
 
       {/* Sticky Chat Box Footer */}
-      <footer className="fixed bottom-0 left-0 right-0 z-50 bg-[var(--carbon-black)]/95 backdrop-blur-lg border-t border-[var(--parchment)]/10 px-6 py-4">
+      <footer className="fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-lg border-t border-border px-6 py-4">
         <div className="max-w-[1280px] mx-auto">
-          <div className="flex items-center gap-3 bg-[var(--dark-gray)] rounded-none border border-[var(--parchment)]/10 p-3 focus-within:border-[var(--golden-chestnut)] transition-colors">
-            <button className="p-2 rounded-none bg-[var(--parchment)]/10 hover:bg-[var(--warm-gray)] transition-colors text-[var(--parchment)]">
+          <div className="flex items-center gap-3 bg-card rounded-none border border-border p-3 focus-within:border-[var(--golden-chestnut)] transition-colors">
+            <button className="p-2 rounded-none bg-foreground/10hover:bg-[var(--warm-gray)] transition-colors text-foreground">
               <Scissors className="w-4 h-4" />
             </button>
             <input
               type="text"
               placeholder="Ask AI about this segment..."
-              className="flex-1 bg-transparent text-[var(--parchment)] placeholder-gray-500 focus:outline-none text-sm"
+              className="flex-1 bg-transparent text-foreground placeholder-gray-500 focus:outline-none text-sm"
             />
-            <button className="p-2 rounded-none bg-transparent hover:bg-[var(--parchment)]/10] transition-colors text-[var(--parchment)]/60 hover:text-[var(--parchment)]">
+            <button className="p-2 rounded-none bg-transparent hover:bg-foreground/10 transition-colors text-foreground/60 hover:text-foreground">
               <Mic className="w-4 h-4" />
             </button>
-            <button className="p-2 rounded-full bg-[var(--golden-chestnut)] hover:bg-[var(--golden-chestnut)]/90 transition-colors text-[var(--carbon-black)]">
+            <button className="p-2 rounded-full bg-[var(--golden-chestnut)] hover:bg-[var(--golden-chestnut)]/90 transition-colors text-background">
               <ArrowUp className="w-4 h-4" />
             </button>
           </div>
