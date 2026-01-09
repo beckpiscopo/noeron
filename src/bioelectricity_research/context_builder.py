@@ -9,9 +9,13 @@ Builds layered context for Gemini chat that provides:
 
 This enables the chat to be deeply aware of what the user is listening to
 and what evidence cards are currently visible.
+
+Supports both JSON file-based and Supabase-backed data sources.
+Set USE_SUPABASE=True to use Supabase, or USE_SUPABASE=False for JSON files.
 """
 
 import json
+import os
 from pathlib import Path
 from typing import Optional, Any
 from dataclasses import dataclass, field
@@ -29,6 +33,20 @@ CONTEXT_CARD_REGISTRY_FILE = DATA_DIR / "context_card_registry.json"
 # Window configuration
 TEMPORAL_WINDOW_SIZE_MS = 180_000  # 3 minutes in milliseconds
 EVIDENCE_CARD_LOOKBACK_MS = 300_000  # 5 minutes lookback for active cards
+
+# Data source toggle - set to True to use Supabase
+USE_SUPABASE = os.getenv("USE_SUPABASE", "true").lower() == "true"
+
+# Lazy-loaded Supabase client
+_supabase_client = None
+
+def get_supabase_client():
+    """Get or create the Supabase client (lazy loading)."""
+    global _supabase_client
+    if _supabase_client is None:
+        from scripts.supabase_client import get_db
+        _supabase_client = get_db(use_service_key=True)
+    return _supabase_client
 
 
 # ============================================================================
@@ -164,10 +182,10 @@ def parse_window_timestamp(timestamp_str: str) -> int:
 
 
 # ============================================================================
-# Data Loaders
+# Data Loaders (JSON-based - legacy)
 # ============================================================================
 
-def load_episodes() -> list[dict]:
+def load_episodes_from_json() -> list[dict]:
     """Load episode metadata from JSON file."""
     if not EPISODES_FILE.exists():
         return []
@@ -176,8 +194,8 @@ def load_episodes() -> list[dict]:
         return json.load(f)
 
 
-def load_window_segments(episode_id: str) -> list[dict]:
-    """Load temporal window segments for an episode.
+def load_window_segments_from_json(episode_id: str) -> list[dict]:
+    """Load temporal window segments for an episode from JSON.
 
     Checks for episode-specific file first, then falls back to default.
     """
@@ -195,13 +213,108 @@ def load_window_segments(episode_id: str) -> list[dict]:
     return []
 
 
-def load_context_card_registry() -> dict:
-    """Load the context card registry with all evidence cards."""
+def load_context_card_registry_from_json() -> dict:
+    """Load the context card registry with all evidence cards from JSON."""
     if not CONTEXT_CARD_REGISTRY_FILE.exists():
         return {"segments": {}}
 
     with CONTEXT_CARD_REGISTRY_FILE.open() as f:
         return json.load(f)
+
+
+# ============================================================================
+# Data Loaders (Supabase-based)
+# ============================================================================
+
+def load_episodes_from_supabase() -> list[dict]:
+    """Load episode metadata from Supabase."""
+    db = get_supabase_client()
+    episodes = db.list_episodes()
+    # Transform to match JSON format
+    return [
+        {
+            "id": ep.get("podcast_id"),
+            "title": ep.get("title"),
+            "podcast": ep.get("podcast_series"),
+            "guest": ep.get("guest_name"),
+            "host": ep.get("host"),
+            "duration": ep.get("duration_ms"),
+            "date": ep.get("published_date"),
+            "description": ep.get("description"),
+            "summary": ep.get("summary"),
+            "topics": ep.get("topics", []),
+            "papersLinked": ep.get("papers_linked", 0),
+        }
+        for ep in episodes
+    ]
+
+
+def load_window_segments_from_supabase(episode_id: str) -> list[dict]:
+    """Load temporal window segments for an episode from Supabase."""
+    db = get_supabase_client()
+    windows = db.get_temporal_windows(episode_id)
+    # Transform to match JSON format
+    return [
+        {
+            "window_id": w.get("window_id"),
+            "start_timestamp": w.get("start_timestamp"),
+            "end_timestamp": w.get("end_timestamp"),
+            "start_ms": w.get("start_ms"),
+            "end_ms": w.get("end_ms"),
+            "text": w.get("text"),
+            "utterances": w.get("utterances", []),
+        }
+        for w in windows
+    ]
+
+
+def load_evidence_cards_from_supabase(
+    episode_id: str,
+    current_timestamp_ms: int,
+    lookback_ms: int = EVIDENCE_CARD_LOOKBACK_MS
+) -> list[dict]:
+    """Load evidence cards from Supabase within a time range."""
+    db = get_supabase_client()
+    cards = db.get_evidence_cards_in_range(episode_id, current_timestamp_ms, lookback_ms)
+    return cards
+
+
+# ============================================================================
+# Unified Data Loaders (auto-select based on USE_SUPABASE)
+# ============================================================================
+
+def load_episodes() -> list[dict]:
+    """Load episode metadata from configured data source."""
+    if USE_SUPABASE:
+        try:
+            return load_episodes_from_supabase()
+        except Exception as e:
+            print(f"Warning: Supabase load failed, falling back to JSON: {e}")
+            return load_episodes_from_json()
+    return load_episodes_from_json()
+
+
+def load_window_segments(episode_id: str) -> list[dict]:
+    """Load temporal window segments from configured data source."""
+    if USE_SUPABASE:
+        try:
+            return load_window_segments_from_supabase(episode_id)
+        except Exception as e:
+            print(f"Warning: Supabase load failed, falling back to JSON: {e}")
+            return load_window_segments_from_json(episode_id)
+    return load_window_segments_from_json(episode_id)
+
+
+def load_context_card_registry() -> dict:
+    """Load the context card registry with all evidence cards.
+
+    Note: For Supabase, we load cards lazily in build_active_evidence_cards()
+    rather than loading the entire registry.
+    """
+    if USE_SUPABASE:
+        # For Supabase, we return a marker that triggers per-query loading
+        return {"_supabase": True, "segments": {}}
+    return load_context_card_registry_from_json()
 
 
 # ============================================================================
@@ -307,14 +420,66 @@ def build_active_evidence_cards(
     Returns evidence cards that appeared within the lookback window
     from the current timestamp.
     """
-    registry = load_context_card_registry()
-    segments = registry.get("segments", {})
-
     # Calculate time range
     range_start_ms = max(0, current_timestamp_ms - lookback_ms)
     range_end_ms = current_timestamp_ms
 
     active_cards: list[EvidenceCard] = []
+
+    # Use Supabase if enabled
+    if USE_SUPABASE:
+        try:
+            cards_data = load_evidence_cards_from_supabase(
+                episode_id, current_timestamp_ms, lookback_ms
+            )
+            for segment_data in cards_data:
+                rag_results = segment_data.get("rag_results", [])
+                if not rag_results:
+                    continue
+
+                timestamp_str = segment_data.get("timestamp", "")
+                segment_timestamp_ms = segment_data.get("timestamp_ms", 0)
+                window_id = segment_data.get("window_id", "")
+                segment_key = f"{episode_id}|{timestamp_str}|{window_id}"
+                claims = segment_data.get("claims", [])
+
+                for i, rag_result in enumerate(rag_results):
+                    claim_text = rag_result.get("claim_text", "")
+                    if not claim_text and i < len(claims):
+                        claim_text = claims[i] if isinstance(claims[i], str) else claims[i].get("claim_text", "")
+
+                    card = EvidenceCard(
+                        card_id=f"{segment_key}-{i}",
+                        timestamp_ms=segment_timestamp_ms,
+                        timestamp_str=timestamp_str,
+                        claim_text=claim_text,
+                        distilled_claim=rag_result.get("distilled_claim"),
+                        paper_title=rag_result.get("paper_title", ""),
+                        paper_id=rag_result.get("paper_id", ""),
+                        source_link=rag_result.get("source_link", ""),
+                        section=rag_result.get("section", ""),
+                        rationale=rag_result.get("rationale", ""),
+                        confidence_score=rag_result.get("confidence_score", 0.0),
+                        context_tags=rag_result.get("context_tags", {}),
+                        claim_type=rag_result.get("claim_type")
+                    )
+                    active_cards.append(card)
+
+            # Sort by timestamp (most recent first)
+            active_cards.sort(key=lambda c: c.timestamp_ms, reverse=True)
+
+            return ActiveEvidenceCards(
+                cards=active_cards,
+                time_range_start_str=ms_to_timestamp_str(range_start_ms),
+                time_range_end_str=ms_to_timestamp_str(range_end_ms)
+            )
+        except Exception as e:
+            print(f"Warning: Supabase load failed, falling back to JSON: {e}")
+            # Fall through to JSON loading
+
+    # JSON-based loading (legacy)
+    registry = load_context_card_registry_from_json()
+    segments = registry.get("segments", {})
 
     # Iterate through all segments looking for cards in our time range
     for segment_key, segment_data in segments.items():

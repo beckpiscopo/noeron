@@ -351,6 +351,72 @@ python3 scripts/generate_episode_summaries.py lex_325 --force
 
 ---
 
+## 2026-01-09: Full Supabase Migration with pgvector
+
+**Task:** Migrate from local JSON files + ChromaDB to Supabase with pgvector for production deployment
+
+**Summary:**
+- Created SQL migration `supabase/migrations/004_full_supabase_migration.sql` with:
+  - pgvector extension enabled
+  - 8 tables: episodes (enhanced), temporal_windows, evidence_cards, papers (enhanced), paper_chunks, chat_sessions, chat_messages, user_interests
+  - `match_papers(query_embedding, threshold, count)` function for vector similarity search
+  - `match_papers_with_filters()` for filtered search (year range, sections)
+  - Helper functions: `get_temporal_window()`, `get_evidence_cards_in_range()`
+  - IVFFlat index on embeddings for fast approximate nearest neighbor search
+- Created Python migration script `scripts/migrate_to_supabase_full.py` with:
+  - Batch migration for all data sources (episodes, temporal_windows, evidence_cards, papers, paper_chunks)
+  - Embedding generation using sentence-transformers/all-MiniLM-L6-v2
+  - Error handling for Unicode null characters, duplicate keys, foreign key violations
+- Updated `scripts/supabase_client.py` with 20+ new query methods
+- Updated `src/bioelectricity_research/context_builder.py` with dual-mode loaders (JSON + Supabase)
+- Updated `src/bioelectricity_research/vector_store.py` with `SupabaseVectorStore` class
+
+**Data Migrated:**
+- 4 episodes with summaries and narrative metadata
+- 161 temporal windows (3-minute transcript segments)
+- 96 evidence cards with paper-backed claims
+- 387 papers with metadata
+- 2,287 paper chunks with 384-dim embeddings
+
+**Key Files:**
+```
+supabase/migrations/004_full_supabase_migration.sql  # NEW: SQL schema + functions
+scripts/migrate_to_supabase_full.py                   # NEW: Data migration script
+scripts/supabase_client.py                            # MODIFIED: Added query methods
+src/bioelectricity_research/context_builder.py        # MODIFIED: Dual-mode loaders
+src/bioelectricity_research/vector_store.py           # MODIFIED: SupabaseVectorStore class
+```
+
+**Usage:**
+```bash
+# Run with Supabase backend (production)
+export USE_SUPABASE=true
+python3 -m src.bioelectricity_research.http_server
+
+# Run with local JSON/ChromaDB (development)
+export USE_SUPABASE=false
+python3 -m src.bioelectricity_research.http_server
+
+# Run migration (if needed)
+python3 scripts/migrate_to_supabase_full.py --all
+```
+
+**Decisions/Gotchas:**
+- `USE_SUPABASE` env var controls backend selection (default: true)
+- Falls back to JSON/ChromaDB on Supabase connection errors
+- JSONL files (chunks.json) are newline-delimited JSON, not JSON arrays
+- Evidence cards required deduplication before insert (duplicate compound keys)
+- Paper text fields needed sanitization to remove Unicode null characters (`\x00`)
+- Some paper_chunks had missing paper_ids; script skips chunks without valid foreign keys
+- pgvector uses cosine distance (`<=>` operator), converted to similarity (1 - distance)
+
+**Next Steps:**
+- Add chat session persistence to frontend
+- Consider adding real-time subscriptions for collaborative features
+- Add RLS policies when multi-user support is needed
+
+---
+
 Template:
 
 Date:

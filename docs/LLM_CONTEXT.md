@@ -29,7 +29,13 @@ listed under your task category.
 - `scripts/prepare_texts.py`
 - `src/chunking_papers.py`
 - `scripts/build_vector_store.py`
-- `src/bioelectricity_research/vector_store.py`
+- `src/bioelectricity_research/vector_store.py` - Supports ChromaDB (local) and Supabase pgvector (cloud)
+
+### Supabase / Database
+
+- `scripts/supabase_client.py` - Database client with query methods
+- `scripts/migrate_to_supabase_full.py` - Data migration from JSON/ChromaDB to Supabase
+- `supabase/migrations/004_full_supabase_migration.sql` - SQL schema, pgvector, match_papers function
 
 ### Transcript ingestion
 
@@ -68,16 +74,23 @@ listed under your task category.
 - `frontend/hooks/use-ai-chat.ts` - State management hook (passes current_timestamp)
 - `frontend/lib/chat-types.ts` - TypeScript interfaces (includes current_timestamp)
 
-**Data sources for context:**
+**Data sources for context (JSON mode, USE_SUPABASE=false):**
 - `data/episodes.json` - Episode metadata (includes compact `summary` field)
 - `data/episode_summaries.json` - Full structured summaries (narrative arc, themes, key moments)
 - `data/window_segments.json` - Temporal windows with transcript
 - `data/context_card_registry.json` - Evidence cards with paper matches
 
+**Data sources for context (Supabase mode, USE_SUPABASE=true):**
+- `episodes` table - Episode metadata with summaries
+- `temporal_windows` table - Transcript windows
+- `evidence_cards` table - Evidence cards with paper matches
+- `paper_chunks` table - Vector embeddings via `match_papers()` function
+
 ## Current defaults and gotchas
 
 - **Always use gemini-3-pro-preview as the LLM for this project.**
 - MCP server reads `os.environ` only; `.env` is not auto-loaded.
+- **`USE_SUPABASE=true` (default)** - Uses Supabase for context data and pgvector for RAG search. Set to `false` for local JSON/ChromaDB mode.
 - `scripts/build_vector_store.py` runs `prepare_texts.process_all_papers()` in memory and
   appends any JSONs in `data/cleaned_papers/`.
 - Avoid committing caches and generated artifacts (`.next`, `node_modules`, `data/vectorstore`).

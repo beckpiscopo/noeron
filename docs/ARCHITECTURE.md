@@ -10,8 +10,9 @@ Backend (Python):
 - `src/bioelectricity_research/server.py` is the MCP tool surface and core orchestration.
 - `src/bioelectricity_research/context_builder.py` builds layered chat context (episode + temporal window + evidence cards).
 - `src/bioelectricity_research/storage.py` handles paper metadata, PDF caching, and text extraction.
-- `src/bioelectricity_research/vector_store.py` manages Chroma persistence and embeddings.
+- `src/bioelectricity_research/vector_store.py` manages vector embeddings (supports both ChromaDB local and Supabase pgvector).
 - `src/bioelectricity_research/http_server.py` exposes MCP tools as REST endpoints.
+- `scripts/supabase_client.py` provides Supabase database client with query methods.
 
 Pipeline (Python scripts):
 - `scripts/grobid_extract.py` -> `data/grobid_fulltext/`
@@ -33,8 +34,29 @@ Frontend (Next.js):
 2) PDFs cached in `data/pdfs/`
 3) GROBID extracts -> `data/grobid_fulltext/`
 4) Cleaned docs (in memory or `data/cleaned_papers/`)
-5) Chunk + embed -> `data/vectorstore/`
+5) Chunk + embed -> `data/vectorstore/` (local) or Supabase `paper_chunks` table (cloud)
 6) MCP tools query the vector store (`rag_search`, claim context, etc.)
+
+## Data Storage Backends
+
+The system supports two storage backends, controlled by `USE_SUPABASE` environment variable:
+
+| Backend | Vector Store | Context Data | When to Use |
+|---------|-------------|--------------|-------------|
+| Local (default=false) | ChromaDB in `data/vectorstore/` | JSON files in `data/` | Development, offline |
+| Supabase (USE_SUPABASE=true) | pgvector in `paper_chunks` table | Supabase tables | Production, deployed |
+
+**Supabase Tables:**
+- `episodes` - Episode metadata with summaries
+- `temporal_windows` - 3-minute transcript windows
+- `evidence_cards` - Paper-backed claims with RAG results
+- `papers` - Paper metadata (title, abstract, year, citations)
+- `paper_chunks` - Text chunks with 384-dim pgvector embeddings
+- `chat_sessions` / `chat_messages` - Chat persistence
+- `user_interests` - User interest tracking
+
+**Key Supabase Functions:**
+- `match_papers(query_embedding, threshold, count)` - Vector similarity search via pgvector
 
 ## Key runtime entrypoints
 
@@ -51,6 +73,8 @@ Frontend (Next.js):
 ## AI Chat Feature Architecture
 
 The AI Chat is a RAG-powered research assistant that lets users ask questions about podcast episodes and claims. It uses a **layered context system** that provides temporal awareness, evidence card integration, and RAG retrieval.
+
+**Backend Toggle:** Set `USE_SUPABASE=true` to use Supabase for all context data and vector search. Falls back to local JSON/ChromaDB on error.
 
 ### Layered Context System (NEW)
 
@@ -128,21 +152,31 @@ ChatMessage renders response with ChatSources
 - `build_chat_context(episode_id, timestamp)` → All layers combined
 - `build_system_prompt(context)` → Formatted Gemini prompt
 
-**Data Sources:**
+**Data Sources (JSON mode):**
 - `data/episodes.json` - Episode metadata (includes compact `summary` field)
 - `data/episode_summaries.json` - Full structured summaries (narrative arc, themes, key moments)
 - `data/window_segments.json` - Temporal windows with transcript excerpts
 - `data/context_card_registry.json` - Evidence cards with paper matches
 
+**Data Sources (Supabase mode):**
+- `episodes` table - Episode metadata with summaries
+- `temporal_windows` table - Transcript windows queryable by timestamp
+- `evidence_cards` table - Evidence cards with `get_evidence_cards_in_range()` function
+- `paper_chunks` table - Vector embeddings with `match_papers()` function
+
 ### Component Structure
 
 ```
 src/bioelectricity_research/
-├── context_builder.py    # NEW: Layered context system
+├── context_builder.py    # Layered context system (supports JSON + Supabase)
 ├── server.py             # MCP tools (chat_with_context updated)
 ├── http_server.py        # REST adapter
-├── vector_store.py       # ChromaDB wrapper
+├── vector_store.py       # Vector store (ChromaDB local / Supabase pgvector)
 └── storage.py            # Paper metadata
+
+scripts/
+├── supabase_client.py        # Supabase database client
+└── migrate_to_supabase_full.py  # Data migration script
 
 frontend/components/ai-chat/
 ├── index.ts              # Barrel exports
@@ -199,9 +233,12 @@ Both views pass a `ChatContext` object with episode info, optionally the selecte
 ### Testing the Context Builder
 
 ```bash
-# Test standalone context builder
+# Test standalone context builder (JSON mode)
 cd /path/to/bioelectricity-research-mcp-v2
 python3 -m src.bioelectricity_research.context_builder lex_325 48:00
+
+# Test with Supabase backend
+USE_SUPABASE=true python3 -m src.bioelectricity_research.context_builder lex_325 48:00
 
 # Output shows:
 # - Episode metadata
