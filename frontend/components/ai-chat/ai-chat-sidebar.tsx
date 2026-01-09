@@ -126,6 +126,9 @@ export function AIChatSidebar({
                 <p className="text-xs text-foreground/60">
                   <span className="font-medium text-foreground/80">Context: </span>
                   {context.episode_title}
+                  {context.current_timestamp && (
+                    <span className="text-foreground/50"> @ {context.current_timestamp}</span>
+                  )}
                   {context.claim_text && (
                     <span className="text-[var(--golden-chestnut)]"> • Claim selected</span>
                   )}

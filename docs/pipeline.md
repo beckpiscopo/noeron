@@ -79,6 +79,8 @@ Launch the server with `python -m bioelectricity_research` or `uv run bioelectri
 
 `python scripts/context_card_builder.py` converts transcript segments into Gemini-powered claims, logs the RAG search query for every claim, and persists both the claims collection and the supporting `rag_results` in `data/context_card_registry.json`. Each segment entry now stores `podcast_id`, `timestamp`, `window_id`, `transcript_text`, `research_queries`, and Gemini metadata so you can audit which model/prompt was used. A podcast-specific cache file (`cache/podcast_<podcast_id>_claims.json`) mirrors the same data for downstream tooling.
 
+The context card registry is consumed by `src/bioelectricity_research/context_builder.py` to provide timestamp-aware evidence cards to the AI chat assistant. When a user asks questions at a specific playback position, the context builder retrieves evidence cards from the recent 5-minute window and includes them in the chat context.
+
 Use `--use-gemini` plus `--podcast-id`/`--episode-title` (and `--redo` when you want to refresh an existing segment) to exercise the Gemini/RAG flow. When you have a full `data/window_segments.json`, run `python scripts/run_context_card_builder_batch.py --podcast-id <id> --episode-title "<title>" --use-gemini --redo` to process every window sequentially, skipping empty windows and logging progress. The batch helper writes each window to a temporary JSON file before invoking `context_card_builder.py`, so you get the same logging, cache updates, and registry validations you expect from single-segment runs.
 
 After completing the batch, run `python scripts/validate_context_card_registry.py` (optionally with `--podcast-id <id>`) to check for duplicate `timestamp|window_id` keys, malformed timestamps, missing required fields, or empty claim lists before you ingest the cards into the rest of the system.
@@ -147,6 +149,24 @@ python scripts/build_vector_store.py
 
 Adjust `--chunk-size`, `--overlap`, and `--output-format` on `src/chunking_papers.py`, and rerun `scripts/build_vector_store.py` after adding papers or transcripts.
 
+## 8. AI Chat Context Builder
+
+`src/bioelectricity_research/context_builder.py` provides timestamp-aware context for the AI chat assistant. When a user asks questions while listening to a podcast, the context builder assembles:
+
+1. **Episode Context** - Metadata from `data/episodes.json` (title, guest, topics)
+2. **Temporal Window** - Transcript excerpt from `data/window_segments.json` centered on playback position
+3. **Evidence Cards** - Recent paper matches from `data/context_card_registry.json` (last 5 minutes)
+
+The `chat_with_context` MCP tool uses this to build rich system prompts that make the chat aware of:
+- What the user is currently listening to
+- Which papers/claims are visible as evidence cards
+- The conversational context from the transcript
+
+Test the context builder standalone:
+```bash
+python3 -m src.bioelectricity_research.context_builder lex_325 48:00
+```
+
 ## Pipeline diagram
 
 ```mermaid
@@ -173,9 +193,21 @@ flowchart TD
     BuildVS --> VectorStore["src/bioelectricity_research/vector_store.py"]
     VectorStore --> MCP["src/bioelectricity_research/server.py (FastMCP tools)"]
 
+    subgraph "AI Chat Context"
+        Episodes["data/episodes.json"]
+        WindowSegments["data/window_segments.json"]
+        ContextCards["data/context_card_registry.json"]
+        ContextBuilder["src/bioelectricity_research/context_builder.py"]
+        Episodes --> ContextBuilder
+        WindowSegments --> ContextBuilder
+        ContextCards --> ContextBuilder
+        ContextBuilder --> MCP
+    end
+
     style GROBID fill:#9fc5e8,stroke:#000
     style QC fill:#ffe599,stroke:#000
     style Cleaner fill:#cfe2f3,stroke:#000
     style Chunking fill:#cfe2f3,stroke:#000
     style BuildVS fill:#d9ead3,stroke:#000
+    style ContextBuilder fill:#e6b8af,stroke:#000
 ```

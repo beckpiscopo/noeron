@@ -2729,11 +2729,19 @@ class ChatWithContextInput(BaseModel):
     message: str = Field(..., description="The user's question or message")
     episode_id: str = Field(..., description="The episode being listened to")
     claim_id: Optional[str] = Field(default=None, description="Optional current claim ID for focused context")
+    current_timestamp: Optional[str] = Field(
+        default=None,
+        description="Current playback timestamp (e.g., '23:45' or '1:23:45') for temporal context"
+    )
     conversation_history: list[dict] = Field(
         default_factory=list,
         description="Previous messages in format [{role: 'user'|'assistant', content: str}]"
     )
     n_results: int = Field(default=5, ge=1, le=10, description="Number of RAG results to retrieve")
+    use_layered_context: bool = Field(
+        default=True,
+        description="Use the new layered context builder for rich timestamp-aware context"
+    )
 
 
 def _load_episodes() -> list[dict]:
@@ -2794,27 +2802,58 @@ async def chat_with_context(params: ChatWithContextInput) -> dict[str, Any]:
     This tool provides contextual chat capabilities for the podcast app, answering
     questions about the current episode and claims using retrieved research papers.
 
+    NEW: When use_layered_context=True (default), uses the advanced context builder
+    that provides:
+    - Episode awareness (metadata, summary, key topics)
+    - Temporal synchronization (current playback position, transcript window)
+    - Evidence cards integration (papers shown at current timestamp)
+    - RAG retrieval context (query-triggered paper retrieval)
+
     Flow:
-    1. Load episode metadata
-    2. Optionally load claim context if claim_id provided
-    3. RAG search the paper corpus using the user's message
-    4. Build prompt with episode context + claim context + conversation history + RAG results
-    5. Call Gemini for synthesis
-    6. Return response with sources
+    1. Build layered context (episode + temporal window + evidence cards)
+    2. RAG search the paper corpus using the user's message
+    3. Build prompt with layered context + conversation history + RAG results
+    4. Call Gemini for synthesis
+    5. Return response with sources (including evidence cards)
     """
     try:
-        # Step 1: Load episode metadata
-        episodes = _load_episodes()
-        episode = next((e for e in episodes if e.get("id") == params.episode_id), None)
+        # Import context builder
+        from .context_builder import (
+            build_chat_context,
+            build_system_prompt,
+            ChatContextLayers,
+        )
 
-        if not episode:
-            episode_title = f"Episode {params.episode_id}"
-            guest_name = "Unknown Guest"
+        # Step 1: Build layered context
+        context_layers: Optional[ChatContextLayers] = None
+        system_prompt = ""
+
+        if params.use_layered_context:
+            context_layers = build_chat_context(
+                episode_id=params.episode_id,
+                current_timestamp_str=params.current_timestamp
+            )
+
+            if context_layers:
+                system_prompt = build_system_prompt(context_layers)
+                episode_title = context_layers.episode.title
+                guest_name = context_layers.episode.guest
+            else:
+                # Fallback if episode not found
+                episode_title = f"Episode {params.episode_id}"
+                guest_name = "Unknown Guest"
         else:
-            episode_title = episode.get("title", f"Episode {params.episode_id}")
-            guest_name = episode.get("guest", "Unknown Guest")
+            # Legacy mode - simple context
+            episodes = _load_episodes()
+            episode = next((e for e in episodes if e.get("id") == params.episode_id), None)
+            if episode:
+                episode_title = episode.get("title", f"Episode {params.episode_id}")
+                guest_name = episode.get("guest", "Unknown Guest")
+            else:
+                episode_title = f"Episode {params.episode_id}"
+                guest_name = "Unknown Guest"
 
-        # Step 2: Load claim context if provided
+        # Step 2: Load claim context if provided (additional focused context)
         claim_context = ""
         if params.claim_id and "-" in params.claim_id:
             claims_cache = _load_claims_cache()
@@ -2832,7 +2871,7 @@ async def chat_with_context(params: ChatWithContextInput) -> dict[str, Any]:
                             claim_text = claim_data.get("claim_text", "")
                             distilled = claim_data.get("distilled_claim", "")
                             claim_context = f"""
-Current Claim Being Discussed:
+## Currently Selected Claim
 "{distilled or claim_text}"
 """
                 except (ValueError, IndexError):
@@ -2844,7 +2883,6 @@ Current Claim Being Discussed:
         # Build search query - combine message with claim context for better results
         search_query = params.message
         if claim_context:
-            # Extract key terms from claim for better search
             search_query = f"{params.message} bioelectricity Levin"
 
         rag_results_raw = vs.search(search_query, n_results=params.n_results)
@@ -2863,23 +2901,43 @@ Current Claim Being Discussed:
                 "year": meta.get("year", ""),
             })
 
-        # Step 4: Load papers collection for metadata
-        papers_collection = _load_papers_collection()
+        # Step 4: Build the final prompt
+        if params.use_layered_context and system_prompt:
+            # New layered context mode
+            formatted_history = _format_conversation_history(params.conversation_history)
+            formatted_rag = _format_rag_results_for_chat(rag_results, _load_papers_collection())
 
-        # Step 5: Format prompt
-        formatted_history = _format_conversation_history(params.conversation_history)
-        formatted_rag = _format_rag_results_for_chat(rag_results, papers_collection)
+            prompt = f"""{system_prompt}
 
-        prompt = CHAT_CONTEXT_PROMPT_TEMPLATE.format(
-            episode_title=episode_title,
-            guest_name=guest_name,
-            claim_context=claim_context if claim_context else "(No specific claim selected)",
-            conversation_history=formatted_history,
-            rag_results=formatted_rag,
-            user_message=params.message,
-        )
+{claim_context}
 
-        # Step 6: Call Gemini
+## Retrieved Research Papers (from RAG search)
+{formatted_rag}
+
+## Conversation History
+{formatted_history}
+
+## User's Question
+{params.message}
+
+## Your Response
+Provide a helpful, accurate response based on the context above. Reference specific papers and timestamps when relevant.
+"""
+        else:
+            # Legacy mode - use old template
+            formatted_history = _format_conversation_history(params.conversation_history)
+            formatted_rag = _format_rag_results_for_chat(rag_results, _load_papers_collection())
+
+            prompt = CHAT_CONTEXT_PROMPT_TEMPLATE.format(
+                episode_title=episode_title,
+                guest_name=guest_name,
+                claim_context=claim_context if claim_context else "(No specific claim selected)",
+                conversation_history=formatted_history,
+                rag_results=formatted_rag,
+                user_message=params.message,
+            )
+
+        # Step 5: Call Gemini
         _ensure_gemini_client_ready()
         response = await asyncio.to_thread(
             lambda: _GENAI_CLIENT.models.generate_content(
@@ -2906,8 +2964,10 @@ Current Claim Being Discussed:
         else:
             response_text = "I apologize, but I couldn't generate a response."
 
-        # Step 7: Build sources list
+        # Step 6: Build sources list (include both RAG results and evidence cards)
         sources = []
+
+        # Add RAG results as sources
         for r in rag_results:
             if r.get("paper_id"):
                 sources.append({
@@ -2916,14 +2976,44 @@ Current Claim Being Discussed:
                     "year": r.get("year", ""),
                     "section": r.get("section", ""),
                     "relevance_snippet": r.get("text", "")[:200] + "..." if r.get("text") else "",
+                    "source_type": "rag",
                 })
 
-        return {
+        # Add evidence cards as sources (if using layered context)
+        if context_layers and context_layers.evidence_cards.cards:
+            for card in context_layers.evidence_cards.cards[:3]:  # Top 3 evidence cards
+                sources.append({
+                    "paper_id": card.paper_id,
+                    "paper_title": card.paper_title,
+                    "year": "",
+                    "section": card.section,
+                    "relevance_snippet": card.claim_text[:200] + "..." if len(card.claim_text) > 200 else card.claim_text,
+                    "source_type": "evidence_card",
+                    "card_id": card.card_id,
+                    "timestamp": card.timestamp_str,
+                })
+
+        # Build response metadata
+        response_data = {
             "response": response_text.strip(),
             "sources": sources,
             "query_used": search_query,
             "model": GEMINI_MODEL_DEFAULT,
         }
+
+        # Add context metadata if using layered context
+        if context_layers:
+            response_data["context_metadata"] = {
+                "episode_id": context_layers.episode.episode_id,
+                "current_timestamp": params.current_timestamp,
+                "temporal_window": {
+                    "start": context_layers.temporal_window.window_start_str if context_layers.temporal_window else None,
+                    "end": context_layers.temporal_window.window_end_str if context_layers.temporal_window else None,
+                },
+                "evidence_cards_count": len(context_layers.evidence_cards.cards),
+            }
+
+        return response_data
 
     except Exception as e:
         import traceback

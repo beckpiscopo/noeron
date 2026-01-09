@@ -766,6 +766,7 @@ export function ListeningView({
           guest: episode.guest,
           claim_id: currentClaim?.segment_claim_id,
           claim_text: currentClaim?.distilled_claim || currentClaim?.claim_text,
+          current_timestamp: formatTime(episode.currentTime),  // Pass current playback position
         }}
       />
     </div>

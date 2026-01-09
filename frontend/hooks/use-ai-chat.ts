@@ -60,8 +60,10 @@ export function useAIChat(context: ChatContext | null) {
           message: content.trim(),
           episode_id: context.episode_id,
           claim_id: context.claim_id,
+          current_timestamp: context.current_timestamp,  // Pass current playback position
           conversation_history: conversationHistory,
           n_results: 5,
+          use_layered_context: true,  // Enable advanced timestamp-aware context
         }
 
         const response = await callMcpTool<ChatWithContextResponse>(
