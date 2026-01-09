@@ -49,9 +49,19 @@ listed under your task category.
 - `frontend/components/`
 - `frontend/app/api/`
 
+### AI Chat Feature
+
+- `frontend/components/ai-chat/ai-chat-sidebar.tsx` - Main chat container
+- `frontend/components/ai-chat/chat-message.tsx` - Message bubble component
+- `frontend/components/ai-chat/chat-input.tsx` - Input textarea + send
+- `frontend/components/ai-chat/chat-sources.tsx` - Collapsible citations
+- `frontend/hooks/use-ai-chat.ts` - State management hook
+- `frontend/lib/chat-types.ts` - TypeScript interfaces
+- `src/bioelectricity_research/http_server.py` - `/tools/chat_with_context/execute` endpoint
+
 ## Current defaults and gotchas
 
-- **Always use gemini-3 as the LLM for this project.**
+- **Always use gemini-3-pro-preview as the LLM for this project.**
 - MCP server reads `os.environ` only; `.env` is not auto-loaded.
 - `scripts/build_vector_store.py` runs `prepare_texts.process_all_papers()` in memory and
   appends any JSONs in `data/cleaned_papers/`.

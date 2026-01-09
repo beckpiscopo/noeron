@@ -2685,5 +2685,255 @@ Content: {content[:500]}
         }
 
 
+# ============================================================================
+# Contextual Chat Tool
+# ============================================================================
+
+CHAT_CONTEXT_PROMPT_TEMPLATE = """You are an expert research assistant for a bioelectricity podcast app.
+Answer the user's question using the provided context from research papers.
+
+## EPISODE CONTEXT
+Episode: {episode_title}
+Guest: {guest_name}
+{claim_context}
+
+## CONVERSATION HISTORY
+{conversation_history}
+
+## RETRIEVED RESEARCH PAPERS
+{rag_results}
+
+## USER'S QUESTION
+{user_message}
+
+## INSTRUCTIONS
+1. Answer the question directly and concisely based on the retrieved papers
+2. When citing information, mention the paper title
+3. If the papers don't contain relevant information, say so clearly and offer what you can based on general knowledge
+4. Keep responses focused on the podcast episode and claim context when relevant
+5. Use language appropriate for an educated audience interested in science
+6. Keep responses to 2-4 paragraphs unless more detail is needed
+
+## YOUR RESPONSE
+"""
+
+
+class ChatMessage(BaseModel):
+    """A single message in the conversation history."""
+    role: Literal["user", "assistant"] = Field(..., description="The role of the message sender")
+    content: str = Field(..., description="The message content")
+
+
+class ChatWithContextInput(BaseModel):
+    """Input for contextual chat about podcast content."""
+    message: str = Field(..., description="The user's question or message")
+    episode_id: str = Field(..., description="The episode being listened to")
+    claim_id: Optional[str] = Field(default=None, description="Optional current claim ID for focused context")
+    conversation_history: list[dict] = Field(
+        default_factory=list,
+        description="Previous messages in format [{role: 'user'|'assistant', content: str}]"
+    )
+    n_results: int = Field(default=5, ge=1, le=10, description="Number of RAG results to retrieve")
+
+
+def _load_episodes() -> list[dict]:
+    """Load the episodes data."""
+    if not EPISODES_FILE_PATH.exists():
+        return []
+    try:
+        with EPISODES_FILE_PATH.open() as fh:
+            return json_module.load(fh)
+    except json_module.JSONDecodeError:
+        return []
+
+
+def _format_conversation_history(history: list[dict]) -> str:
+    """Format conversation history for the prompt."""
+    if not history:
+        return "(No previous messages)"
+
+    formatted = []
+    # Keep last 6 messages to avoid context overflow
+    recent_history = history[-6:] if len(history) > 6 else history
+
+    for msg in recent_history:
+        role = msg.get("role", "user").capitalize()
+        content = msg.get("content", "")
+        formatted.append(f"{role}: {content}")
+
+    return "\n".join(formatted)
+
+
+def _format_rag_results_for_chat(rag_results: list, papers_collection: dict) -> str:
+    """Format RAG results for the chat prompt (lighter than deep dive format)."""
+    if not rag_results:
+        return "(No relevant papers found in the corpus)"
+
+    lines = []
+    for i, result in enumerate(rag_results[:5], 1):
+        paper_id = result.get("paper_id", "")
+        paper_title = result.get("paper_title", "Unknown paper")
+        section = result.get("section", "")
+        text_chunk = result.get("text", "")[:500]
+        year = result.get("year", "")
+
+        lines.append(f"""
+**[{i}] {paper_title}** ({year})
+Section: {section}
+"{text_chunk}..."
+""")
+
+    return "\n".join(lines)
+
+
+@mcp.tool()
+async def chat_with_context(params: ChatWithContextInput) -> dict[str, Any]:
+    """
+    Answer questions about podcast content using RAG retrieval and Gemini synthesis.
+
+    This tool provides contextual chat capabilities for the podcast app, answering
+    questions about the current episode and claims using retrieved research papers.
+
+    Flow:
+    1. Load episode metadata
+    2. Optionally load claim context if claim_id provided
+    3. RAG search the paper corpus using the user's message
+    4. Build prompt with episode context + claim context + conversation history + RAG results
+    5. Call Gemini for synthesis
+    6. Return response with sources
+    """
+    try:
+        # Step 1: Load episode metadata
+        episodes = _load_episodes()
+        episode = next((e for e in episodes if e.get("id") == params.episode_id), None)
+
+        if not episode:
+            episode_title = f"Episode {params.episode_id}"
+            guest_name = "Unknown Guest"
+        else:
+            episode_title = episode.get("title", f"Episode {params.episode_id}")
+            guest_name = episode.get("guest", "Unknown Guest")
+
+        # Step 2: Load claim context if provided
+        claim_context = ""
+        if params.claim_id and "-" in params.claim_id:
+            claims_cache = _load_claims_cache()
+            parts = params.claim_id.rsplit("-", 1)
+            if len(parts) == 2:
+                segment_key = parts[0]
+                try:
+                    claim_index = int(parts[1])
+                    segments = claims_cache.get("segments", {})
+                    segment_data = segments.get(segment_key)
+                    if segment_data:
+                        claims_list = segment_data.get("claims", [])
+                        if claim_index < len(claims_list):
+                            claim_data = claims_list[claim_index]
+                            claim_text = claim_data.get("claim_text", "")
+                            distilled = claim_data.get("distilled_claim", "")
+                            claim_context = f"""
+Current Claim Being Discussed:
+"{distilled or claim_text}"
+"""
+                except (ValueError, IndexError):
+                    pass
+
+        # Step 3: RAG search using the user's message
+        vs = get_vectorstore()
+
+        # Build search query - combine message with claim context for better results
+        search_query = params.message
+        if claim_context:
+            # Extract key terms from claim for better search
+            search_query = f"{params.message} bioelectricity Levin"
+
+        rag_results_raw = vs.search(search_query, n_results=params.n_results)
+
+        # Parse RAG results
+        docs = rag_results_raw.get("documents", [[]])[0]
+        metas = rag_results_raw.get("metadatas", [[]])[0]
+
+        rag_results = []
+        for doc, meta in zip(docs, metas):
+            rag_results.append({
+                "text": doc,
+                "paper_id": meta.get("paper_id", ""),
+                "paper_title": meta.get("paper_title", ""),
+                "section": meta.get("section_heading", ""),
+                "year": meta.get("year", ""),
+            })
+
+        # Step 4: Load papers collection for metadata
+        papers_collection = _load_papers_collection()
+
+        # Step 5: Format prompt
+        formatted_history = _format_conversation_history(params.conversation_history)
+        formatted_rag = _format_rag_results_for_chat(rag_results, papers_collection)
+
+        prompt = CHAT_CONTEXT_PROMPT_TEMPLATE.format(
+            episode_title=episode_title,
+            guest_name=guest_name,
+            claim_context=claim_context if claim_context else "(No specific claim selected)",
+            conversation_history=formatted_history,
+            rag_results=formatted_rag,
+            user_message=params.message,
+        )
+
+        # Step 6: Call Gemini
+        _ensure_gemini_client_ready()
+        response = await asyncio.to_thread(
+            lambda: _GENAI_CLIENT.models.generate_content(
+                model=GEMINI_MODEL_DEFAULT,
+                contents=prompt,
+                config={
+                    "temperature": 0.7,
+                    "max_output_tokens": 2048,
+                }
+            )
+        )
+
+        # Extract response text
+        if hasattr(response, "text"):
+            response_text = response.text
+        elif hasattr(response, "candidates") and response.candidates:
+            candidate = response.candidates[0]
+            if hasattr(candidate, "content") and hasattr(candidate.content, "parts"):
+                response_text = "".join(
+                    part.text for part in candidate.content.parts if hasattr(part, "text")
+                )
+            else:
+                response_text = "I apologize, but I couldn't generate a response."
+        else:
+            response_text = "I apologize, but I couldn't generate a response."
+
+        # Step 7: Build sources list
+        sources = []
+        for r in rag_results:
+            if r.get("paper_id"):
+                sources.append({
+                    "paper_id": r.get("paper_id", ""),
+                    "paper_title": r.get("paper_title", ""),
+                    "year": r.get("year", ""),
+                    "section": r.get("section", ""),
+                    "relevance_snippet": r.get("text", "")[:200] + "..." if r.get("text") else "",
+                })
+
+        return {
+            "response": response_text.strip(),
+            "sources": sources,
+            "query_used": search_query,
+            "model": GEMINI_MODEL_DEFAULT,
+        }
+
+    except Exception as e:
+        import traceback
+        return {
+            "error": f"Error in chat: {str(e)}",
+            "traceback": traceback.format_exc(),
+            "response": "",
+            "sources": [],
+        }
+
+
 if __name__ == "__main__":
     mcp.run()

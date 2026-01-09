@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button"
 import { Play, Pause, RotateCcw, RotateCw, Info, Search, Settings, HelpCircle, Network } from "lucide-react"
 import { NoeronHeader } from "./noeron-header"
 import { ClaimBookmarkButton } from "./bookmark-button"
+import { AIChatSidebar } from "./ai-chat"
+import type { ChatContext } from "@/lib/chat-types"
 
 export interface ListeningEpisode {
   id: string
@@ -328,6 +330,7 @@ export function ListeningView({
   const [question, setQuestion] = useState("")
   const [selectedClaimId, setSelectedClaimId] = useState<string | number | null>(null)
   const [isAudioReady, setIsAudioReady] = useState(false)
+  const [chatOpen, setChatOpen] = useState(false)
   const audioRef = useRef<HTMLAudioElement | null>(null)
   // Track if we've completed the initial seek (to prevent timeupdate from resetting position)
   const hasCompletedInitialSeekRef = useRef(false)
@@ -687,7 +690,10 @@ export function ListeningView({
         </aside>
 
         {/* RIGHT COLUMN - Live Research Stream */}
-        <main className="flex-1 overflow-y-auto bg-background">
+        <main
+          className="flex-1 overflow-y-auto bg-background transition-all duration-300 ease-in-out"
+          style={{ marginRight: chatOpen ? '440px' : '52px' }}
+        >
           <div className="max-w-4xl mx-auto px-8 py-8">
             {/* Header */}
             <div className="text-center mb-12">
@@ -749,6 +755,19 @@ export function ListeningView({
           }
         }
       `}</style>
+
+      {/* AI Chat Sidebar */}
+      <AIChatSidebar
+        open={chatOpen}
+        onOpenChange={setChatOpen}
+        context={{
+          episode_id: episode.id,
+          episode_title: episode.title,
+          guest: episode.guest,
+          claim_id: currentClaim?.segment_claim_id,
+          claim_text: currentClaim?.distilled_claim || currentClaim?.claim_text,
+        }}
+      />
     </div>
   )
 }

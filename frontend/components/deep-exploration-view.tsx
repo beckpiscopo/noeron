@@ -13,9 +13,6 @@ import {
   Plus,
   ExternalLink,
   GitBranch,
-  Scissors,
-  Mic,
-  ArrowUp,
   Loader2,
   Network,
   Circle,
@@ -28,7 +25,9 @@ import { NoeronHeader } from "./noeron-header"
 import { callMcpTool } from "@/lib/api"
 import { ConceptExpansionGraph, convertKGSubgraph } from "./concept-graph"
 import { BookmarkButton } from "./bookmark-button"
+import { AIChatSidebar } from "./ai-chat"
 import type { Paper } from "@/lib/supabase"
+import type { ChatContext } from "@/lib/chat-types"
 
 interface DeepExplorationViewProps {
   episode: {
@@ -204,6 +203,9 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
   const [kgSubgraph, setKgSubgraph] = useState<KGSubgraphResponse | null>(null)
   const [isLoadingKG, setIsLoadingKG] = useState(false)
   const [kgError, setKgError] = useState<string | null>(null)
+
+  // AI Chat sidebar state
+  const [chatOpen, setChatOpen] = useState(false)
 
   // Fetch claim context data on mount
   useEffect(() => {
@@ -390,7 +392,10 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
       />
 
       {/* Header */}
-      <header className="sticky top-14 z-40 flex items-center justify-between border-b border-border bg-background/95 backdrop-blur-sm px-6 py-3 lg:px-10">
+      <header
+        className="sticky top-14 z-40 flex items-center justify-between border-b border-border bg-background/95 backdrop-blur-sm px-6 py-3 lg:px-10 transition-all duration-300 ease-in-out"
+        style={{ marginRight: chatOpen ? '440px' : '52px' }}
+      >
         <div className="flex items-center gap-4">
           <div className="size-6 text-[var(--golden-chestnut)]">
             <FlaskConical className="w-6 h-6" />
@@ -442,7 +447,10 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
 
       {/* Main Content */}
       {!isLoading && !error && contextData && (
-        <main className="flex-1 w-full max-w-[1280px] mx-auto px-4 md:px-10 py-8 pb-32 grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <main
+          className="flex-1 w-full max-w-[1280px] mx-auto px-4 md:px-10 py-8 pb-8 grid grid-cols-1 lg:grid-cols-12 gap-8 transition-all duration-300 ease-in-out"
+          style={{ marginRight: chatOpen ? '440px' : '52px' }}
+        >
           {/* Left Column: Core Exploration */}
           <div className="lg:col-span-8 flex flex-col gap-6">
             {/* Anchor Claim */}
@@ -1081,27 +1089,19 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
       </main>
       )}
 
-      {/* Sticky Chat Box Footer */}
-      <footer className="fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-lg border-t border-border px-6 py-4">
-        <div className="max-w-[1280px] mx-auto">
-          <div className="flex items-center gap-3 bg-card rounded-none border border-border p-3 focus-within:border-[var(--golden-chestnut)] transition-colors">
-            <button className="p-2 rounded-none bg-foreground/10hover:bg-[var(--warm-gray)] transition-colors text-foreground">
-              <Scissors className="w-4 h-4" />
-            </button>
-            <input
-              type="text"
-              placeholder="Ask AI about this segment..."
-              className="flex-1 bg-transparent text-foreground placeholder-gray-500 focus:outline-none text-sm"
-            />
-            <button className="p-2 rounded-none bg-transparent hover:bg-foreground/10 transition-colors text-foreground/60 hover:text-foreground">
-              <Mic className="w-4 h-4" />
-            </button>
-            <button className="p-2 rounded-full bg-[var(--golden-chestnut)] hover:bg-[var(--golden-chestnut)]/90 transition-colors text-background">
-              <ArrowUp className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      </footer>
+      {/* AI Chat Sidebar */}
+      <AIChatSidebar
+        open={chatOpen}
+        onOpenChange={setChatOpen}
+        context={{
+          episode_id: episodeId,
+          episode_title: episode.title,
+          guest: episode.guest,
+          claim_id: claim.id,
+          claim_text: claim.title,
+        }}
+        onViewPaper={onViewSourcePaper}
+      />
     </div>
   )
 }

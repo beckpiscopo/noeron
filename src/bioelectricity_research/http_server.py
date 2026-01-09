@@ -1,5 +1,8 @@
 """Simple HTTP server to expose MCP tools as REST endpoints."""
 
+from dotenv import load_dotenv
+load_dotenv()
+
 import asyncio
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
@@ -856,6 +859,162 @@ async def http_get_relevant_kg_subgraph(request: Request):
                 "total_nodes": len(subgraph["nodes"]),
                 "total_edges": len(subgraph["edges"]),
             }
+        }
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.post("/tools/chat_with_context/execute")
+async def http_chat_with_context(request: Request):
+    """Chat with context - answer questions using RAG + Gemini."""
+    try:
+        import asyncio
+
+        body = await request.json()
+        message = body.get("message")
+        episode_id = body.get("episode_id", "lex_325")
+        claim_id = body.get("claim_id")
+        conversation_history = body.get("conversation_history", [])
+        n_results = body.get("n_results", 5)
+
+        if not message:
+            return JSONResponse({"error": "message is required"}, status_code=400)
+
+        # Import helper functions
+        from .server import (
+            _load_claims_cache,
+            _load_papers_collection,
+            _load_episodes,
+            _format_conversation_history,
+            _format_rag_results_for_chat,
+            _ensure_gemini_client_ready,
+            get_vectorstore,
+            CHAT_CONTEXT_PROMPT_TEMPLATE,
+            GEMINI_MODEL_DEFAULT,
+        )
+
+        # Step 1: Load episode metadata
+        episodes = _load_episodes()
+        episode = next((e for e in episodes if e.get("id") == episode_id), None)
+
+        if not episode:
+            episode_title = f"Episode {episode_id}"
+            guest_name = "Unknown Guest"
+        else:
+            episode_title = episode.get("title", f"Episode {episode_id}")
+            guest_name = episode.get("guest", "Unknown Guest")
+
+        # Step 2: Load claim context if provided
+        claim_context = ""
+        if claim_id and "-" in claim_id:
+            claims_cache = _load_claims_cache()
+            parts = claim_id.rsplit("-", 1)
+            if len(parts) == 2:
+                segment_key = parts[0]
+                try:
+                    claim_index = int(parts[1])
+                    segments = claims_cache.get("segments", {})
+                    segment_data = segments.get(segment_key)
+                    if segment_data:
+                        claims_list = segment_data.get("claims", [])
+                        if claim_index < len(claims_list):
+                            claim_data = claims_list[claim_index]
+                            claim_text = claim_data.get("claim_text", "")
+                            distilled = claim_data.get("distilled_claim", "")
+                            claim_context = f"""
+Current Claim Being Discussed:
+"{distilled or claim_text}"
+"""
+                except (ValueError, IndexError):
+                    pass
+
+        # Step 3: RAG search using the user's message
+        vs = get_vectorstore()
+
+        # Build search query
+        search_query = message
+        if claim_context:
+            search_query = f"{message} bioelectricity Levin"
+
+        rag_results_raw = vs.search(search_query, n_results=n_results)
+
+        # Parse RAG results
+        docs = rag_results_raw.get("documents", [[]])[0]
+        metas = rag_results_raw.get("metadatas", [[]])[0]
+
+        rag_results = []
+        for doc, meta in zip(docs, metas):
+            rag_results.append({
+                "text": doc,
+                "paper_id": meta.get("paper_id", ""),
+                "paper_title": meta.get("paper_title", ""),
+                "section": meta.get("section_heading", ""),
+                "year": meta.get("year", ""),
+            })
+
+        # Step 4: Load papers collection for metadata
+        papers_collection = _load_papers_collection()
+
+        # Step 5: Format prompt
+        formatted_history = _format_conversation_history(conversation_history)
+        formatted_rag = _format_rag_results_for_chat(rag_results, papers_collection)
+
+        prompt = CHAT_CONTEXT_PROMPT_TEMPLATE.format(
+            episode_title=episode_title,
+            guest_name=guest_name,
+            claim_context=claim_context if claim_context else "(No specific claim selected)",
+            conversation_history=formatted_history,
+            rag_results=formatted_rag,
+            user_message=message,
+        )
+
+        # Step 6: Call Gemini
+        _ensure_gemini_client_ready()
+        response = await asyncio.to_thread(
+            lambda: server._GENAI_CLIENT.models.generate_content(
+                model=GEMINI_MODEL_DEFAULT,
+                contents=prompt,
+                config={
+                    "temperature": 0.7,
+                    "max_output_tokens": 2048,
+                }
+            )
+        )
+
+        # Extract response text
+        if hasattr(response, "text"):
+            response_text = response.text
+        elif hasattr(response, "candidates") and response.candidates:
+            candidate = response.candidates[0]
+            if hasattr(candidate, "content") and hasattr(candidate.content, "parts"):
+                response_text = "".join(
+                    part.text for part in candidate.content.parts if hasattr(part, "text")
+                )
+            else:
+                response_text = "I apologize, but I couldn't generate a response."
+        else:
+            response_text = "I apologize, but I couldn't generate a response."
+
+        # Step 7: Build sources list
+        sources = []
+        for r in rag_results:
+            if r.get("paper_id"):
+                sources.append({
+                    "paper_id": r.get("paper_id", ""),
+                    "paper_title": r.get("paper_title", ""),
+                    "year": r.get("year", ""),
+                    "section": r.get("section", ""),
+                    "relevance_snippet": r.get("text", "")[:200] + "..." if r.get("text") else "",
+                })
+
+        return {
+            "response": response_text.strip(),
+            "sources": sources,
+            "query_used": search_query,
+            "model": GEMINI_MODEL_DEFAULT,
         }
 
     except Exception as e:
