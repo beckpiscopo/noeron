@@ -43,6 +43,10 @@ listed under your task category.
 - `scripts/run_context_card_builder_batch.py`
 - `scripts/validate_context_card_registry.py`
 
+### Episode summaries
+
+- `scripts/generate_episode_summaries.py` - Generates narrative summaries using Gemini
+
 ### Frontend (Next.js)
 
 - `frontend/app/`
@@ -51,13 +55,24 @@ listed under your task category.
 
 ### AI Chat Feature
 
+**Backend (context building):**
+- `src/bioelectricity_research/context_builder.py` - Layered context system (episode + temporal window + evidence cards)
+- `src/bioelectricity_research/server.py` - `chat_with_context` MCP tool
+- `src/bioelectricity_research/http_server.py` - `/tools/chat_with_context/execute` endpoint
+
+**Frontend:**
 - `frontend/components/ai-chat/ai-chat-sidebar.tsx` - Main chat container
 - `frontend/components/ai-chat/chat-message.tsx` - Message bubble component
 - `frontend/components/ai-chat/chat-input.tsx` - Input textarea + send
 - `frontend/components/ai-chat/chat-sources.tsx` - Collapsible citations
-- `frontend/hooks/use-ai-chat.ts` - State management hook
-- `frontend/lib/chat-types.ts` - TypeScript interfaces
-- `src/bioelectricity_research/http_server.py` - `/tools/chat_with_context/execute` endpoint
+- `frontend/hooks/use-ai-chat.ts` - State management hook (passes current_timestamp)
+- `frontend/lib/chat-types.ts` - TypeScript interfaces (includes current_timestamp)
+
+**Data sources for context:**
+- `data/episodes.json` - Episode metadata (includes compact `summary` field)
+- `data/episode_summaries.json` - Full structured summaries (narrative arc, themes, key moments)
+- `data/window_segments.json` - Temporal windows with transcript
+- `data/context_card_registry.json` - Evidence cards with paper matches
 
 ## Current defaults and gotchas
 

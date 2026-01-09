@@ -20,6 +20,7 @@ Pipeline (Python scripts):
 - `scripts/build_vector_store.py` -> `data/vectorstore/`
 - `scripts/fetch_assemblyai_transcript.py` -> `data/cleaned_papers/`
 - `scripts/context_card_builder.py` + `scripts/run_context_card_builder_batch.py`
+- `scripts/generate_episode_summaries.py` -> `data/episode_summaries.json` + updates `data/episodes.json`
 
 Frontend (Next.js):
 - `frontend/app/` is the primary Next app
@@ -128,7 +129,8 @@ ChatMessage renders response with ChatSources
 - `build_system_prompt(context)` → Formatted Gemini prompt
 
 **Data Sources:**
-- `data/episodes.json` - Episode metadata
+- `data/episodes.json` - Episode metadata (includes compact `summary` field)
+- `data/episode_summaries.json` - Full structured summaries (narrative arc, themes, key moments)
 - `data/window_segments.json` - Temporal windows with transcript excerpts
 - `data/context_card_registry.json` - Evidence cards with paper matches
 

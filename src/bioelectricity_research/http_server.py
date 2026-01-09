@@ -869,7 +869,10 @@ async def http_get_relevant_kg_subgraph(request: Request):
 
 @app.post("/tools/chat_with_context/execute")
 async def http_chat_with_context(request: Request):
-    """Chat with context - answer questions using RAG + Gemini."""
+    """Chat with context - answer questions using RAG + Gemini.
+
+    Uses the layered context builder for episode-level narrative awareness.
+    """
     try:
         import asyncio
 
@@ -879,6 +882,8 @@ async def http_chat_with_context(request: Request):
         claim_id = body.get("claim_id")
         conversation_history = body.get("conversation_history", [])
         n_results = body.get("n_results", 5)
+        current_timestamp = body.get("current_timestamp")
+        use_layered_context = body.get("use_layered_context", True)
 
         if not message:
             return JSONResponse({"error": "message is required"}, status_code=400)
@@ -887,7 +892,6 @@ async def http_chat_with_context(request: Request):
         from .server import (
             _load_claims_cache,
             _load_papers_collection,
-            _load_episodes,
             _format_conversation_history,
             _format_rag_results_for_chat,
             _ensure_gemini_client_ready,
@@ -895,17 +899,22 @@ async def http_chat_with_context(request: Request):
             CHAT_CONTEXT_PROMPT_TEMPLATE,
             GEMINI_MODEL_DEFAULT,
         )
+        from .context_builder import build_chat_context, build_system_prompt
 
-        # Step 1: Load episode metadata
-        episodes = _load_episodes()
-        episode = next((e for e in episodes if e.get("id") == episode_id), None)
+        # Step 1: Build layered context (includes episode summary, temporal window, etc.)
+        system_prompt = ""
+        episode_title = f"Episode {episode_id}"
+        guest_name = "Unknown Guest"
 
-        if not episode:
-            episode_title = f"Episode {episode_id}"
-            guest_name = "Unknown Guest"
-        else:
-            episode_title = episode.get("title", f"Episode {episode_id}")
-            guest_name = episode.get("guest", "Unknown Guest")
+        if use_layered_context:
+            context_layers = build_chat_context(
+                episode_id=episode_id,
+                current_timestamp_str=current_timestamp
+            )
+            if context_layers:
+                system_prompt = build_system_prompt(context_layers)
+                episode_title = context_layers.episode.title
+                guest_name = context_layers.episode.guest
 
         # Step 2: Load claim context if provided
         claim_context = ""
@@ -925,7 +934,7 @@ async def http_chat_with_context(request: Request):
                             claim_text = claim_data.get("claim_text", "")
                             distilled = claim_data.get("distilled_claim", "")
                             claim_context = f"""
-Current Claim Being Discussed:
+## Currently Selected Claim
 "{distilled or claim_text}"
 """
                 except (ValueError, IndexError):
@@ -958,18 +967,38 @@ Current Claim Being Discussed:
         # Step 4: Load papers collection for metadata
         papers_collection = _load_papers_collection()
 
-        # Step 5: Format prompt
+        # Step 5: Format prompt with layered context
         formatted_history = _format_conversation_history(conversation_history)
         formatted_rag = _format_rag_results_for_chat(rag_results, papers_collection)
 
-        prompt = CHAT_CONTEXT_PROMPT_TEMPLATE.format(
-            episode_title=episode_title,
-            guest_name=guest_name,
-            claim_context=claim_context if claim_context else "(No specific claim selected)",
-            conversation_history=formatted_history,
-            rag_results=formatted_rag,
-            user_message=message,
-        )
+        if system_prompt:
+            # Use layered context mode with episode summary
+            prompt = f"""{system_prompt}
+
+{claim_context}
+
+## Retrieved Research Papers (from RAG search)
+{formatted_rag}
+
+## Conversation History
+{formatted_history}
+
+## User's Question
+{message}
+
+## Your Response
+Provide a helpful, accurate response based on the context above. Reference specific papers and timestamps when relevant.
+"""
+        else:
+            # Fallback to legacy template
+            prompt = CHAT_CONTEXT_PROMPT_TEMPLATE.format(
+                episode_title=episode_title,
+                guest_name=guest_name,
+                claim_context=claim_context if claim_context else "(No specific claim selected)",
+                conversation_history=formatted_history,
+                rag_results=formatted_rag,
+                user_message=message,
+            )
 
         # Step 6: Call Gemini
         _ensure_gemini_client_ready()

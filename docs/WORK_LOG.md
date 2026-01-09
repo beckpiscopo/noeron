@@ -245,6 +245,112 @@ src/bioelectricity_research/http_server.py
 
 ---
 
+## 2026-01-09: Timestamp-Aware Chat Context Builder
+
+**Task:** Implement layered context system for AI chat that provides episode awareness and temporal synchronization
+
+**Summary:**
+- Created `src/bioelectricity_research/context_builder.py` with 4-layer context system:
+  - Layer 1: Episode metadata (title, guest, topics, description)
+  - Layer 2: Temporal window (3-min transcript excerpt at current playback position)
+  - Layer 3: Evidence cards (papers shown in last 5 minutes from context_card_registry)
+  - Layer 4: RAG retrieval (query-triggered, integrated with existing ChromaDB)
+- Updated `chat_with_context` tool in `server.py` to use context builder when `use_layered_context=true` (default)
+- Added `current_timestamp` parameter to chat API and frontend types
+- Frontend now passes `formatTime(episode.currentTime)` to chat context
+- Chat sidebar displays timestamp in context badge (e.g., "Episode Title @ 48:00")
+- Sources now include both RAG results and evidence cards with timestamps
+
+**Key Files:**
+```
+src/bioelectricity_research/
+├── context_builder.py    # NEW: Layered context system
+└── server.py             # Updated chat_with_context tool
+
+frontend/
+├── lib/chat-types.ts     # Added current_timestamp to ChatContext
+├── hooks/use-ai-chat.ts  # Passes current_timestamp to API
+├── components/listening-view.tsx       # Passes formatTime(episode.currentTime)
+└── components/ai-chat/ai-chat-sidebar.tsx  # Shows timestamp in context badge
+```
+
+**Data Classes in context_builder.py:**
+- `EpisodeContext` - Episode metadata
+- `TemporalWindow` - Current position with transcript excerpt
+- `EvidenceCard` - Paper-backed claim with timestamp
+- `ActiveEvidenceCards` - Cards in time range
+- `ChatContextLayers` - Complete context for chat
+
+**Testing:**
+```bash
+python3 -m src.bioelectricity_research.context_builder lex_325 48:00
+```
+
+**Decisions/Gotchas:**
+- Context builder loads from JSON files (episodes.json, window_segments.json, context_card_registry.json) not Supabase
+- Evidence cards lookback is 5 minutes (configurable via EVIDENCE_CARD_LOOKBACK_MS)
+- Temporal window is ~3 minutes centered on current position
+- Legacy mode (`use_layered_context=false`) preserved for backward compatibility
+- Response includes `context_metadata` with temporal window info and evidence card count
+
+**Next Steps:**
+- ~~Add episode-level narrative summaries~~ (completed 2026-01-09)
+- ~~Create `scripts/generate_episode_summaries.py` to pre-generate summaries with Gemini~~ (completed 2026-01-09)
+- Consider migrating temporal windows to Supabase for better query performance
+- Add timestamp-aware RAG boosting (boost papers from recent evidence cards)
+
+---
+
+## 2026-01-09: Episode-Level Narrative Summaries
+
+**Task:** Add episode-level narrative awareness to the chat so it can explain "what this episode is about" and connect current discussion to the broader conversation arc.
+
+**Summary:**
+- Created `scripts/generate_episode_summaries.py` that uses Gemini to generate structured summaries from full transcripts
+- Summary structure includes: narrative arc (3-5 paragraphs), major themes with timestamps, key moments, guest thesis, conversation dynamics
+- Full structured summaries stored in `data/episode_summaries.json`
+- Compact summaries (for chat context) stored in `episodes.json` under `summary` field
+- **Fixed critical bug:** `http_server.py` had its own chat implementation that bypassed `context_builder.py` entirely, so the summaries weren't being used. Updated to use the layered context builder.
+- Generated summaries for `lex_325` and `theories_of_everything` episodes
+
+**Key Files:**
+```
+scripts/generate_episode_summaries.py     # NEW: Gemini-based summary generation
+data/episode_summaries.json               # NEW: Full structured summaries
+data/episodes.json                        # UPDATED: Added summary field
+
+src/bioelectricity_research/http_server.py  # FIXED: Now uses context_builder
+src/bioelectricity_research/context_builder.py  # Already had episode_summary support
+```
+
+**Usage:**
+```bash
+# Generate for specific episode
+python3 scripts/generate_episode_summaries.py lex_325
+
+# Generate for all episodes with transcripts
+python3 scripts/generate_episode_summaries.py --all
+
+# Print existing summary
+python3 scripts/generate_episode_summaries.py lex_325 --print-only
+
+# Regenerate even if exists
+python3 scripts/generate_episode_summaries.py lex_325 --force
+```
+
+**Decisions/Gotchas:**
+- Uses `gemini-2.0-flash` for cost efficiency on long transcripts (not gemini-3-pro-preview)
+- HTTP server requires restart to pick up new summaries (reads from disk each request, but imports are cached)
+- Summary compact format uses ~7000 characters to stay within token budget
+- Episodes without transcripts (mlst, essentia_foundation) will need transcripts before summaries can be generated
+
+**Next Steps:**
+- Generate summaries for remaining episodes when transcripts are added
+- Consider caching the system prompt to reduce per-request overhead
+- Add "suggest related moments" feature using key_moments timestamps
+
+---
+
 Template:
 
 Date:
