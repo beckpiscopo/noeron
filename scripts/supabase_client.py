@@ -90,18 +90,28 @@ class NoeronDB:
         return response.data[0] if response.data else None
     
     def get_claims_for_episode(
-        self, 
+        self,
         podcast_id: str,
-        order_by: str = "start_ms"
+        order_by: str = "start_ms",
+        include_duplicates: bool = False
     ) -> List[Dict[str, Any]]:
-        """Get all claims for an episode, ordered by timestamp."""
-        response = (
+        """Get all claims for an episode, ordered by timestamp.
+
+        Args:
+            podcast_id: Episode ID (e.g., 'lex_325')
+            order_by: Column to order by (default: 'start_ms')
+            include_duplicates: If False (default), excludes claims marked as duplicates
+        """
+        query = (
             self.client.table("claims")
             .select("*")
             .eq("podcast_id", podcast_id)
-            .order(order_by)
-            .execute()
         )
+
+        if not include_duplicates:
+            query = query.is_("duplicate_of", "null")
+
+        response = query.order(order_by).execute()
         return response.data
     
     def get_claims_needing_distillation(self, limit: int = 100) -> List[Dict[str, Any]]:

@@ -65,4 +65,9 @@ frontend/.turbo/
 node_modules/
 .next/
 
+# Environment files (NEVER commit these)
 .env
+.env.local
+.env.*.local
+frontend/.env.local
+frontend/.env.*.local

@@ -1052,8 +1052,21 @@ Provide a helpful, accurate response based on the context above. Reference speci
         return JSONResponse({"error": str(e)}, status_code=500)
 
 
-def run_server(host="127.0.0.1", port=8000):
-    """Run the HTTP server."""
+def run_server(host=None, port=None):
+    """Run the HTTP server.
+
+    Host and port can be overridden via environment variables:
+    - HOST: Default "0.0.0.0" for production, "127.0.0.1" for local
+    - PORT: Default 8000
+    """
+    import os
+
+    if host is None:
+        host = os.getenv("HOST", "0.0.0.0")
+    if port is None:
+        port = int(os.getenv("PORT", "8000"))
+
+    print(f"Starting server on {host}:{port}")
     uvicorn.run(app, host=host, port=port)
 
 if __name__ == "__main__":

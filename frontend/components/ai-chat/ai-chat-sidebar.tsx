@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
 import { MessageSquare, Trash2, Sparkles, X, ChevronLeft, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ChatMessage } from "./chat-message"
@@ -14,6 +14,8 @@ interface AIChatSidebarProps {
   onOpenChange: (open: boolean) => void
   context: ChatContext | null
   onViewPaper?: (paperId: string) => void
+  onClaimDrop?: (claim: { id: string | number; segment_claim_id?: string; claim_text?: string; distilled_claim?: string }) => void
+  onClearDroppedClaim?: () => void
 }
 
 const SUGGESTED_PROMPTS = [
@@ -28,9 +30,12 @@ export function AIChatSidebar({
   onOpenChange,
   context,
   onViewPaper,
+  onClaimDrop,
+  onClearDroppedClaim,
 }: AIChatSidebarProps) {
   const { messages, isLoading, sendMessage, clearHistory } = useAIChat(context)
   const scrollRef = useRef<HTMLDivElement>(null)
+  const [isDragOver, setIsDragOver] = useState(false)
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -38,6 +43,38 @@ export function AIChatSidebar({
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight
     }
   }, [messages])
+
+  // Drag and drop handlers
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'copy'
+    setIsDragOver(true)
+  }
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    // Only set to false if we're leaving the sidebar entirely
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+      setIsDragOver(false)
+    }
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragOver(false)
+
+    try {
+      const claimData = JSON.parse(e.dataTransfer.getData('application/json'))
+      if (claimData && onClaimDrop) {
+        onClaimDrop(claimData)
+        // Auto-open if closed
+        if (!open) {
+          onOpenChange(true)
+        }
+      }
+    } catch (err) {
+      console.error('Failed to parse dropped claim data:', err)
+    }
+  }
 
   return (
     <>
@@ -51,10 +88,16 @@ export function AIChatSidebar({
 
       {/* Sidebar container - positioned below navbar */}
       <div
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
         className={cn(
-          "fixed right-0 z-50 flex flex-col bg-background border-l border-border transition-all duration-300 ease-in-out",
+          "fixed right-0 z-50 flex flex-col bg-background border-l transition-all duration-300 ease-in-out",
           "top-[60px] h-[calc(100vh-60px)]", // Below navbar
-          open ? "w-[400px] sm:w-[440px]" : "w-[52px]"
+          open ? "w-[400px] sm:w-[440px]" : "w-[52px]",
+          isDragOver
+            ? "border-[var(--golden-chestnut)] border-2 bg-[var(--golden-chestnut)]/5"
+            : "border-border"
         )}
       >
         {/* Collapsed state - slim sidebar */}
@@ -62,11 +105,21 @@ export function AIChatSidebar({
           <div className="flex flex-col items-center py-4 gap-3 h-full">
             <button
               onClick={() => onOpenChange(true)}
-              className="p-2.5 rounded-lg bg-[var(--golden-chestnut)]/10 hover:bg-[var(--golden-chestnut)]/20 text-[var(--golden-chestnut)] transition-colors"
+              className={cn(
+                "p-2.5 rounded-lg transition-colors",
+                isDragOver
+                  ? "bg-[var(--golden-chestnut)]/30 text-[var(--golden-chestnut)] animate-pulse"
+                  : "bg-[var(--golden-chestnut)]/10 hover:bg-[var(--golden-chestnut)]/20 text-[var(--golden-chestnut)]"
+              )}
               title="Open AI Research Assistant"
             >
               <MessageSquare className="w-5 h-5" />
             </button>
+            {isDragOver && (
+              <p className="text-[10px] text-[var(--golden-chestnut)] font-medium text-center px-1">
+                Drop here
+              </p>
+            )}
             <div className="flex-1" />
             <button
               onClick={() => onOpenChange(true)}
@@ -81,6 +134,14 @@ export function AIChatSidebar({
         {/* Expanded state - full chat */}
         {open && (
           <>
+            {/* Drop overlay indicator */}
+            {isDragOver && (
+              <div className="absolute inset-0 bg-[var(--golden-chestnut)]/10 flex items-center justify-center z-10 pointer-events-none">
+                <div className="bg-background/95 px-6 py-4 rounded-lg border-2 border-dashed border-[var(--golden-chestnut)] shadow-lg">
+                  <p className="text-sm font-medium text-[var(--golden-chestnut)]">Drop claim to ask about it</p>
+                </div>
+              </div>
+            )}
             {/* Header */}
             <div className="shrink-0 border-b border-border px-4 py-3">
               <div className="flex items-center justify-between">
@@ -123,16 +184,32 @@ export function AIChatSidebar({
             {/* Context badge */}
             {context && (
               <div className="shrink-0 px-4 py-2 border-b border-border bg-card/50">
-                <p className="text-xs text-foreground/60">
-                  <span className="font-medium text-foreground/80">Context: </span>
-                  {context.episode_title}
-                  {context.current_timestamp && (
-                    <span className="text-foreground/50"> @ {context.current_timestamp}</span>
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-xs text-foreground/60 flex-1">
+                    <span className="font-medium text-foreground/80">Context: </span>
+                    {context.episode_title}
+                    {context.current_timestamp && (
+                      <span className="text-foreground/50"> @ {context.current_timestamp}</span>
+                    )}
+                    {context.claim_text && (
+                      <span className="text-[var(--golden-chestnut)]"> • Claim selected</span>
+                    )}
+                  </p>
+                  {onClearDroppedClaim && (
+                    <button
+                      onClick={onClearDroppedClaim}
+                      className="p-0.5 rounded hover:bg-foreground/10 text-foreground/40 hover:text-foreground/60 transition-colors"
+                      title="Clear dropped claim"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
                   )}
-                  {context.claim_text && (
-                    <span className="text-[var(--golden-chestnut)]"> • Claim selected</span>
-                  )}
-                </p>
+                </div>
+                {context.claim_text && onClearDroppedClaim && (
+                  <p className="text-xs text-foreground/50 mt-1 line-clamp-2 italic">
+                    "{context.claim_text}"
+                  </p>
+                )}
               </div>
             )}
 

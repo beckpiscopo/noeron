@@ -417,6 +417,57 @@ python3 scripts/migrate_to_supabase_full.py --all
 
 ---
 
+## 2026-01-09: Semantic Claim Deduplication Tool
+
+**Task:** Build a tool to identify and resolve duplicate claims caused by multiple transcription passes during development
+
+**Summary:**
+- Created `scripts/semantic_dedupe_claims.py` - CLI tool for semantic deduplication using embeddings
+- Uses `sentence-transformers/all-MiniLM-L6-v2` (same 384-dim model as vector store) for claim similarity
+- Detects duplicates based on cosine similarity threshold + temporal proximity window
+- Supports interactive CLI selection or auto-resolve mode
+- Implements soft delete via `duplicate_of` column (preserves data lineage)
+- Created SQL migration `supabase/migrations/005_add_duplicate_of.sql`
+
+**Deduplication Results (lex_325):**
+- Pass 1: ≥0.95 similarity, 30s window → 35 duplicates removed
+- Pass 2: ≥0.90 similarity, 30s window → 27 duplicates removed
+- Total: 62 duplicates removed (370 → 308 active claims, 17% reduction)
+
+**Key Files:**
+```
+scripts/semantic_dedupe_claims.py           # NEW: Semantic deduplication CLI
+supabase/migrations/005_add_duplicate_of.sql # NEW: Add duplicate_of column
+```
+
+**Usage:**
+```bash
+# Detection only - see how many duplicates exist
+python3 scripts/semantic_dedupe_claims.py --episode lex_325 --detect-only
+
+# Auto-resolve with specific thresholds
+python3 scripts/semantic_dedupe_claims.py --episode lex_325 \
+    --similarity-threshold 0.95 --temporal-window 30000 --auto --execute
+
+# Interactive selection (dry run)
+python3 scripts/semantic_dedupe_claims.py --episode lex_325
+
+# Query active claims only
+SELECT * FROM active_claims;  -- or WHERE duplicate_of IS NULL
+```
+
+**Decisions/Gotchas:**
+- 0.80 threshold catches semantically related but different quotes; 0.90+ catches true transcription duplicates
+- 30-second temporal window is sufficient for same-moment duplicates; 3-minute window catches rephrased claims
+- Quality scoring prefers: has distilled_claim (+1000), longer text, has paper match (+50), higher confidence
+- Soft delete preserves all data; `duplicate_of` points to the kept claim ID
+
+**Next Steps:**
+- Run on other episodes if they have similar duplicate issues
+- Could add `--exclude-duplicates` flag to other scripts that query claims
+
+---
+
 Template:
 
 Date:

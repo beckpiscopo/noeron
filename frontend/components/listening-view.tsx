@@ -108,15 +108,16 @@ interface CurrentClaimCardProps {
   onDiveDeeper: (id: string | number) => void
   onViewSource: (id: string | number) => void
   onExploreGraph?: (conceptName: string) => void
+  onDragStart?: (e: React.DragEvent, claim: Claim) => void
 }
 
-function CurrentClaimCard({ claim, currentTimeMs, onDiveDeeper, onViewSource, onExploreGraph }: CurrentClaimCardProps) {
+function CurrentClaimCard({ claim, currentTimeMs, onDiveDeeper, onViewSource, onExploreGraph, onDragStart }: CurrentClaimCardProps) {
   const hasWordTiming = claim.timing?.words && claim.timing.words.length > 0
   const hasDistilledClaim = !!claim.distilled_claim
   const displayText = getClaimDisplayText(claim)
   const fullText = getClaimFullText(claim)
   const timestamp = formatTimestamp(claim)
-  
+
   // Function to render text with word-level highlighting
   const renderWithWordHighlighting = (text: string, words: WordTiming[]) => {
     return (
@@ -138,10 +139,14 @@ function CurrentClaimCard({ claim, currentTimeMs, onDiveDeeper, onViewSource, on
       </span>
     )
   }
-  
+
   return (
     <div className="mb-8">
-      <div className="bg-card rounded-none p-8 shadow-[0_2px_8px_rgba(0,0,0,0.08)] transition-all duration-200 relative hover:shadow-[0_8px_24px_rgba(0,0,0,0.15)] hover:-translate-y-1 border border-border">
+      <div
+        draggable
+        onDragStart={(e) => onDragStart?.(e, claim)}
+        className="bg-card rounded-none p-8 shadow-[0_2px_8px_rgba(0,0,0,0.08)] transition-all duration-200 relative hover:shadow-[0_8px_24px_rgba(0,0,0,0.15)] hover:-translate-y-1 border border-border cursor-grab active:cursor-grabbing"
+      >
         {/* Top row: Claim type left, Timestamp right */}
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
@@ -229,9 +234,10 @@ interface PastClaimCardProps {
   onSelect: () => void
   onDiveDeeper: (id: string | number) => void
   onViewSource: (id: string | number) => void
+  onDragStart?: (e: React.DragEvent, claim: Claim) => void
 }
 
-function PastClaimCard({ claim, relativeTime, isSelected, onSelect, onDiveDeeper, onViewSource }: PastClaimCardProps) {
+function PastClaimCard({ claim, relativeTime, isSelected, onSelect, onDiveDeeper, onViewSource, onDragStart }: PastClaimCardProps) {
   const hasDistilledClaim = !!claim.distilled_claim
   const displayText = getClaimDisplayText(claim)
   const fullText = getClaimFullText(claim)
@@ -240,8 +246,10 @@ function PastClaimCard({ claim, relativeTime, isSelected, onSelect, onDiveDeeper
   return (
     <div>
       <div
+        draggable
+        onDragStart={(e) => onDragStart?.(e, claim)}
         onClick={onSelect}
-        className={`bg-card rounded-none p-6 cursor-pointer transition-all duration-200 border border-border ${
+        className={`bg-card rounded-none p-6 cursor-grab active:cursor-grabbing transition-all duration-200 border border-border ${
           isSelected
             ? "shadow-[0_8px_30px_rgba(190,124,77,0.15)] -translate-y-1 border-[var(--golden-chestnut)]/30"
             : "shadow-[0_2px_8px_rgba(0,0,0,0.08)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.15)] hover:-translate-y-1"
@@ -330,7 +338,9 @@ export function ListeningView({
   const [question, setQuestion] = useState("")
   const [selectedClaimId, setSelectedClaimId] = useState<string | number | null>(null)
   const [isAudioReady, setIsAudioReady] = useState(false)
-  const [chatOpen, setChatOpen] = useState(false)
+  const [chatOpen, setChatOpen] = useState(true)
+  // Track claim dropped into chat (overrides currentClaim for chat context)
+  const [droppedClaim, setDroppedClaim] = useState<Claim | null>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
   // Track if we've completed the initial seek (to prevent timeupdate from resetting position)
   const hasCompletedInitialSeekRef = useRef(false)
@@ -378,6 +388,22 @@ export function ListeningView({
     console.log(`[Dive Deeper] Saving position: ${t.toFixed(2)}s (from ${audioRef.current ? 'audio element' : 'episode prop'})`)
     onTimeUpdate(t)
     onDiveDeeper(claimId)
+  }
+
+  // Drag and drop handlers for claim cards
+  const handleClaimDragStart = (e: React.DragEvent, claim: Claim) => {
+    e.dataTransfer.setData('application/json', JSON.stringify(claim))
+    e.dataTransfer.effectAllowed = 'copy'
+  }
+
+  const handleClaimDroppedInChat = (claim: Claim) => {
+    setDroppedClaim(claim)
+    setChatOpen(true)
+  }
+
+  // Clear dropped claim when clicking on a different current claim or manually
+  const clearDroppedClaim = () => {
+    setDroppedClaim(null)
   }
   
   const handlePlayPause = () => {
@@ -715,6 +741,7 @@ export function ListeningView({
                   onDiveDeeper={handleDiveDeeperWithTimestamp}
                   onViewSource={onViewSource}
                   onExploreGraph={onExploreGraph}
+                  onDragStart={handleClaimDragStart}
                 />
               </div>
             )}
@@ -730,6 +757,7 @@ export function ListeningView({
                   onSelect={() => setSelectedClaimId(claim.id === selectedClaimId ? null : claim.id)}
                   onDiveDeeper={handleDiveDeeperWithTimestamp}
                   onViewSource={onViewSource}
+                  onDragStart={handleClaimDragStart}
                 />
               ))}
             </div>
@@ -764,10 +792,13 @@ export function ListeningView({
           episode_id: episode.id,
           episode_title: episode.title,
           guest: episode.guest,
-          claim_id: currentClaim?.segment_claim_id,
-          claim_text: currentClaim?.distilled_claim || currentClaim?.claim_text,
+          // Use dropped claim if set, otherwise use current claim
+          claim_id: droppedClaim?.segment_claim_id || currentClaim?.segment_claim_id,
+          claim_text: droppedClaim?.distilled_claim || droppedClaim?.claim_text || currentClaim?.distilled_claim || currentClaim?.claim_text,
           current_timestamp: formatTime(episode.currentTime),  // Pass current playback position
         }}
+        onClaimDrop={handleClaimDroppedInChat}
+        onClearDroppedClaim={droppedClaim ? clearDroppedClaim : undefined}
       />
     </div>
   )
