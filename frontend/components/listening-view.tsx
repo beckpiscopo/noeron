@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Play, Pause, RotateCcw, RotateCw, Info, Search, Settings, HelpCircle, Network } from "lucide-react"
 import { NoeronHeader } from "./noeron-header"
+import { ClaimBookmarkButton } from "./bookmark-button"
 
 export interface ListeningEpisode {
   id: string
@@ -67,6 +68,7 @@ interface ListeningViewProps {
   onAskQuestion: (question: string) => void
   onTimeUpdate: (time: number) => void
   onExploreGraph?: (conceptName: string) => void
+  onBookmarksClick?: () => void
 }
 
 function formatTime(seconds: number): string {
@@ -186,6 +188,15 @@ function CurrentClaimCard({ claim, currentTimeMs, onDiveDeeper, onViewSource, on
             </div>
           )}
           <div className="flex items-center gap-2 ml-auto">
+            <ClaimBookmarkButton
+              claim={{
+                id: claim.id,
+                claim_text: claim.claim_text,
+                distilled_claim: claim.distilled_claim,
+              }}
+              size="sm"
+              variant="ghost"
+            />
             {onExploreGraph && (
               <Button
                 onClick={() => onExploreGraph(displayText)}
@@ -258,7 +269,7 @@ function PastClaimCard({ claim, relativeTime, isSelected, onSelect, onDiveDeeper
           </p>
         )}
 
-        {/* Confidence score and Dive Deeper button */}
+        {/* Confidence score and action buttons */}
         <div className="flex items-center justify-between">
           {claim.confidence_score !== undefined && (
             <div className="flex items-center gap-2 group relative">
@@ -274,18 +285,29 @@ function PastClaimCard({ claim, relativeTime, isSelected, onSelect, onDiveDeeper
               </div>
             </div>
           )}
-          {isSelected && (
-            <Button
-              onClick={(e) => {
-                e.stopPropagation()
-                onDiveDeeper(claim.id)
+          <div className="flex items-center gap-2 ml-auto">
+            <ClaimBookmarkButton
+              claim={{
+                id: claim.id,
+                claim_text: claim.claim_text,
+                distilled_claim: claim.distilled_claim,
               }}
               size="sm"
-              className="!rounded-none !bg-transparent !border !border-[#BE7C4D] !text-[#BE7C4D] hover:!bg-[#BE7C4D]/10 ml-auto"
-            >
-              Dive Deeper
-            </Button>
-          )}
+              variant="ghost"
+            />
+            {isSelected && (
+              <Button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onDiveDeeper(claim.id)
+                }}
+                size="sm"
+                className="!rounded-none !bg-transparent !border !border-[#BE7C4D] !text-[#BE7C4D] hover:!bg-[#BE7C4D]/10"
+              >
+                Dive Deeper
+              </Button>
+            )}
+          </div>
         </div>
       </div>
     </div>
@@ -300,6 +322,7 @@ export function ListeningView({
   onAskQuestion,
   onTimeUpdate,
   onExploreGraph,
+  onBookmarksClick,
 }: ListeningViewProps) {
   const [isPlaying, setIsPlaying] = useState(false)
   const [question, setQuestion] = useState("")
@@ -558,7 +581,7 @@ export function ListeningView({
 
   return (
     <div className="noeron-theme flex min-h-screen flex-col bg-background text-foreground font-sans">
-      <NoeronHeader actions={headerActions} onLogoClick={() => window.location.assign("/")} />
+      <NoeronHeader actions={headerActions} onLogoClick={() => window.location.assign("/")} onBookmarksClick={onBookmarksClick} />
       <audio ref={audioRef} preload="metadata" className="hidden" />
 
       {/* Two Column Layout */}

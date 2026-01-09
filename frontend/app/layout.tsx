@@ -3,6 +3,7 @@ import type { Metadata } from "next"
 import { Bodoni_Moda, Manrope } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import { ThemeProvider } from "@/contexts/theme-context"
+import { BookmarkProvider } from "@/hooks/use-bookmarks"
 import "./globals.css"
 import "./noeron.css"
 
@@ -50,8 +51,10 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={`${bodoniModa.variable} ${manrope.variable} font-sans antialiased`}>
         <ThemeProvider>
-          {children}
-          <Analytics />
+          <BookmarkProvider>
+            {children}
+            <Analytics />
+          </BookmarkProvider>
         </ThemeProvider>
       </body>
     </html>

@@ -10,6 +10,8 @@ import { ListeningView } from "@/components/listening-view"
 import { DeepExplorationView } from "@/components/deep-exploration-view"
 import { PaperViewer } from "@/components/paper-viewer"
 import { EpisodeLibrary } from "@/components/episode-library"
+import { BookmarksLibrary } from "@/components/bookmarks-library"
+import { QuizMode } from "@/components/quiz-mode"
 import type { Claim, ListeningEpisode } from "@/components/listening-view"
 import type { Episode as EpisodeMetadata } from "@/components/episode-library"
 
@@ -142,7 +144,7 @@ const persistPlaybackTime = (episodeId: string, time: number) => {
 
 export default function Home() {
   const router = useRouter()
-  const [view, setView] = useState<"landing" | "library" | "listening" | "exploration" | "paper">("landing")
+  const [view, setView] = useState<"landing" | "library" | "listening" | "exploration" | "paper" | "bookmarks" | "quiz">("landing")
   const [selectedEpisode, setSelectedEpisode] = useState<EpisodeMetadata | null>(null)
   const [currentTime, setCurrentTime] = useState(0)
   const [claims, setClaims] = useState<Claim[]>(fallbackClaims)
@@ -248,6 +250,28 @@ export default function Home() {
     const startTime = storedTime !== null ? Math.max(0, Math.min(storedTime, safeDuration)) : 0
     setCurrentTime(startTime)
     setView("listening")
+  }
+
+  const handleGoToBookmarks = () => {
+    setView("bookmarks")
+  }
+
+  const handleStartQuiz = () => {
+    setView("quiz")
+  }
+
+  const handleBookmarkViewClaim = (claimId: number) => {
+    // Find the claim and navigate to exploration
+    const claim = claims.find((c) => c.id === claimId)
+    if (claim) {
+      setSelectedClaimId(claimId)
+      setView("exploration")
+    }
+  }
+
+  const handleBookmarkViewPaper = (paperId: string) => {
+    setSelectedPaperId(paperId)
+    setView("paper")
   }
 
   // Convert Supabase claim to frontend Claim format
@@ -362,6 +386,21 @@ export default function Home() {
     return <PaperViewer episode={paperEpisode} paperId={selectedPaperId} onBack={handleBackToExploration} />
   }
 
+  if (view === "bookmarks") {
+    return (
+      <BookmarksLibrary
+        onBack={() => setView("library")}
+        onStartQuiz={handleStartQuiz}
+        onViewClaim={handleBookmarkViewClaim}
+        onViewPaper={handleBookmarkViewPaper}
+      />
+    )
+  }
+
+  if (view === "quiz") {
+    return <QuizMode onBack={handleGoToBookmarks} />
+  }
+
   if (view === "exploration") {
     return (
       <DeepExplorationView
@@ -383,6 +422,7 @@ export default function Home() {
       onAskQuestion={handleAskQuestion}
       onTimeUpdate={handleTimeUpdate}
       onExploreGraph={handleExploreGraph}
+      onBookmarksClick={handleGoToBookmarks}
     />
   )
 }

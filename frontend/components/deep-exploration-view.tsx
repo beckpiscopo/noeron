@@ -27,6 +27,8 @@ import {
 import { NoeronHeader } from "./noeron-header"
 import { callMcpTool } from "@/lib/api"
 import { ConceptExpansionGraph, convertKGSubgraph } from "./concept-graph"
+import { BookmarkButton } from "./bookmark-button"
+import type { Paper } from "@/lib/supabase"
 
 interface DeepExplorationViewProps {
   episode: {
@@ -664,6 +666,13 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
                                           View Paper
                                           <ExternalLink className="w-2.5 h-2.5" />
                                         </button>
+                                        <BookmarkButton
+                                          type="paper"
+                                          item={{ paper_id: paper.paper_id, title: paper.title } as Paper}
+                                          size="icon"
+                                          variant="ghost"
+                                          className="!h-5 !w-5 !p-0"
+                                        />
                                       </div>
                                     </div>
                                   </div>
