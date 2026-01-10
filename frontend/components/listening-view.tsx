@@ -108,13 +108,14 @@ function formatTimestamp(claim: Claim): string {
 interface CurrentClaimCardProps {
   claim: Claim
   currentTimeMs: number
+  episodeId: string
   onDiveDeeper: (id: string | number) => void
   onViewSource: (id: string | number) => void
   onExploreGraph?: (conceptName: string) => void
   onDragStart?: (e: React.DragEvent, claim: Claim) => void
 }
 
-function CurrentClaimCard({ claim, currentTimeMs, onDiveDeeper, onViewSource, onExploreGraph, onDragStart }: CurrentClaimCardProps) {
+function CurrentClaimCard({ claim, currentTimeMs, episodeId, onDiveDeeper, onViewSource, onExploreGraph, onDragStart }: CurrentClaimCardProps) {
   const hasWordTiming = claim.timing?.words && claim.timing.words.length > 0
   const hasDistilledClaim = !!claim.distilled_claim
   const displayText = getClaimDisplayText(claim)
@@ -204,6 +205,7 @@ function CurrentClaimCard({ claim, currentTimeMs, onDiveDeeper, onViewSource, on
                 claim_text: claim.claim_text,
                 distilled_claim: claim.distilled_claim,
               }}
+              episodeId={episodeId}
               size="sm"
               variant="ghost"
             />
@@ -234,13 +236,14 @@ interface PastClaimCardProps {
   claim: Claim
   relativeTime: string
   isSelected: boolean
+  episodeId: string
   onSelect: () => void
   onDiveDeeper: (id: string | number) => void
   onViewSource: (id: string | number) => void
   onDragStart?: (e: React.DragEvent, claim: Claim) => void
 }
 
-function PastClaimCard({ claim, relativeTime, isSelected, onSelect, onDiveDeeper, onViewSource, onDragStart }: PastClaimCardProps) {
+function PastClaimCard({ claim, relativeTime, isSelected, episodeId, onSelect, onDiveDeeper, onViewSource, onDragStart }: PastClaimCardProps) {
   const hasDistilledClaim = !!claim.distilled_claim
   const displayText = getClaimDisplayText(claim)
   const fullText = getClaimFullText(claim)
@@ -305,6 +308,7 @@ function PastClaimCard({ claim, relativeTime, isSelected, onSelect, onDiveDeeper
                 claim_text: claim.claim_text,
                 distilled_claim: claim.distilled_claim,
               }}
+              episodeId={episodeId}
               size="sm"
               variant="ghost"
             />
@@ -742,6 +746,7 @@ export function ListeningView({
                 <CurrentClaimCard
                   claim={currentClaim}
                   currentTimeMs={episode.currentTime * 1000}
+                  episodeId={episode.id}
                   onDiveDeeper={handleDiveDeeperWithTimestamp}
                   onViewSource={onViewSource}
                   onExploreGraph={onExploreGraph}
@@ -758,6 +763,7 @@ export function ListeningView({
                   claim={claim}
                   relativeTime={getRelativeTime(claim)}
                   isSelected={selectedClaimId === claim.id}
+                  episodeId={episode.id}
                   onSelect={() => setSelectedClaimId(claim.id === selectedClaimId ? null : claim.id)}
                   onDiveDeeper={handleDiveDeeperWithTimestamp}
                   onViewSource={onViewSource}

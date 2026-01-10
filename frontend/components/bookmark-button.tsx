@@ -9,6 +9,7 @@ import type { Claim, Paper, BookmarkType } from '@/lib/supabase'
 interface BookmarkButtonProps {
   type: BookmarkType
   item: Claim | Paper
+  episodeId?: string  // Episode ID for notebook grouping
   size?: 'sm' | 'default' | 'lg' | 'icon'
   variant?: 'default' | 'ghost' | 'outline'
   showLabel?: boolean
@@ -18,6 +19,7 @@ interface BookmarkButtonProps {
 export function BookmarkButton({
   type,
   item,
+  episodeId,
   size = 'sm',
   variant = 'ghost',
   showLabel = false,
@@ -34,7 +36,7 @@ export function BookmarkButton({
     e.preventDefault()
     setIsLoading(true)
     try {
-      await toggleBookmark(type, item)
+      await toggleBookmark(type, item, episodeId)
     } finally {
       setIsLoading(false)
     }
@@ -72,7 +74,9 @@ interface ClaimBookmarkButtonProps {
     id: string | number
     claim_text?: string
     distilled_claim?: string
+    podcast_id?: string  // Episode ID from claim data
   }
+  episodeId?: string  // Explicit episode ID override
   size?: 'sm' | 'default' | 'lg' | 'icon'
   variant?: 'default' | 'ghost' | 'outline'
   showLabel?: boolean
@@ -81,6 +85,7 @@ interface ClaimBookmarkButtonProps {
 
 export function ClaimBookmarkButton({
   claim,
+  episodeId,
   size = 'sm',
   variant = 'ghost',
   showLabel = false,
@@ -92,6 +97,9 @@ export function ClaimBookmarkButton({
   // Convert string ID to number if needed for comparison
   const claimId = typeof claim.id === 'string' ? parseInt(claim.id, 10) : claim.id
   const isBookmarked = isItemBookmarked('claim', claimId)
+
+  // Use explicit episodeId prop, or fall back to claim's podcast_id
+  const effectiveEpisodeId = episodeId || claim.podcast_id
 
   const handleClick = async (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -108,12 +116,12 @@ export function ClaimBookmarkButton({
         // Create a minimal Claim object for the bookmark
         await addClaimBookmark({
           id: claimId,
-          podcast_id: '', // Will be filled from context if needed
+          podcast_id: effectiveEpisodeId || '',
           claim_text: claim.claim_text || '',
           distilled_claim: claim.distilled_claim,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
-        })
+        }, effectiveEpisodeId)
       }
     } finally {
       setIsLoading(false)

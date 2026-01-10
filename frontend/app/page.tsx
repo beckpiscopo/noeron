@@ -372,7 +372,10 @@ export default function Home() {
   }
 
   const handleSelectNotebook = (episodeId: string) => {
-    console.log('[handleSelectNotebook] episodeId:', episodeId, '| truthy:', !!episodeId)
+    if (!episodeId) {
+      console.warn('[handleSelectNotebook] Invalid episodeId - ignoring click')
+      return
+    }
     setSelectedNotebookEpisodeId(episodeId)
     setView("notebook")
   }
@@ -634,7 +637,6 @@ export default function Home() {
   }
 
   if (view === "notebook" && selectedNotebookEpisodeId) {
-    console.log('[render] Rendering NotebookView for episodeId:', selectedNotebookEpisodeId)
     return (
       <NotebookView
         episodeId={selectedNotebookEpisodeId}
@@ -644,11 +646,6 @@ export default function Home() {
         onStartQuiz={handleStartQuiz}
       />
     )
-  }
-
-  // Debug: If view is "notebook" but episodeId is falsy, log it
-  if (view === "notebook") {
-    console.warn('[render] view=notebook but selectedNotebookEpisodeId is falsy:', selectedNotebookEpisodeId)
   }
 
   if (view === "quiz") {
@@ -667,7 +664,6 @@ export default function Home() {
     )
   }
 
-  console.log('[render] Fallthrough to ListeningView. Current view:', view, '| selectedNotebookEpisodeId:', selectedNotebookEpisodeId)
   return (
     <ListeningView
       episode={listeningEpisode}

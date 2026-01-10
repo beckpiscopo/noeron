@@ -642,6 +642,7 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
                                         <BookmarkButton
                                           type="paper"
                                           item={{ paper_id: paper.paper_id, title: paper.title } as Paper}
+                                          episodeId={episodeId}
                                           size="icon"
                                           variant="ghost"
                                           className="!h-5 !w-5 !p-0"
