@@ -53,8 +53,11 @@ export interface Claim {
   confidence_score?: number
   start_ms?: number
   end_ms?: number
+  keywords?: string[]  // 2-4 key terms extracted from the claim
   // Legacy fields (for backward compatibility)
   category?: string
+  claim_type?: string
+  context_tags?: Record<string, string>
   title?: string
   description?: string
   source?: string

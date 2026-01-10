@@ -12,7 +12,8 @@ import { PaperViewer } from "@/components/paper-viewer"
 import { EpisodeLibrary } from "@/components/episode-library"
 import { EpisodeOverview } from "@/components/episode-overview"
 import type { EpisodeOverviewData } from "@/components/episode-overview"
-import { BookmarksLibrary } from "@/components/bookmarks-library"
+import { NotebookLibrary } from "@/components/notebook-library"
+import { NotebookView } from "@/components/notebook-view"
 import { QuizMode } from "@/components/quiz-mode"
 import type { Claim, ListeningEpisode } from "@/components/listening-view"
 import type { Episode as EpisodeMetadata } from "@/components/episode-library"
@@ -132,6 +133,7 @@ interface ClaimDensityPoint {
   density: number
   theme?: string
   label?: string
+  keywords?: string[]  // Top keywords from claims in this time bucket
 }
 
 function computeClaimDensity(
@@ -147,12 +149,12 @@ function computeClaimDensity(
   const bucketSize = durationMs / bucketCount
 
   // Initialize buckets
-  const buckets: { count: number; themes: Record<string, number> }[] = Array.from(
+  const buckets: { count: number; themes: Record<string, number>; keywords: Record<string, number> }[] = Array.from(
     { length: bucketCount },
-    () => ({ count: 0, themes: {} })
+    () => ({ count: 0, themes: {}, keywords: {} })
   )
 
-  // Count claims per bucket and track themes
+  // Count claims per bucket and track themes + keywords
   for (const claim of claims) {
     const timestamp = claim.start_ms ?? (claim.timestamp ? claim.timestamp * 1000 : 0)
     if (timestamp < 0 || timestamp > durationMs) continue
@@ -170,6 +172,13 @@ function computeClaimDensity(
       "Research"
 
     buckets[bucketIndex].themes[theme] = (buckets[bucketIndex].themes[theme] || 0) + 1
+
+    // Track keywords from claim
+    if (claim.keywords && Array.isArray(claim.keywords)) {
+      for (const keyword of claim.keywords) {
+        buckets[bucketIndex].keywords[keyword] = (buckets[bucketIndex].keywords[keyword] || 0) + 1
+      }
+    }
   }
 
   // Find max count for normalization
@@ -187,6 +196,12 @@ function computeClaimDensity(
       }
     }
 
+    // Get top 3 keywords for this bucket (sorted by frequency)
+    const topKeywords = Object.entries(bucket.keywords)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([keyword]) => keyword)
+
     // Determine if this is a peak (local maximum)
     const isPeak = bucket.count > 0 &&
       (i === 0 || bucket.count >= buckets[i - 1].count) &&
@@ -197,7 +212,8 @@ function computeClaimDensity(
       timestamp_ms: i * bucketSize + bucketSize / 2,
       density: bucket.count / maxCount,
       theme: dominantTheme || undefined,
-      label: isPeak && dominantTheme ? dominantTheme.toUpperCase() : undefined
+      label: isPeak && dominantTheme ? dominantTheme.toUpperCase() : undefined,
+      keywords: topKeywords.length > 0 ? topKeywords : undefined
     }
   })
 }
@@ -226,8 +242,9 @@ const persistPlaybackTime = (episodeId: string, time: number) => {
 
 export default function Home() {
   const router = useRouter()
-  const [view, setView] = useState<"landing" | "library" | "overview" | "listening" | "exploration" | "paper" | "bookmarks" | "quiz">("landing")
+  const [view, setView] = useState<"landing" | "library" | "overview" | "listening" | "exploration" | "paper" | "notebook-library" | "notebook" | "quiz">("landing")
   const [selectedEpisode, setSelectedEpisode] = useState<EpisodeMetadata | null>(null)
+  const [selectedNotebookEpisodeId, setSelectedNotebookEpisodeId] = useState<string | null>(null)
   const [currentTime, setCurrentTime] = useState(0)
   const [claims, setClaims] = useState<Claim[]>(fallbackClaims)
   const [selectedClaimId, setSelectedClaimId] = useState<string | number | null>(null)
@@ -350,8 +367,18 @@ export default function Home() {
     setView("library")
   }
 
-  const handleGoToBookmarks = () => {
-    setView("bookmarks")
+  const handleGoToNotebookLibrary = () => {
+    setView("notebook-library")
+  }
+
+  const handleSelectNotebook = (episodeId: string) => {
+    console.log('[handleSelectNotebook] episodeId:', episodeId, '| truthy:', !!episodeId)
+    setSelectedNotebookEpisodeId(episodeId)
+    setView("notebook")
+  }
+
+  const handleBackFromNotebook = () => {
+    setView("notebook-library")
   }
 
   const handleStartQuiz = () => {
@@ -386,6 +413,9 @@ export default function Home() {
     confidence_score: supabaseClaim.confidence_score,
     start_ms: supabaseClaim.start_ms,
     end_ms: supabaseClaim.end_ms,
+    keywords: supabaseClaim.keywords,
+    claim_type: supabaseClaim.claim_type,
+    context_tags: supabaseClaim.context_tags,
     // Legacy fields for backward compatibility
     category: supabaseClaim.claim_type || "Research Finding",
     title: supabaseClaim.distilled_claim || supabaseClaim.claim_text,
@@ -594,19 +624,35 @@ export default function Home() {
     return <PaperViewer episode={paperEpisode} paperId={selectedPaperId} onBack={handleBackToExploration} />
   }
 
-  if (view === "bookmarks") {
+  if (view === "notebook-library") {
     return (
-      <BookmarksLibrary
-        onBack={() => setView("library")}
-        onStartQuiz={handleStartQuiz}
-        onViewClaim={handleBookmarkViewClaim}
-        onViewPaper={handleBookmarkViewPaper}
+      <NotebookLibrary
+        onSelectNotebook={handleSelectNotebook}
+        onBack={handleBackToLibrary}
       />
     )
   }
 
+  if (view === "notebook" && selectedNotebookEpisodeId) {
+    console.log('[render] Rendering NotebookView for episodeId:', selectedNotebookEpisodeId)
+    return (
+      <NotebookView
+        episodeId={selectedNotebookEpisodeId}
+        onBack={handleBackFromNotebook}
+        onViewClaim={handleBookmarkViewClaim}
+        onViewPaper={handleBookmarkViewPaper}
+        onStartQuiz={handleStartQuiz}
+      />
+    )
+  }
+
+  // Debug: If view is "notebook" but episodeId is falsy, log it
+  if (view === "notebook") {
+    console.warn('[render] view=notebook but selectedNotebookEpisodeId is falsy:', selectedNotebookEpisodeId)
+  }
+
   if (view === "quiz") {
-    return <QuizMode onBack={handleGoToBookmarks} />
+    return <QuizMode onBack={handleGoToNotebookLibrary} />
   }
 
   if (view === "exploration") {
@@ -621,6 +667,7 @@ export default function Home() {
     )
   }
 
+  console.log('[render] Fallthrough to ListeningView. Current view:', view, '| selectedNotebookEpisodeId:', selectedNotebookEpisodeId)
   return (
     <ListeningView
       episode={listeningEpisode}
@@ -630,7 +677,7 @@ export default function Home() {
       onAskQuestion={handleAskQuestion}
       onTimeUpdate={handleTimeUpdate}
       onExploreGraph={handleExploreGraph}
-      onBookmarksClick={handleGoToBookmarks}
+      onBookmarksClick={handleGoToNotebookLibrary}
     />
   )
 }

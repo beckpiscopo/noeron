@@ -7,7 +7,10 @@ import {
   type BookmarkType,
   type Claim,
   type Paper,
+  type EpisodeNotebookStats,
   getBookmarksWithDetails,
+  getBookmarksForEpisode as getBookmarksForEpisodeQuery,
+  getEpisodesWithBookmarks,
   createBookmark,
   deleteBookmark,
   updateBookmark,
@@ -21,22 +24,36 @@ interface BookmarkContextType {
   error: string | null
 
   // Actions
-  addClaimBookmark: (claim: Claim) => Promise<Bookmark | null>
-  addPaperBookmark: (paper: Paper) => Promise<Bookmark | null>
+  addClaimBookmark: (claim: Claim, episodeId?: string) => Promise<Bookmark | null>
+  addPaperBookmark: (paper: Paper, episodeId?: string) => Promise<Bookmark | null>
   addSnippetBookmark: (
     episodeId: string,
     text: string,
     startMs: number,
     endMs: number
   ) => Promise<Bookmark | null>
+  addAiInsightBookmark: (
+    episodeId: string,
+    insightText: string,
+    source: string,
+    title?: string
+  ) => Promise<Bookmark | null>
+  addImageBookmark: (
+    episodeId: string,
+    imageUrl: string,
+    caption?: string,
+    title?: string
+  ) => Promise<Bookmark | null>
   removeBookmark: (bookmarkId: string) => Promise<void>
   updateBookmarkNotes: (bookmarkId: string, notes: string) => Promise<void>
-  toggleBookmark: (type: BookmarkType, item: Claim | Paper) => Promise<boolean>
+  toggleBookmark: (type: BookmarkType, item: Claim | Paper, episodeId?: string) => Promise<boolean>
 
   // Queries
   isItemBookmarked: (type: BookmarkType, itemId: number | string) => boolean
   getBookmarksByType: (type: BookmarkType) => BookmarkWithDetails[]
   getBookmarkForItem: (type: BookmarkType, itemId: number | string) => BookmarkWithDetails | undefined
+  getBookmarksForEpisode: (episodeId: string) => Promise<BookmarkWithDetails[]>
+  getEpisodeBookmarkCounts: () => Promise<EpisodeNotebookStats[]>
 
   // Quiz
   updateQuizStats: (bookmarkId: string, correct: boolean) => Promise<void>
@@ -94,11 +111,12 @@ export function BookmarkProvider({ children }: { children: ReactNode }) {
   }, [refreshBookmarks])
 
   const addClaimBookmark = useCallback(
-    async (claim: Claim): Promise<Bookmark | null> => {
+    async (claim: Claim, episodeId?: string): Promise<Bookmark | null> => {
       try {
         const bookmark = await createBookmark({
           bookmark_type: 'claim',
           claim_id: claim.id,
+          episode_id: episodeId || claim.podcast_id,
           title: claim.distilled_claim || claim.claim_text || 'Untitled claim',
           context_preview: claim.claim_text?.substring(0, 200),
         })
@@ -118,11 +136,12 @@ export function BookmarkProvider({ children }: { children: ReactNode }) {
     []
   )
 
-  const addPaperBookmark = useCallback(async (paper: Paper): Promise<Bookmark | null> => {
+  const addPaperBookmark = useCallback(async (paper: Paper, episodeId?: string): Promise<Bookmark | null> => {
     try {
       const bookmark = await createBookmark({
         bookmark_type: 'paper',
         paper_id: paper.paper_id,
+        episode_id: episodeId,
         title: paper.title || 'Untitled paper',
         context_preview: paper.abstract?.substring(0, 200),
       })
@@ -168,6 +187,61 @@ export function BookmarkProvider({ children }: { children: ReactNode }) {
     []
   )
 
+  const addAiInsightBookmark = useCallback(
+    async (
+      episodeId: string,
+      insightText: string,
+      source: string,
+      title?: string
+    ): Promise<Bookmark | null> => {
+      try {
+        const bookmark = await createBookmark({
+          bookmark_type: 'ai_insight',
+          episode_id: episodeId,
+          insight_source: source,
+          title: title || (insightText.length > 100 ? insightText.substring(0, 97) + '...' : insightText),
+          context_preview: insightText,
+        })
+        if (bookmark) {
+          setBookmarks((prev) => [bookmark, ...prev])
+        }
+        return bookmark
+      } catch (err) {
+        console.error('Failed to create AI insight bookmark:', err)
+        return null
+      }
+    },
+    []
+  )
+
+  const addImageBookmark = useCallback(
+    async (
+      episodeId: string,
+      imageUrl: string,
+      caption?: string,
+      title?: string
+    ): Promise<Bookmark | null> => {
+      try {
+        const bookmark = await createBookmark({
+          bookmark_type: 'image',
+          episode_id: episodeId,
+          image_url: imageUrl,
+          image_caption: caption,
+          title: title || caption || 'Saved image',
+          context_preview: caption,
+        })
+        if (bookmark) {
+          setBookmarks((prev) => [bookmark, ...prev])
+        }
+        return bookmark
+      } catch (err) {
+        console.error('Failed to create image bookmark:', err)
+        return null
+      }
+    },
+    []
+  )
+
   const removeBookmark = useCallback(async (bookmarkId: string): Promise<void> => {
     try {
       await deleteBookmark(bookmarkId)
@@ -192,7 +266,7 @@ export function BookmarkProvider({ children }: { children: ReactNode }) {
   )
 
   const toggleBookmark = useCallback(
-    async (type: BookmarkType, item: Claim | Paper): Promise<boolean> => {
+    async (type: BookmarkType, item: Claim | Paper, episodeId?: string): Promise<boolean> => {
       const itemId = type === 'claim' ? (item as Claim).id : (item as Paper).paper_id
       const key = `${type}:${itemId}`
 
@@ -210,9 +284,9 @@ export function BookmarkProvider({ children }: { children: ReactNode }) {
       } else {
         // Add bookmark
         if (type === 'claim') {
-          await addClaimBookmark(item as Claim)
+          await addClaimBookmark(item as Claim, episodeId)
         } else {
-          await addPaperBookmark(item as Paper)
+          await addPaperBookmark(item as Paper, episodeId)
         }
         return true
       }
@@ -243,6 +317,30 @@ export function BookmarkProvider({ children }: { children: ReactNode }) {
       )
     },
     [bookmarks]
+  )
+
+  const getBookmarksForEpisode = useCallback(
+    async (episodeId: string): Promise<BookmarkWithDetails[]> => {
+      try {
+        return await getBookmarksForEpisodeQuery(episodeId)
+      } catch (err) {
+        console.error('Failed to get bookmarks for episode:', err)
+        return []
+      }
+    },
+    []
+  )
+
+  const getEpisodeBookmarkCounts = useCallback(
+    async (): Promise<EpisodeNotebookStats[]> => {
+      try {
+        return await getEpisodesWithBookmarks()
+      } catch (err) {
+        console.error('Failed to get episode bookmark counts:', err)
+        return []
+      }
+    },
+    []
   )
 
   const updateQuizStats = useCallback(
@@ -281,12 +379,16 @@ export function BookmarkProvider({ children }: { children: ReactNode }) {
         addClaimBookmark,
         addPaperBookmark,
         addSnippetBookmark,
+        addAiInsightBookmark,
+        addImageBookmark,
         removeBookmark,
         updateBookmarkNotes,
         toggleBookmark,
         isItemBookmarked,
         getBookmarksByType,
         getBookmarkForItem,
+        getBookmarksForEpisode,
+        getEpisodeBookmarkCounts,
         updateQuizStats,
         refreshBookmarks,
       }}

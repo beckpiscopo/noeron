@@ -24,11 +24,20 @@ interface AIChatSidebarProps {
   onWidthChange?: (width: number) => void
 }
 
-const SUGGESTED_PROMPTS = [
-  "What are the key findings discussed?",
-  "Explain this in simpler terms",
+// Prompts when viewing an episode (no specific claim selected)
+const EPISODE_PROMPTS = [
+  "What are the main topics covered in this episode?",
+  "Summarize the key scientific claims made",
+  "What research papers are referenced?",
+  "What's the guest's main argument?",
+]
+
+// Prompts when a specific claim is selected
+const CLAIM_PROMPTS = [
+  "Explain this claim in simpler terms",
   "What evidence supports this claim?",
-  "What are the implications?",
+  "Is this claim controversial or well-established?",
+  "What are the implications of this?",
 ]
 
 export function AIChatSidebar({
@@ -311,12 +320,12 @@ export function AIChatSidebar({
                       Ask questions about the podcast episode, claims, or related research.
                     </p>
 
-                    {/* Suggested prompts */}
+                    {/* Suggested prompts - context-aware */}
                     <div className="w-full space-y-2">
                       <p className="text-xs text-foreground/50 uppercase tracking-wider mb-2">
                         Try asking:
                       </p>
-                      {SUGGESTED_PROMPTS.map((prompt, index) => (
+                      {(context?.claim_text ? CLAIM_PROMPTS : EPISODE_PROMPTS).map((prompt, index) => (
                         <button
                           key={index}
                           onClick={() => sendMessage(prompt)}

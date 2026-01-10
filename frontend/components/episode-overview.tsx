@@ -44,6 +44,7 @@ interface ClaimDensityPoint {
   density: number
   theme?: string
   label?: string // For peak labels like "PEAK: BIOELECTRICITY"
+  keywords?: string[] // Top keywords from claims in this time bucket
 }
 
 interface ReferencePaper {
@@ -144,10 +145,24 @@ function ConceptDensityAnalysis({ durationSeconds, claimDensity, keyMoments, onS
     }))
   }, [claimDensity])
 
+  // Find the density point closest to the hovered time
+  const hoveredPoint = useMemo(() => {
+    if (hoveredTime === null || claimDensity.length === 0) return null
+    const hoveredMs = hoveredTime * 1000
+    let closest = claimDensity[0]
+    let minDist = Math.abs(closest.timestamp_ms - hoveredMs)
+    for (const point of claimDensity) {
+      const dist = Math.abs(point.timestamp_ms - hoveredMs)
+      if (dist < minDist) {
+        minDist = dist
+        closest = point
+      }
+    }
+    return closest
+  }, [hoveredTime, claimDensity])
+
   // Check if current hover is near a high-density region
-  const isHighDensity = hoveredTime !== null && claimDensity.some(
-    p => Math.abs(p.timestamp_ms - hoveredTime * 1000) < 60000 && p.density > 0.7
-  )
+  const isHighDensity = hoveredPoint !== null && hoveredPoint.density > 0.7
 
   // Generate SVG path for area chart
   const generatePath = () => {
@@ -275,10 +290,24 @@ function ConceptDensityAnalysis({ durationSeconds, claimDensity, keyMoments, onS
               className="absolute top-0 bottom-0 w-px bg-[var(--golden-chestnut)]/50 pointer-events-none"
               style={{ left: `${(hoveredTime / durationSeconds) * 100}%` }}
             >
-              <div className="absolute -top-6 left-1/2 -translate-x-1/2 px-2 py-1 bg-card border border-[var(--golden-chestnut)]/30">
-                <span className="mono text-[10px] text-[var(--golden-chestnut)]">
+              <div className="absolute -top-6 left-1/2 -translate-x-1/2 px-3 py-2 bg-card border border-[var(--golden-chestnut)]/30 min-w-[100px]">
+                <span className="mono text-[10px] text-[var(--golden-chestnut)] block text-center">
                   {formatTimecode(hoveredTime)}
                 </span>
+                {hoveredPoint?.keywords && hoveredPoint.keywords.length > 0 && (
+                  <div className="mt-1.5 pt-1.5 border-t border-border/50">
+                    <div className="flex flex-wrap gap-1 justify-center">
+                      {hoveredPoint.keywords.map((keyword, i) => (
+                        <span
+                          key={i}
+                          className="text-[9px] px-1.5 py-0.5 bg-[var(--golden-chestnut)]/10 text-foreground/70 rounded"
+                        >
+                          {keyword}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}

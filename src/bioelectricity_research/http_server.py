@@ -1239,6 +1239,155 @@ IMPORTANT: Return ONLY valid JSON. No markdown, no explanation text."""
         return JSONResponse({"error": str(e)}, status_code=500)
 
 
+@app.post("/tools/generate_notebook_synthesis/execute")
+async def http_generate_notebook_synthesis(request: Request):
+    """Generate AI synthesis for a user's notebook (saved items for an episode).
+
+    Takes a list of bookmarks and generates an insight about themes and patterns.
+    Results are cached in the frontend (Supabase notebook_synthesis table).
+    """
+    import asyncio
+    import json
+
+    try:
+        body = await request.json()
+        episode_id = body.get("episode_id")
+        bookmarks = body.get("bookmarks", [])
+        force_regenerate = body.get("force_regenerate", False)
+
+        if not episode_id:
+            return JSONResponse({"error": "episode_id is required"}, status_code=400)
+
+        if not bookmarks or len(bookmarks) == 0:
+            return JSONResponse({"error": "No bookmarks to synthesize"}, status_code=400)
+
+        # Import helper functions
+        from .server import (
+            _ensure_gemini_client_ready,
+            GEMINI_MODEL_DEFAULT,
+        )
+
+        # Load episode metadata for context
+        from pathlib import Path
+        episodes_file = Path(__file__).parent.parent.parent / "data" / "episodes.json"
+        episode_meta = {}
+        if episodes_file.exists():
+            with open(episodes_file, "r") as f:
+                episodes = json.load(f)
+                episode_meta = next((ep for ep in episodes if ep.get("id") == episode_id), {})
+
+        # Format bookmarks for the prompt
+        formatted_items = []
+        for i, b in enumerate(bookmarks[:20], 1):  # Limit to 20 items for token budget
+            item_type = b.get("type", "item")
+            title = b.get("title", "")
+            content = b.get("content", "")[:300]  # Truncate long content
+            timestamp = b.get("timestamp")
+
+            if timestamp:
+                mins = timestamp // 60000
+                secs = (timestamp // 1000) % 60
+                time_str = f" [{mins}:{secs:02d}]"
+            else:
+                time_str = ""
+
+            formatted_items.append(f"{i}. [{item_type.upper()}]{time_str} {title}\n   {content}")
+
+        items_text = "\n\n".join(formatted_items)
+
+        # Build synthesis prompt
+        prompt = f"""You are analyzing a user's saved research items from a podcast episode about bioelectricity and morphogenesis.
+
+## Episode Context
+Title: {episode_meta.get('title', episode_id)}
+Guest: {episode_meta.get('guest', 'Unknown')}
+Podcast: {episode_meta.get('podcast', 'Unknown')}
+
+## User's Saved Items ({len(bookmarks)} total)
+{items_text}
+
+## Your Task
+Analyze the user's saved items and provide:
+1. A concise synthesis (150-250 words) that identifies major themes, how items relate to each other, and what patterns emerge from their research interests
+2. 2-4 key themes as short labels with brief descriptions
+
+Focus on:
+- What topics the user seems most interested in
+- How different saved items connect conceptually
+- What deeper questions their collection suggests
+- Actionable next steps for their research
+
+Return your response as valid JSON with this structure:
+{{
+  "synthesis": "Your 150-250 word synthesis here...",
+  "themes": [
+    {{"name": "Theme 1", "description": "Brief description"}},
+    {{"name": "Theme 2", "description": "Brief description"}}
+  ]
+}}
+
+Respond ONLY with the JSON object, no markdown formatting or additional text."""
+
+        # Call Gemini
+        _ensure_gemini_client_ready()
+        response = await asyncio.to_thread(
+            lambda: server._GENAI_CLIENT.models.generate_content(
+                model=GEMINI_MODEL_DEFAULT,
+                contents=prompt,
+                config={
+                    "temperature": 0.7,
+                    "max_output_tokens": 1024,
+                }
+            )
+        )
+
+        # Extract response text
+        if hasattr(response, "text"):
+            response_text = response.text
+        elif hasattr(response, "candidates") and response.candidates:
+            candidate = response.candidates[0]
+            if hasattr(candidate, "content") and hasattr(candidate.content, "parts"):
+                response_text = "".join(
+                    part.text for part in candidate.content.parts if hasattr(part, "text")
+                )
+            else:
+                return JSONResponse({"error": "Failed to generate synthesis"}, status_code=500)
+        else:
+            return JSONResponse({"error": "Failed to generate synthesis"}, status_code=500)
+
+        # Parse JSON response
+        try:
+            # Clean up response (remove markdown code blocks if present)
+            cleaned_response = response_text.strip()
+            if cleaned_response.startswith("```json"):
+                cleaned_response = cleaned_response[7:]
+            if cleaned_response.startswith("```"):
+                cleaned_response = cleaned_response[3:]
+            if cleaned_response.endswith("```"):
+                cleaned_response = cleaned_response[:-3]
+            cleaned_response = cleaned_response.strip()
+
+            result = json.loads(cleaned_response)
+
+            return {
+                "synthesis": result.get("synthesis", ""),
+                "themes": result.get("themes", []),
+                "model": GEMINI_MODEL_DEFAULT,
+            }
+        except json.JSONDecodeError:
+            # Fallback: return raw text as synthesis
+            return {
+                "synthesis": response_text.strip(),
+                "themes": [],
+                "model": GEMINI_MODEL_DEFAULT,
+            }
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
 def run_server(host=None, port=None):
     """Run the HTTP server.
 

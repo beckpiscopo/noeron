@@ -499,6 +499,165 @@ data/episodes.json                  # FIXED: duration "3h 42m" → "3h 0m"
 
 ---
 
+## 2026-01-10: Notebooks System (Replaces Bookmarks Library)
+
+**Task:** Replace flat bookmarks library with episode-centric notebooks. Each episode becomes a personal research notebook with saved claims, papers, AI insights, images, and snippets.
+
+**Summary:**
+- Replaced `bookmarks-library.tsx` with two new components:
+  - `notebook-library.tsx` - Grid of episodes that have saved items
+  - `notebook-view.tsx` - Two-tab interface (Overview + Saved Items)
+- Added new bookmark types: `ai_insight` and `image` (in addition to existing `claim`, `paper`, `snippet`)
+- Created AI synthesis feature:
+  - `notebook-synthesis-panel.tsx` - Displays Gemini-generated insights about saved items
+  - Backend endpoint `/tools/generate_notebook_synthesis/execute` - Generates synthesis with themes
+  - `notebook_synthesis` table - Caches synthesis with auto-invalidation when bookmarks change
+- Updated bookmarks hook with episode-scoped methods
+
+**Key Files:**
+```
+supabase/migrations/007_add_notebook_types_and_synthesis.sql  # NEW: Schema changes
+├── Expanded bookmark_type to include 'ai_insight', 'image'
+├── Added insight_source, image_url, image_caption columns
+├── Created notebook_synthesis table (caches AI overviews)
+├── Created episode_notebook_stats view (counts per episode)
+├── Triggers to auto-invalidate synthesis when bookmarks change
+
+frontend/components/
+├── notebook-library.tsx          # NEW: Episode grid showing notebooks
+├── notebook-view.tsx             # NEW: Two-tab interface (Overview + Saved Items)
+├── notebook-synthesis-panel.tsx  # NEW: AI synthesis display + generation
+└── bookmarks-library.tsx         # ORPHANED: Can be deleted
+
+frontend/lib/supabase.ts
+├── BookmarkType expanded: 'claim' | 'paper' | 'snippet' | 'ai_insight' | 'image'
+├── NotebookSynthesis interface
+├── getBookmarksForEpisode(), getEpisodesWithBookmarks()
+├── getNotebookSynthesis(), saveNotebookSynthesis()
+
+frontend/hooks/use-bookmarks.tsx
+├── addAiInsightBookmark(), addImageBookmark()
+├── getBookmarksForEpisode(), getEpisodeBookmarkCounts()
+
+frontend/app/page.tsx
+├── View states: added "notebook-library", "notebook"
+├── Navigation: bookmarks button → notebook library
+├── Added selectedNotebookEpisodeId state
+
+src/bioelectricity_research/http_server.py
+└── /tools/generate_notebook_synthesis/execute  # NEW endpoint
+```
+
+**Notebook View - Overview Tab:**
+- Statistics cards (total items, last updated, quiz ready, item types)
+- Item breakdown bar chart (horizontal, color-coded by type)
+- AI Synthesis panel (on-demand generation, cached in Supabase)
+- Cross-episode connections section (stubbed for v1)
+- Action buttons: Export (disabled), Start Quiz
+
+**Notebook View - Saved Items Tab:**
+- Filter tabs: All | Claims | Papers | AI Insights | Images | Snippets
+- Sort dropdown: Timestamp | Type | Date Added
+- Card grid with type-specific styling
+- Edit notes, delete actions per card
+
+**AI Synthesis Prompt:**
+- Analyzes all saved items for an episode
+- Identifies 2-4 themes with descriptions
+- Returns JSON: `{ synthesis: string, themes: [{name, description}] }`
+- Cached in `notebook_synthesis` table, marked stale when bookmarks change
+
+**Database Migration Notes:**
+- Separate INSERT/DELETE triggers (can't reference NEW in DELETE trigger WHEN clause)
+- DROP VIEW before CREATE VIEW (can't change column names with CREATE OR REPLACE)
+- Run cleanup SQL first if partial migration ran:
+  ```sql
+  DROP TRIGGER IF EXISTS trigger_invalidate_synthesis_insert ON bookmarks;
+  DROP TRIGGER IF EXISTS trigger_invalidate_synthesis_delete ON bookmarks;
+  DROP FUNCTION IF EXISTS invalidate_notebook_synthesis() CASCADE;
+  DROP VIEW IF EXISTS bookmark_stats;
+  DROP VIEW IF EXISTS episode_notebook_stats;
+  ```
+
+**Decisions/Gotchas:**
+- Episode association: bookmarks already had `episode_id` field, used for grouping
+- Synthesis is on-demand (not auto-generated) with manual "Regenerate" button
+- Cross-episode connections stubbed with placeholder UI for v1
+- Old `bookmarks-library.tsx` is orphaned but not deleted (can reference for styling)
+- Navigation changed: bookmark button in header → notebook library → individual notebook
+
+**Next Steps:**
+- Run migration: `supabase/migrations/007_add_notebook_types_and_synthesis.sql`
+- Delete orphaned `bookmarks-library.tsx` if not needed
+- Implement cross-episode connections (find shared papers/topics across notebooks)
+- Add "Save to Notebook" button to AI chat responses
+- Consider image capture/screenshot save functionality
+
+---
+
+## 2026-01-10: Episode Overview UI + Concept Density Keywords
+
+**Task:** Add navbar and AI chat to episode overview page, make chat resizable, add keyword tooltips to concept density graph
+
+**Summary:**
+- Added `NoeronHeader` and `AIChatSidebar` to `episode-overview.tsx` (matching listening-view.tsx)
+- Unified navbar font to "Russo One" across all pages (landing, listening, overview)
+- Made AI chat sidebar resizable:
+  - Added drag handle on left edge
+  - Min width 320px, max 700px, default 440px
+  - `onWidthChange` callback so parent components can adjust margins
+- Made suggested chat prompts context-aware:
+  - Episode prompts (no claim selected): "What are the main topics?", "Summarize key claims", etc.
+  - Claim prompts (when claim in context): "Explain this in simpler terms", "What evidence supports this?", etc.
+- Added keywords to concept density graph hover tooltips:
+  - Created `supabase/migrations/006_add_keywords_to_claims.sql` (TEXT[] column + GIN index)
+  - Created `scripts/generate_claim_keywords.py` using Gemini 2.0 Flash
+  - Updated `computeClaimDensity` to aggregate top 3 keywords per time bucket
+  - Updated hover tooltip to display keyword pills
+  - Generated keywords for 365 claims in lex_325 episode
+
+**Key Files:**
+```
+supabase/migrations/006_add_keywords_to_claims.sql  # NEW: Keywords column
+scripts/generate_claim_keywords.py                   # NEW: Gemini keyword extraction
+
+frontend/components/
+├── episode-overview.tsx        # Added NoeronHeader, AIChatSidebar, chatWidth state
+├── noeron-header.tsx           # Changed font to Russo One
+├── ai-chat/ai-chat-sidebar.tsx # Added resize handle, context-aware prompts
+└── listening-view.tsx          # Added chatWidth state, onWidthChange prop
+
+frontend/app/page.tsx
+├── ClaimDensityPoint interface  # Added keywords field
+├── computeClaimDensity()        # Aggregates keywords per bucket
+└── convertSupabaseClaim()       # Fixed: now maps keywords field
+
+frontend/lib/supabase.ts
+└── Claim interface              # Added keywords field
+```
+
+**Usage:**
+```bash
+# Generate keywords for all claims (or specific episode)
+cd /path/to/project
+source .venv/bin/activate
+python scripts/generate_claim_keywords.py
+python scripts/generate_claim_keywords.py --episode lex_325 --dry-run
+```
+
+**Decisions/Gotchas:**
+- Resize disables CSS transition during drag for smooth feedback
+- Keywords are extracted in batches of 50 claims per Gemini request for efficiency
+- `convertSupabaseClaim` was missing `keywords` field - this caused keywords to not appear even after DB update
+- google.generativeai package shows deprecation warning but still works
+
+**Next Steps:**
+- Generate keywords for other episodes when claims are added
+- Consider adding keyword search/filtering capability
+- Could highlight keywords that match user's chat query
+
+---
+
 Template:
 
 Date:
@@ -508,4 +667,4 @@ Summary:
 Decisions/Gotchas:
 -
 Next Steps:
-- 
+-
