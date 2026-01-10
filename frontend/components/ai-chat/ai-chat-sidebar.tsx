@@ -1,13 +1,18 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
-import { MessageSquare, Trash2, Sparkles, X, ChevronLeft, ChevronRight, Loader2 } from "lucide-react"
+import { useEffect, useRef, useState, useCallback } from "react"
+import { MessageSquare, Trash2, Sparkles, X, ChevronLeft, ChevronRight, Loader2, GripVertical } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ChatMessage } from "./chat-message"
 import { ChatInput } from "./chat-input"
 import { useAIChat } from "@/hooks/use-ai-chat"
 import type { ChatContext } from "@/lib/chat-types"
 import { cn } from "@/lib/utils"
+
+const MIN_WIDTH = 320
+const MAX_WIDTH = 700
+const DEFAULT_WIDTH = 440
+const COLLAPSED_WIDTH = 52
 
 interface AIChatSidebarProps {
   open: boolean
@@ -16,6 +21,7 @@ interface AIChatSidebarProps {
   onViewPaper?: (paperId: string) => void
   onClaimDrop?: (claim: { id: string | number; segment_claim_id?: string; claim_text?: string; distilled_claim?: string }) => void
   onClearDroppedClaim?: () => void
+  onWidthChange?: (width: number) => void
 }
 
 const SUGGESTED_PROMPTS = [
@@ -32,10 +38,51 @@ export function AIChatSidebar({
   onViewPaper,
   onClaimDrop,
   onClearDroppedClaim,
+  onWidthChange,
 }: AIChatSidebarProps) {
   const { messages, isLoading, isLoadingHistory, sendMessage, clearHistory } = useAIChat(context)
   const scrollRef = useRef<HTMLDivElement>(null)
   const [isDragOver, setIsDragOver] = useState(false)
+  const [width, setWidth] = useState(DEFAULT_WIDTH)
+  const [isResizing, setIsResizing] = useState(false)
+  const resizeRef = useRef<{ startX: number; startWidth: number } | null>(null)
+
+  // Notify parent of width changes
+  useEffect(() => {
+    onWidthChange?.(open ? width : COLLAPSED_WIDTH)
+  }, [width, open, onWidthChange])
+
+  // Handle resize mouse events
+  const handleResizeStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    setIsResizing(true)
+    resizeRef.current = { startX: e.clientX, startWidth: width }
+  }, [width])
+
+  useEffect(() => {
+    if (!isResizing) return
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!resizeRef.current) return
+      // Dragging left increases width (sidebar is on the right)
+      const delta = resizeRef.current.startX - e.clientX
+      const newWidth = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, resizeRef.current.startWidth + delta))
+      setWidth(newWidth)
+    }
+
+    const handleMouseUp = () => {
+      setIsResizing(false)
+      resizeRef.current = null
+    }
+
+    document.addEventListener('mousemove', handleMouseMove)
+    document.addEventListener('mouseup', handleMouseUp)
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [isResizing])
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -91,15 +138,36 @@ export function AIChatSidebar({
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
+        style={{ width: open ? `${width}px` : `${COLLAPSED_WIDTH}px` }}
         className={cn(
-          "fixed right-0 z-50 flex flex-col bg-background border-l transition-all duration-300 ease-in-out",
+          "fixed right-0 z-50 flex flex-col bg-background border-l",
           "top-[60px] h-[calc(100vh-60px)]", // Below navbar
-          open ? "w-[400px] sm:w-[440px]" : "w-[52px]",
+          !isResizing && "transition-all duration-300 ease-in-out",
           isDragOver
             ? "border-[var(--golden-chestnut)] border-2 bg-[var(--golden-chestnut)]/5"
             : "border-border"
         )}
       >
+        {/* Resize handle - only visible when open */}
+        {open && (
+          <div
+            onMouseDown={handleResizeStart}
+            className={cn(
+              "absolute left-0 top-0 bottom-0 w-1 cursor-ew-resize group z-10",
+              "hover:bg-[var(--golden-chestnut)]/30",
+              isResizing && "bg-[var(--golden-chestnut)]/50"
+            )}
+          >
+            {/* Visual grip indicator */}
+            <div className={cn(
+              "absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2",
+              "opacity-0 group-hover:opacity-100 transition-opacity",
+              isResizing && "opacity-100"
+            )}>
+              <GripVertical className="w-3 h-3 text-[var(--golden-chestnut)]" />
+            </div>
+          </div>
+        )}
         {/* Collapsed state - slim sidebar */}
         {!open && (
           <div className="flex flex-col items-center py-4 gap-3 h-full">

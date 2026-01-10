@@ -9,8 +9,13 @@ import {
   ExternalLink,
   ChevronRight,
   Circle,
-  Loader2
+  Loader2,
+  Search,
+  Settings,
+  HelpCircle
 } from "lucide-react"
+import { NoeronHeader } from "./noeron-header"
+import { AIChatSidebar } from "./ai-chat"
 
 // =============================================================================
 // TYPES
@@ -115,32 +120,6 @@ function CornerBrackets({ children, className = "" }: { children: React.ReactNod
   )
 }
 
-// =============================================================================
-// TERMINAL HEADER
-// =============================================================================
-
-function TerminalHeader() {
-  return (
-    <header className="flex items-center justify-between px-6 py-3 border-b border-border/50 bg-background/80 backdrop-blur-sm">
-      <div className="flex items-center gap-3">
-        <span className="text-[var(--golden-chestnut)] font-bold tracking-wider text-sm">
-          NOERON RESEARCH TERMINAL
-        </span>
-        <span className="text-foreground/30 mono text-xs">//</span>
-        <span className="text-foreground/40 mono text-xs">SYS.V.2025.01</span>
-      </div>
-      <div className="flex items-center gap-4">
-        <div className="flex items-center gap-2">
-          <span className="relative flex h-2 w-2">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
-            <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500"></span>
-          </span>
-          <span className="text-emerald-400/80 mono text-xs tracking-wider">LIVE CONNECTION</span>
-        </div>
-      </div>
-    </header>
-  )
-}
 
 // =============================================================================
 // CONCEPT DENSITY ANALYSIS (Area Chart Style)
@@ -562,6 +541,26 @@ function TerminalFooter() {
 // =============================================================================
 
 export function EpisodeOverview({ episode, onStartListening, onBack }: EpisodeOverviewProps) {
+  const [chatOpen, setChatOpen] = useState(true)
+  const [chatWidth, setChatWidth] = useState(440)
+
+  // Header action buttons
+  const iconButtonClasses =
+    "flex h-9 w-9 items-center justify-center rounded-full text-foreground/70 transition hover:text-foreground"
+  const headerActions = (
+    <>
+      <button className={iconButtonClasses}>
+        <Search className="h-4 w-4" />
+      </button>
+      <button className={iconButtonClasses}>
+        <Settings className="h-4 w-4" />
+      </button>
+      <button className={iconButtonClasses}>
+        <HelpCircle className="h-4 w-4" />
+      </button>
+    </>
+  )
+
   // Use real claim density data or empty array (no fake data)
   const claimDensity = episode.claim_density || []
   const hasClaimData = claimDensity.length > 0
@@ -592,9 +591,12 @@ export function EpisodeOverview({ episode, onStartListening, onBack }: EpisodeOv
 
   return (
     <div className="noeron-theme min-h-screen bg-background text-foreground flex flex-col">
-      <TerminalHeader />
+      <NoeronHeader actions={headerActions} onLogoClick={() => window.location.assign("/")} />
 
-      <main className="flex-1 px-6 py-8 max-w-[1400px] mx-auto w-full">
+      <main
+        className="flex-1 px-6 py-8 max-w-[1400px] mx-auto w-full transition-all duration-300 ease-in-out"
+        style={{ marginRight: `${chatWidth}px` }}
+      >
         {/* Two Column Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-8">
           {/* Left Column - Main Content */}
@@ -708,6 +710,18 @@ export function EpisodeOverview({ episode, onStartListening, onBack }: EpisodeOv
       </main>
 
       <TerminalFooter />
+
+      {/* AI Chat Sidebar */}
+      <AIChatSidebar
+        open={chatOpen}
+        onOpenChange={setChatOpen}
+        onWidthChange={setChatWidth}
+        context={{
+          episode_id: episode.id,
+          episode_title: episode.title,
+          guest: episode.guest,
+        }}
+      />
     </div>
   )
 }

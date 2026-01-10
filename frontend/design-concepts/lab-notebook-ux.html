@@ -1,0 +1,1432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lab Notebook — Episode-Centric Research</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,400;6..96,500;6..96,600&family=Manrope:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --carbon-black: #1D1E20;
+      --parchment: #F2E9E4;
+      --dark-gray: #2A2B2D;
+      --golden-chestnut: #BE7C4D;
+      --rosy-copper: #BE5A38;
+      --warm-gray: #6B5D52;
+      --notebook-cream: #FAF7F2;
+      --notebook-line: rgba(190, 124, 77, 0.12);
+
+      --type-claim: #5B8DEF;
+      --type-paper: #4CAF7C;
+      --type-snippet: #9B6DD4;
+      --type-image: #E67E5A;
+      --type-insight: #D4A85B;
+      --type-note: #7EADB8;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Manrope', system-ui, sans-serif;
+      background: var(--carbon-black);
+      color: var(--parchment);
+      min-height: 100vh;
+    }
+
+    h1, h2, h3, h4, h5 {
+      font-family: 'Bodoni Moda', Georgia, serif;
+      font-weight: 500;
+    }
+
+    /* ========================================
+       HEADER
+       ======================================== */
+    .design-header {
+      padding: 60px 60px 40px;
+      border-bottom: 1px solid rgba(242, 233, 228, 0.1);
+    }
+
+    .eyebrow {
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 0.2em;
+      color: var(--golden-chestnut);
+      margin-bottom: 12px;
+    }
+
+    .design-header h1 {
+      font-size: 2.5rem;
+      margin-bottom: 16px;
+    }
+
+    .design-header p {
+      font-size: 1.1rem;
+      color: rgba(242, 233, 228, 0.6);
+      max-width: 700px;
+      line-height: 1.7;
+    }
+
+    /* ========================================
+       SECTIONS
+       ======================================== */
+    .section {
+      padding: 80px 60px;
+      border-bottom: 1px solid rgba(242, 233, 228, 0.08);
+    }
+
+    .section-header {
+      margin-bottom: 48px;
+    }
+
+    .section-header h2 {
+      font-size: 2rem;
+      margin-bottom: 12px;
+    }
+
+    .section-header p {
+      color: rgba(242, 233, 228, 0.6);
+      max-width: 600px;
+      line-height: 1.7;
+    }
+
+    /* ========================================
+       MENTAL MODEL COMPARISON
+       ======================================== */
+    .model-comparison {
+      display: grid;
+      grid-template-columns: 1fr 60px 1fr;
+      gap: 40px;
+      align-items: start;
+    }
+
+    .model-card {
+      background: var(--dark-gray);
+      border: 1px solid rgba(242, 233, 228, 0.1);
+      padding: 32px;
+    }
+
+    .model-card.preferred {
+      border-color: var(--golden-chestnut);
+      box-shadow: 0 0 40px rgba(190, 124, 77, 0.15);
+    }
+
+    .model-card h3 {
+      font-size: 1.25rem;
+      margin-bottom: 8px;
+    }
+
+    .model-card .subtitle {
+      font-size: 0.8rem;
+      color: rgba(242, 233, 228, 0.5);
+      margin-bottom: 24px;
+    }
+
+    .model-card.preferred .subtitle {
+      color: var(--golden-chestnut);
+    }
+
+    .model-visual {
+      padding: 24px;
+      background: var(--carbon-black);
+      border: 1px solid rgba(242, 233, 228, 0.05);
+      margin-bottom: 20px;
+    }
+
+    .flat-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .flat-item {
+      padding: 6px 12px;
+      background: rgba(242, 233, 228, 0.1);
+      font-size: 0.75rem;
+      color: rgba(242, 233, 228, 0.6);
+    }
+
+    .episode-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .episode-notebook {
+      background: rgba(190, 124, 77, 0.1);
+      border: 1px solid rgba(190, 124, 77, 0.3);
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .episode-notebook .title {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--parchment);
+    }
+
+    .episode-notebook .count {
+      font-size: 0.7rem;
+      color: var(--golden-chestnut);
+    }
+
+    .episode-entries {
+      display: flex;
+      gap: 4px;
+      margin-left: 20px;
+      padding-left: 12px;
+      border-left: 2px solid rgba(190, 124, 77, 0.2);
+    }
+
+    .mini-entry {
+      width: 8px;
+      height: 8px;
+      border-radius: 2px;
+    }
+
+    .mini-entry.claim { background: var(--type-claim); }
+    .mini-entry.image { background: var(--type-image); }
+    .mini-entry.note { background: var(--type-note); }
+
+    .model-arrow {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding-top: 80px;
+      color: var(--golden-chestnut);
+      opacity: 0.5;
+    }
+
+    .model-benefits {
+      list-style: none;
+    }
+
+    .model-benefits li {
+      padding: 8px 0;
+      font-size: 0.85rem;
+      color: rgba(242, 233, 228, 0.7);
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+
+    .model-benefits li svg {
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .benefit-check {
+      color: var(--type-paper);
+    }
+
+    .benefit-x {
+      color: var(--rosy-copper);
+      opacity: 0.6;
+    }
+
+    /* ========================================
+       INFORMATION ARCHITECTURE
+       ======================================== */
+    .ia-section {
+      background: var(--dark-gray);
+    }
+
+    .ia-diagram {
+      display: flex;
+      flex-direction: column;
+      gap: 32px;
+      max-width: 900px;
+    }
+
+    .ia-level {
+      display: flex;
+      align-items: flex-start;
+      gap: 24px;
+    }
+
+    .ia-label {
+      width: 120px;
+      flex-shrink: 0;
+      text-align: right;
+      padding-top: 16px;
+    }
+
+    .ia-label .level-name {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--golden-chestnut);
+      margin-bottom: 4px;
+    }
+
+    .ia-label .level-desc {
+      font-size: 0.75rem;
+      color: rgba(242, 233, 228, 0.4);
+    }
+
+    .ia-content {
+      flex: 1;
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .ia-box {
+      background: var(--carbon-black);
+      border: 1px solid rgba(242, 233, 228, 0.1);
+      padding: 16px 20px;
+      min-width: 200px;
+    }
+
+    .ia-box.primary {
+      border-color: var(--golden-chestnut);
+      background: rgba(190, 124, 77, 0.08);
+    }
+
+    .ia-box h4 {
+      font-family: 'Manrope', sans-serif;
+      font-size: 0.9rem;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .ia-box p {
+      font-size: 0.75rem;
+      color: rgba(242, 233, 228, 0.5);
+    }
+
+    .ia-connector {
+      width: 120px;
+      display: flex;
+      justify-content: flex-end;
+      padding-right: 12px;
+    }
+
+    .ia-connector .line {
+      width: 2px;
+      height: 100%;
+      min-height: 40px;
+      background: linear-gradient(180deg, var(--golden-chestnut) 0%, rgba(190, 124, 77, 0.2) 100%);
+    }
+
+    /* ========================================
+       EPISODE NOTEBOOK VIEW
+       ======================================== */
+    .notebook-section {
+      background: var(--notebook-cream);
+      color: var(--carbon-black);
+      position: relative;
+    }
+
+    .notebook-section::after {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: repeating-linear-gradient(
+        transparent, transparent 31px,
+        var(--notebook-line) 31px, var(--notebook-line) 32px
+      );
+      pointer-events: none;
+      opacity: 0.4;
+    }
+
+    .notebook-content {
+      position: relative;
+      z-index: 1;
+    }
+
+    .notebook-section .eyebrow { color: var(--rosy-copper); }
+    .notebook-section .section-header h2 { color: var(--carbon-black); }
+    .notebook-section .section-header p { color: var(--warm-gray); }
+
+    /* Episode Header */
+    .episode-header-mockup {
+      background: white;
+      border: 1px solid rgba(107, 93, 82, 0.15);
+      box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+      margin-bottom: 32px;
+    }
+
+    .episode-banner {
+      height: 120px;
+      background: linear-gradient(135deg, var(--golden-chestnut) 0%, var(--rosy-copper) 100%);
+      position: relative;
+      display: flex;
+      align-items: flex-end;
+      padding: 20px 28px;
+    }
+
+    .episode-banner h2 {
+      color: white;
+      font-size: 1.5rem;
+      text-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+
+    .episode-banner .guest {
+      position: absolute;
+      top: 16px;
+      right: 20px;
+      background: rgba(0,0,0,0.3);
+      color: white;
+      padding: 6px 12px;
+      font-size: 0.75rem;
+      font-weight: 500;
+    }
+
+    .episode-stats {
+      display: flex;
+      gap: 32px;
+      padding: 20px 28px;
+      border-bottom: 1px solid rgba(107, 93, 82, 0.1);
+    }
+
+    .stat {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .stat-value {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--carbon-black);
+    }
+
+    .stat-label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--warm-gray);
+    }
+
+    .episode-tabs {
+      display: flex;
+      gap: 0;
+      padding: 0 28px;
+    }
+
+    .episode-tab {
+      padding: 14px 20px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--warm-gray);
+      border-bottom: 2px solid transparent;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .episode-tab:hover {
+      color: var(--carbon-black);
+    }
+
+    .episode-tab.active {
+      color: var(--golden-chestnut);
+      border-bottom-color: var(--golden-chestnut);
+    }
+
+    /* Notebook Entries */
+    .notebook-entries {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      background: rgba(107, 93, 82, 0.08);
+    }
+
+    .notebook-entry {
+      background: white;
+      padding: 20px 28px;
+      display: grid;
+      grid-template-columns: 80px 1fr auto;
+      gap: 20px;
+      align-items: start;
+      transition: background 0.2s;
+      cursor: pointer;
+    }
+
+    .notebook-entry:hover {
+      background: var(--notebook-cream);
+    }
+
+    .entry-timestamp {
+      font-family: 'Manrope', monospace;
+      font-size: 0.8rem;
+      color: var(--warm-gray);
+      padding-top: 4px;
+    }
+
+    .entry-main {
+      flex: 1;
+    }
+
+    .entry-type-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 8px;
+      font-size: 0.6rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 8px;
+      border-radius: 2px;
+    }
+
+    .entry-type-badge.claim { background: rgba(91, 141, 239, 0.12); color: var(--type-claim); }
+    .entry-type-badge.image { background: rgba(230, 126, 90, 0.12); color: var(--type-image); }
+    .entry-type-badge.snippet { background: rgba(155, 109, 212, 0.12); color: var(--type-snippet); }
+    .entry-type-badge.note { background: rgba(126, 173, 184, 0.12); color: var(--type-note); }
+    .entry-type-badge.paper { background: rgba(76, 175, 124, 0.12); color: var(--type-paper); }
+
+    .entry-title {
+      font-family: 'Bodoni Moda', serif;
+      font-size: 1.05rem;
+      color: var(--carbon-black);
+      line-height: 1.4;
+      margin-bottom: 6px;
+    }
+
+    .entry-preview {
+      font-size: 0.85rem;
+      color: var(--warm-gray);
+      line-height: 1.6;
+    }
+
+    /* User Note Attached */
+    .entry-user-note {
+      margin-top: 12px;
+      padding: 12px 14px;
+      background: rgba(126, 173, 184, 0.08);
+      border-left: 3px solid var(--type-note);
+    }
+
+    .entry-user-note .note-label {
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--type-note);
+      margin-bottom: 4px;
+      font-weight: 600;
+    }
+
+    .entry-user-note p {
+      font-size: 0.85rem;
+      color: var(--carbon-black);
+      line-height: 1.5;
+      font-style: italic;
+    }
+
+    /* Image Entry */
+    .entry-image-preview {
+      width: 100%;
+      height: 140px;
+      background: linear-gradient(135deg, #1a2a3a 0%, #0a1a2a 100%);
+      border-radius: 4px;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    .entry-image-preview .ai-badge {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      background: var(--golden-chestnut);
+      color: white;
+      font-size: 0.55rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      padding: 2px 6px;
+    }
+
+    .entry-actions {
+      display: flex;
+      gap: 8px;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    .notebook-entry:hover .entry-actions {
+      opacity: 1;
+    }
+
+    .entry-action {
+      width: 32px;
+      height: 32px;
+      border: 1px solid rgba(107, 93, 82, 0.15);
+      background: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: var(--warm-gray);
+      transition: all 0.2s;
+    }
+
+    .entry-action:hover {
+      border-color: var(--golden-chestnut);
+      color: var(--golden-chestnut);
+    }
+
+    /* Add Note Inline */
+    .add-note-inline {
+      padding: 16px 28px;
+      background: rgba(126, 173, 184, 0.06);
+      border: 1px dashed rgba(126, 173, 184, 0.3);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin: 2px 0;
+    }
+
+    .add-note-inline:hover {
+      background: rgba(126, 173, 184, 0.12);
+      border-color: var(--type-note);
+    }
+
+    .add-note-inline svg {
+      color: var(--type-note);
+    }
+
+    .add-note-inline span {
+      font-size: 0.85rem;
+      color: var(--type-note);
+    }
+
+    /* ========================================
+       CROSS-EPISODE CONNECTIONS
+       ======================================== */
+    .connections-section {
+      background: var(--carbon-black);
+    }
+
+    .connections-demo {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 40px;
+    }
+
+    .connection-panel {
+      background: var(--dark-gray);
+      border: 1px solid rgba(242, 233, 228, 0.1);
+      padding: 28px;
+    }
+
+    .connection-panel h3 {
+      font-size: 1.1rem;
+      margin-bottom: 20px;
+      color: var(--golden-chestnut);
+    }
+
+    .connection-list {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .connection-item {
+      display: flex;
+      gap: 16px;
+      padding: 16px;
+      background: var(--carbon-black);
+      border: 1px solid rgba(242, 233, 228, 0.05);
+      transition: all 0.2s;
+      cursor: pointer;
+    }
+
+    .connection-item:hover {
+      border-color: var(--golden-chestnut);
+    }
+
+    .connection-icon {
+      width: 40px;
+      height: 40px;
+      background: rgba(190, 124, 77, 0.1);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      color: var(--golden-chestnut);
+    }
+
+    .connection-text h4 {
+      font-family: 'Manrope', sans-serif;
+      font-size: 0.9rem;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .connection-text p {
+      font-size: 0.8rem;
+      color: rgba(242, 233, 228, 0.5);
+    }
+
+    /* Knowledge Map Preview */
+    .knowledge-map {
+      height: 300px;
+      background: var(--carbon-black);
+      border: 1px solid rgba(242, 233, 228, 0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .map-node {
+      position: absolute;
+      padding: 8px 14px;
+      background: var(--dark-gray);
+      border: 1px solid rgba(242, 233, 228, 0.2);
+      font-size: 0.75rem;
+      color: var(--parchment);
+      white-space: nowrap;
+    }
+
+    .map-node.central {
+      background: var(--golden-chestnut);
+      color: var(--carbon-black);
+      font-weight: 600;
+    }
+
+    .map-node.episode {
+      border-color: var(--type-claim);
+    }
+
+    .map-line {
+      position: absolute;
+      height: 1px;
+      background: rgba(190, 124, 77, 0.3);
+      transform-origin: left center;
+    }
+
+    /* ========================================
+       ANNOTATION LAYER
+       ======================================== */
+    .annotation-section {
+      background: var(--dark-gray);
+    }
+
+    .annotation-demo {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 40px;
+    }
+
+    .annotation-example {
+      background: var(--carbon-black);
+      border: 1px solid rgba(242, 233, 228, 0.1);
+      overflow: hidden;
+    }
+
+    .annotation-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid rgba(242, 233, 228, 0.1);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .annotation-header h4 {
+      font-family: 'Manrope', sans-serif;
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+
+    .annotation-content {
+      padding: 20px;
+    }
+
+    .annotation-quote {
+      font-style: italic;
+      color: rgba(242, 233, 228, 0.7);
+      padding: 16px;
+      border-left: 2px solid var(--golden-chestnut);
+      background: rgba(190, 124, 77, 0.05);
+      margin-bottom: 16px;
+      font-size: 0.9rem;
+      line-height: 1.6;
+    }
+
+    .annotation-notes {
+      padding: 16px;
+      background: rgba(126, 173, 184, 0.08);
+      border: 1px solid rgba(126, 173, 184, 0.2);
+    }
+
+    .annotation-notes .label {
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--type-note);
+      margin-bottom: 8px;
+      font-weight: 600;
+    }
+
+    .annotation-notes p {
+      font-size: 0.85rem;
+      color: var(--parchment);
+      line-height: 1.6;
+    }
+
+    .annotation-links {
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid rgba(242, 233, 228, 0.1);
+    }
+
+    .annotation-links .label {
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: rgba(242, 233, 228, 0.4);
+      margin-bottom: 8px;
+    }
+
+    .linked-entries {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .linked-entry {
+      padding: 6px 10px;
+      background: rgba(242, 233, 228, 0.05);
+      border: 1px solid rgba(242, 233, 228, 0.1);
+      font-size: 0.75rem;
+      color: rgba(242, 233, 228, 0.7);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .linked-entry:hover {
+      border-color: var(--golden-chestnut);
+      color: var(--golden-chestnut);
+    }
+
+    /* ========================================
+       DATA MODEL
+       ======================================== */
+    .datamodel-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 40px;
+    }
+
+    .datamodel-card {
+      background: var(--dark-gray);
+      border: 1px solid rgba(242, 233, 228, 0.1);
+      padding: 28px;
+    }
+
+    .datamodel-card h3 {
+      font-size: 1rem;
+      margin-bottom: 20px;
+      color: var(--golden-chestnut);
+      font-family: 'Manrope', monospace;
+    }
+
+    .datamodel-code {
+      font-family: 'Manrope', monospace;
+      font-size: 0.75rem;
+      line-height: 1.9;
+      color: rgba(242, 233, 228, 0.7);
+    }
+
+    .datamodel-code .keyword { color: var(--type-snippet); }
+    .datamodel-code .type { color: var(--type-claim); }
+    .datamodel-code .string { color: var(--type-paper); }
+    .datamodel-code .comment { color: rgba(242, 233, 228, 0.3); font-style: italic; }
+    .datamodel-code .new { color: var(--golden-chestnut); }
+
+    /* ========================================
+       FOOTER
+       ======================================== */
+    .design-footer {
+      padding: 60px;
+      text-align: center;
+      border-top: 1px solid rgba(242, 233, 228, 0.08);
+    }
+
+    .design-footer p {
+      color: rgba(242, 233, 228, 0.4);
+      font-size: 0.85rem;
+    }
+
+    .design-footer .accent { color: var(--golden-chestnut); }
+
+    /* Icons */
+    .icon { width: 18px; height: 18px; }
+    .icon-sm { width: 14px; height: 14px; }
+    .icon-lg { width: 24px; height: 24px; }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="design-header">
+    <p class="eyebrow">Design Exploration v2</p>
+    <h1>Episode-Centric Lab Notebooks</h1>
+    <p>
+      Each episode becomes a research notebook. Users collect claims, images, and snippets,
+      then annotate them with their own notes. Cross-episode connections enable knowledge excavation.
+    </p>
+  </header>
+
+  <!-- Mental Model Comparison -->
+  <section class="section">
+    <div class="section-header">
+      <p class="eyebrow">Core Shift</p>
+      <h2>From Flat List → Episode Notebooks</h2>
+      <p>
+        Instead of one giant library of bookmarks, each episode is a focused research space
+        where notes accumulate around the content.
+      </p>
+    </div>
+
+    <div class="model-comparison">
+      <div class="model-card">
+        <h3>Flat Bookmarks</h3>
+        <p class="subtitle">Current approach</p>
+        <div class="model-visual">
+          <div class="flat-list">
+            <span class="flat-item">Claim from EP 47</span>
+            <span class="flat-item">Paper</span>
+            <span class="flat-item">Claim from EP 12</span>
+            <span class="flat-item">Snippet</span>
+            <span class="flat-item">Claim from EP 47</span>
+            <span class="flat-item">Paper</span>
+            <span class="flat-item">Claim from EP 33</span>
+            <span class="flat-item">Snippet</span>
+          </div>
+        </div>
+        <ul class="model-benefits">
+          <li>
+            <svg class="icon-sm benefit-x" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            Items lose episode context
+          </li>
+          <li>
+            <svg class="icon-sm benefit-x" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            Hard to see research journey per source
+          </li>
+          <li>
+            <svg class="icon-sm benefit-x" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            Notes attached to items, not flow
+          </li>
+        </ul>
+      </div>
+
+      <div class="model-arrow">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M5 12h14M12 5l7 7-7 7"/>
+        </svg>
+      </div>
+
+      <div class="model-card preferred">
+        <h3>Episode Notebooks</h3>
+        <p class="subtitle">Proposed approach</p>
+        <div class="model-visual">
+          <div class="episode-stack">
+            <div>
+              <div class="episode-notebook">
+                <span class="title">EP 47: Michael Levin</span>
+                <span class="count">12 entries</span>
+              </div>
+              <div class="episode-entries">
+                <span class="mini-entry claim"></span>
+                <span class="mini-entry claim"></span>
+                <span class="mini-entry image"></span>
+                <span class="mini-entry note"></span>
+                <span class="mini-entry claim"></span>
+              </div>
+            </div>
+            <div>
+              <div class="episode-notebook">
+                <span class="title">EP 33: Karl Friston</span>
+                <span class="count">8 entries</span>
+              </div>
+              <div class="episode-entries">
+                <span class="mini-entry claim"></span>
+                <span class="mini-entry note"></span>
+                <span class="mini-entry image"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <ul class="model-benefits">
+          <li>
+            <svg class="icon-sm benefit-check" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+            Each episode = coherent research unit
+          </li>
+          <li>
+            <svg class="icon-sm benefit-check" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+            Notes flow with the timeline
+          </li>
+          <li>
+            <svg class="icon-sm benefit-check" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+            Cross-episode connections explicit
+          </li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- Information Architecture -->
+  <section class="section ia-section">
+    <div class="section-header">
+      <p class="eyebrow">Structure</p>
+      <h2>Information Architecture</h2>
+      <p>
+        Three levels: the library of all notebooks, individual episode notebooks,
+        and the entries within each (with cross-links between).
+      </p>
+    </div>
+
+    <div class="ia-diagram">
+      <div class="ia-level">
+        <div class="ia-label">
+          <div class="level-name">Library</div>
+          <div class="level-desc">All notebooks</div>
+        </div>
+        <div class="ia-content">
+          <div class="ia-box primary">
+            <h4>My Lab Notebooks</h4>
+            <p>Browse all episode notebooks, search across, see connections</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="ia-level">
+        <div class="ia-connector"><div class="line"></div></div>
+      </div>
+
+      <div class="ia-level">
+        <div class="ia-label">
+          <div class="level-name">Notebook</div>
+          <div class="level-desc">Per episode</div>
+        </div>
+        <div class="ia-content">
+          <div class="ia-box">
+            <h4>EP 47: Michael Levin</h4>
+            <p>12 entries · 4 notes</p>
+          </div>
+          <div class="ia-box">
+            <h4>EP 33: Karl Friston</h4>
+            <p>8 entries · 2 notes</p>
+          </div>
+          <div class="ia-box">
+            <h4>EP 12: Sara Walker</h4>
+            <p>5 entries · 1 note</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="ia-level">
+        <div class="ia-connector"><div class="line"></div></div>
+      </div>
+
+      <div class="ia-level">
+        <div class="ia-label">
+          <div class="level-name">Entries</div>
+          <div class="level-desc">Collected items</div>
+        </div>
+        <div class="ia-content">
+          <div class="ia-box">
+            <h4>Claims</h4>
+            <p>From episode</p>
+          </div>
+          <div class="ia-box">
+            <h4>Chat Snippets</h4>
+            <p>AI exchanges</p>
+          </div>
+          <div class="ia-box">
+            <h4>Generated Images</h4>
+            <p>Visualizations</p>
+          </div>
+          <div class="ia-box">
+            <h4>Papers</h4>
+            <p>From evidence</p>
+          </div>
+          <div class="ia-box" style="border-color: var(--type-note);">
+            <h4>Your Notes</h4>
+            <p>Annotations + standalone</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Episode Notebook View -->
+  <section class="section notebook-section">
+    <div class="notebook-content">
+      <div class="section-header">
+        <p class="eyebrow">Episode Notebook</p>
+        <h2>Inside a Single Notebook</h2>
+        <p>
+          All entries from one episode, organized by timestamp.
+          Add notes inline or attach them to specific entries.
+        </p>
+      </div>
+
+      <!-- Episode Header -->
+      <div class="episode-header-mockup">
+        <div class="episode-banner">
+          <h2>EP 47: Bioelectricity & Morphogenesis</h2>
+          <span class="guest">Dr. Michael Levin</span>
+        </div>
+        <div class="episode-stats">
+          <div class="stat">
+            <span class="stat-value">12</span>
+            <span class="stat-label">Entries</span>
+          </div>
+          <div class="stat">
+            <span class="stat-value">4</span>
+            <span class="stat-label">Your Notes</span>
+          </div>
+          <div class="stat">
+            <span class="stat-value">3</span>
+            <span class="stat-label">Images</span>
+          </div>
+          <div class="stat">
+            <span class="stat-value">2</span>
+            <span class="stat-label">Connections</span>
+          </div>
+        </div>
+        <div class="episode-tabs">
+          <div class="episode-tab active">Timeline</div>
+          <div class="episode-tab">Claims Only</div>
+          <div class="episode-tab">Your Notes</div>
+          <div class="episode-tab">Images</div>
+        </div>
+      </div>
+
+      <!-- Notebook Entries -->
+      <div class="notebook-entries">
+        <!-- Entry 1: Claim -->
+        <div class="notebook-entry">
+          <div class="entry-timestamp">23:45</div>
+          <div class="entry-main">
+            <span class="entry-type-badge claim">Claim</span>
+            <h4 class="entry-title">Voltage gradients precede anatomical changes during regeneration</h4>
+            <p class="entry-preview">The bioelectric signal appears 6 hours before any morphological change is visible, suggesting voltage is instructive rather than correlative.</p>
+          </div>
+          <div class="entry-actions">
+            <button class="entry-action" title="Add note">
+              <svg class="icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+            </button>
+            <button class="entry-action" title="Link to another entry">
+              <svg class="icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- User Note (standalone) -->
+        <div class="add-note-inline" style="background: rgba(126, 173, 184, 0.1); border-style: solid;">
+          <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+          <div style="flex: 1;">
+            <div style="font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--type-note); margin-bottom: 4px; font-weight: 600;">My Note</div>
+            <p style="font-size: 0.85rem; color: var(--carbon-black);">This connects to the morphogen gradient work in developmental biology. Is voltage essentially acting as a morphogen?</p>
+          </div>
+          <span style="font-size: 0.7rem; color: var(--warm-gray);">25:12</span>
+        </div>
+
+        <!-- Entry 2: Generated Image -->
+        <div class="notebook-entry">
+          <div class="entry-timestamp">28:30</div>
+          <div class="entry-main">
+            <span class="entry-type-badge image">Image</span>
+            <div class="entry-image-preview">
+              <svg width="100" height="60" viewBox="0 0 100 60" fill="none">
+                <defs>
+                  <linearGradient id="voltGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" style="stop-color:#BE5A38;stop-opacity:0.7"/>
+                    <stop offset="100%" style="stop-color:#2a5a8a;stop-opacity:0.7"/>
+                  </linearGradient>
+                </defs>
+                <ellipse cx="50" cy="30" rx="40" ry="22" stroke="#BE7C4D" stroke-width="1" fill="url(#voltGrad)"/>
+              </svg>
+              <span class="ai-badge">AI</span>
+            </div>
+            <h4 class="entry-title">Planarian voltage gradient visualization</h4>
+            <p class="entry-preview">Prompt: "Show how voltage gradients guide cell behavior during regeneration"</p>
+            <div class="entry-user-note">
+              <div class="note-label">Your Note</div>
+              <p>Really helpful for understanding the spatial distribution. Would be interesting to see this animated over time.</p>
+            </div>
+          </div>
+          <div class="entry-actions">
+            <button class="entry-action" title="Download">
+              <svg class="icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+            </button>
+            <button class="entry-action" title="Regenerate">
+              <svg class="icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Entry 3: Chat Snippet -->
+        <div class="notebook-entry">
+          <div class="entry-timestamp">34:15</div>
+          <div class="entry-main">
+            <span class="entry-type-badge snippet">Chat</span>
+            <h4 class="entry-title">Q: How does voltage affect gene expression?</h4>
+            <p class="entry-preview">Voltage-sensitive domains in transcription factors can change conformation based on membrane potential, directly altering which genes are expressed. This is distinct from traditional signaling pathways...</p>
+          </div>
+          <div class="entry-actions">
+            <button class="entry-action" title="Add note">
+              <svg class="icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Add Note Prompt -->
+        <div class="add-note-inline">
+          <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+          <span>Add a note at this point in your research...</span>
+        </div>
+
+        <!-- Entry 4: Paper -->
+        <div class="notebook-entry">
+          <div class="entry-timestamp">41:20</div>
+          <div class="entry-main">
+            <span class="entry-type-badge paper">Paper</span>
+            <h4 class="entry-title">Bioelectric signaling in regeneration: mechanisms and implications</h4>
+            <p class="entry-preview">Durant et al., 2017 · Nature Reviews Molecular Cell Biology · Cited as primary evidence for voltage-gated regeneration control</p>
+          </div>
+          <div class="entry-actions">
+            <button class="entry-action" title="View paper">
+              <svg class="icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+            </button>
+            <button class="entry-action" title="Add note">
+              <svg class="icon-sm" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Cross-Episode Connections -->
+  <section class="section connections-section">
+    <div class="section-header">
+      <p class="eyebrow">Knowledge Excavation</p>
+      <h2>Connections Across Notebooks</h2>
+      <p>
+        Link related entries across episodes. See how ideas from different guests
+        connect to build a knowledge map of the field.
+      </p>
+    </div>
+
+    <div class="connections-demo">
+      <div class="connection-panel">
+        <h3>Related Across Episodes</h3>
+        <div class="connection-list">
+          <div class="connection-item">
+            <div class="connection-icon">
+              <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101"/></svg>
+            </div>
+            <div class="connection-text">
+              <h4>Free Energy & Morphogenesis</h4>
+              <p>EP 33 (Friston) → EP 47 (Levin) · 3 linked entries</p>
+            </div>
+          </div>
+          <div class="connection-item">
+            <div class="connection-icon">
+              <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101"/></svg>
+            </div>
+            <div class="connection-text">
+              <h4>Information in Biology</h4>
+              <p>EP 12 (Walker) → EP 47 (Levin) · 2 linked entries</p>
+            </div>
+          </div>
+          <div class="connection-item">
+            <div class="connection-icon">
+              <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101"/></svg>
+            </div>
+            <div class="connection-text">
+              <h4>Memory Without Neurons</h4>
+              <p>EP 47 (Levin) → EP 58 (Solé) · Your note links them</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="connection-panel">
+        <h3>Knowledge Map</h3>
+        <div class="knowledge-map">
+          <!-- Central node -->
+          <div class="map-node central" style="left: 50%; top: 50%; transform: translate(-50%, -50%);">Bioelectric signaling</div>
+
+          <!-- Episode nodes -->
+          <div class="map-node episode" style="left: 20%; top: 25%;">EP 47: Levin</div>
+          <div class="map-node episode" style="left: 75%; top: 30%;">EP 33: Friston</div>
+          <div class="map-node episode" style="left: 15%; top: 70%;">EP 12: Walker</div>
+          <div class="map-node episode" style="left: 70%; top: 75%;">EP 58: Solé</div>
+
+          <!-- Connection lines (simplified) -->
+          <div class="map-line" style="left: 35%; top: 35%; width: 80px; transform: rotate(-25deg);"></div>
+          <div class="map-line" style="left: 58%; top: 42%; width: 70px; transform: rotate(25deg);"></div>
+          <div class="map-line" style="left: 30%; top: 58%; width: 90px; transform: rotate(30deg);"></div>
+          <div class="map-line" style="left: 55%; top: 60%; width: 80px; transform: rotate(-15deg);"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Annotation Layer -->
+  <section class="section annotation-section">
+    <div class="section-header">
+      <p class="eyebrow">Deep Notes</p>
+      <h2>Rich Annotations on Everything</h2>
+      <p>
+        Every entry—claim, image, snippet—can have your notes attached.
+        Link entries together to build your own research narrative.
+      </p>
+    </div>
+
+    <div class="annotation-demo">
+      <div class="annotation-example">
+        <div class="annotation-header">
+          <span class="entry-type-badge claim">Claim</span>
+          <h4>Voltage gradients precede anatomical changes</h4>
+        </div>
+        <div class="annotation-content">
+          <div class="annotation-quote">
+            "The bioelectric signal appears 6 hours before any morphological change is visible..."
+          </div>
+          <div class="annotation-notes">
+            <div class="label">Your Notes</div>
+            <p>
+              This is the key insight that separates Levin's work from traditional developmental biology.
+              If voltage is truly instructive (not just correlative), it opens up the possibility of
+              "programming" regeneration by manipulating bioelectric states.
+              <br><br>
+              Question to explore: What's the mechanism linking voltage to gene expression?
+            </p>
+          </div>
+          <div class="annotation-links">
+            <div class="label">Linked Entries</div>
+            <div class="linked-entries">
+              <span class="linked-entry">🔗 EP 33: Free energy principle</span>
+              <span class="linked-entry">📄 Durant et al., 2017</span>
+              <span class="linked-entry">🖼️ Voltage gradient diagram</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="annotation-example">
+        <div class="annotation-header">
+          <span class="entry-type-badge image">Image</span>
+          <h4>Planarian voltage gradient</h4>
+        </div>
+        <div class="annotation-content">
+          <div style="height: 120px; background: linear-gradient(135deg, #1a2a3a 0%, #0a1a2a 100%); display: flex; align-items: center; justify-content: center; margin-bottom: 16px; border-radius: 4px;">
+            <svg width="160" height="80" viewBox="0 0 160 80" fill="none">
+              <defs>
+                <linearGradient id="voltGrad2" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" style="stop-color:#BE5A38;stop-opacity:0.7"/>
+                  <stop offset="100%" style="stop-color:#2a5a8a;stop-opacity:0.7"/>
+                </linearGradient>
+              </defs>
+              <ellipse cx="80" cy="40" rx="65" ry="30" stroke="#BE7C4D" stroke-width="1.5" fill="url(#voltGrad2)"/>
+              <text x="20" y="65" fill="#F2E9E4" font-size="8" opacity="0.6">-10mV</text>
+              <text x="125" y="65" fill="#F2E9E4" font-size="8" opacity="0.6">-70mV</text>
+            </svg>
+          </div>
+          <div class="annotation-notes">
+            <div class="label">Your Notes</div>
+            <p>
+              Would be interesting to see this as an animation over the regeneration timeline.
+              Also—could we overlay the gene expression data to see the temporal relationship?
+            </p>
+          </div>
+          <div class="annotation-links">
+            <div class="label">Linked Entries</div>
+            <div class="linked-entries">
+              <span class="linked-entry">💬 "How does voltage affect genes?"</span>
+              <span class="linked-entry">🎯 Voltage gradients claim</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Data Model -->
+  <section class="section">
+    <div class="section-header">
+      <p class="eyebrow">Technical</p>
+      <h2>Updated Data Model</h2>
+      <p>
+        Episode-centric organization with rich notes and cross-entry links.
+      </p>
+    </div>
+
+    <div class="datamodel-grid">
+      <div class="datamodel-card">
+        <h3>NotebookEntry</h3>
+        <div class="datamodel-code">
+          <span class="keyword">interface</span> <span class="type">NotebookEntry</span> {<br>
+          &nbsp;&nbsp;id: <span class="type">string</span><br>
+          &nbsp;&nbsp;<span class="new">episode_id</span>: <span class="type">string</span> <span class="comment">// Required: belongs to episode</span><br>
+          &nbsp;&nbsp;entry_type: <span class="string">'claim' | 'paper' | 'snippet' | 'image' | 'note'</span><br>
+          &nbsp;&nbsp;timestamp: <span class="type">string</span> <span class="comment">// Position in episode</span><br>
+          &nbsp;&nbsp;title: <span class="type">string</span><br>
+          &nbsp;&nbsp;content: <span class="type">string</span><br>
+          <br>
+          &nbsp;&nbsp;<span class="comment">// User annotations</span><br>
+          &nbsp;&nbsp;<span class="new">user_notes</span>: <span class="type">string</span> <span class="comment">// Rich text/markdown</span><br>
+          &nbsp;&nbsp;<span class="new">linked_entry_ids</span>: <span class="type">string[]</span> <span class="comment">// Cross-references</span><br>
+          <br>
+          &nbsp;&nbsp;<span class="comment">// Type-specific fields</span><br>
+          &nbsp;&nbsp;claim_id?: <span class="type">number</span><br>
+          &nbsp;&nbsp;paper_id?: <span class="type">string</span><br>
+          &nbsp;&nbsp;image_url?: <span class="type">string</span><br>
+          &nbsp;&nbsp;image_prompt?: <span class="type">string</span><br>
+          &nbsp;&nbsp;chat_exchange?: <span class="type">ChatExchange</span><br>
+          }
+        </div>
+      </div>
+
+      <div class="datamodel-card">
+        <h3>Episode Notebook Stats</h3>
+        <div class="datamodel-code">
+          <span class="keyword">interface</span> <span class="type new">EpisodeNotebook</span> {<br>
+          &nbsp;&nbsp;episode_id: <span class="type">string</span><br>
+          &nbsp;&nbsp;episode_title: <span class="type">string</span><br>
+          &nbsp;&nbsp;guest: <span class="type">string</span><br>
+          <br>
+          &nbsp;&nbsp;<span class="comment">// Computed/aggregated</span><br>
+          &nbsp;&nbsp;entry_count: <span class="type">number</span><br>
+          &nbsp;&nbsp;note_count: <span class="type">number</span><br>
+          &nbsp;&nbsp;image_count: <span class="type">number</span><br>
+          &nbsp;&nbsp;connection_count: <span class="type">number</span> <span class="comment">// Links to other eps</span><br>
+          &nbsp;&nbsp;last_updated: <span class="type">Date</span><br>
+          }<br>
+          <br>
+          <span class="comment">// Query: Get all notebooks with stats</span><br>
+          <span class="keyword">SELECT</span> episode_id, <span class="keyword">COUNT</span>(*) <span class="keyword">as</span> entries<br>
+          <span class="keyword">FROM</span> notebook_entries<br>
+          <span class="keyword">GROUP BY</span> episode_id
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="design-footer">
+    <p>
+      <span class="accent">Lab Notebook</span> · Episode-Centric Design<br>
+      Each episode = a research notebook. Notes everywhere. Connections across.
+    </p>
+  </footer>
+
+</body>
+</html>

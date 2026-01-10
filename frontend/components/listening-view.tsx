@@ -339,6 +339,7 @@ export function ListeningView({
   const [selectedClaimId, setSelectedClaimId] = useState<string | number | null>(null)
   const [isAudioReady, setIsAudioReady] = useState(false)
   const [chatOpen, setChatOpen] = useState(true)
+  const [chatWidth, setChatWidth] = useState(440)
   // Track claim dropped into chat (overrides currentClaim for chat context)
   const [droppedClaim, setDroppedClaim] = useState<Claim | null>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
@@ -718,7 +719,7 @@ export function ListeningView({
         {/* RIGHT COLUMN - Live Research Stream */}
         <main
           className="flex-1 overflow-y-auto bg-background transition-all duration-300 ease-in-out"
-          style={{ marginRight: chatOpen ? '440px' : '52px' }}
+          style={{ marginRight: `${chatWidth}px` }}
         >
           <div className="max-w-4xl mx-auto px-8 py-8">
             {/* Header */}
@@ -788,6 +789,7 @@ export function ListeningView({
       <AIChatSidebar
         open={chatOpen}
         onOpenChange={setChatOpen}
+        onWidthChange={setChatWidth}
         context={{
           episode_id: episode.id,
           episode_title: episode.title,

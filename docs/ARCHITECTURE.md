@@ -43,8 +43,8 @@ The system supports two storage backends, controlled by `USE_SUPABASE` environme
 
 | Backend | Vector Store | Context Data | When to Use |
 |---------|-------------|--------------|-------------|
-| Local (default=false) | ChromaDB in `data/vectorstore/` | JSON files in `data/` | Development, offline |
-| Supabase (USE_SUPABASE=true) | pgvector in `paper_chunks` table | Supabase tables | Production, deployed |
+| Local (USE_SUPABASE=false) | ChromaDB in `data/vectorstore/` | JSON files in `data/` | Development, offline |
+| Supabase (default) | pgvector in `paper_chunks` table | Supabase tables | Production, deployed |
 
 **Supabase Tables:**
 - `episodes` - Episode metadata with summaries
@@ -69,6 +69,12 @@ The system supports two storage backends, controlled by `USE_SUPABASE` environme
 - Environment variables are required for Gemini, AssemblyAI, and Supabase.
 - The MCP server reads `os.environ` directly; it does not load `.env`.
 - `scripts/context_card_builder.py` loads `.env` for local runs.
+
+## LLM Models
+
+- **Primary model**: `gemini-3-pro-preview` for chat, context building, and complex tasks
+- **Fast model**: `gemini-3-flash-preview` for simpler tasks where speed matters
+- Always use Gemini 3 family models for this project
 
 ## AI Chat Feature Architecture
 

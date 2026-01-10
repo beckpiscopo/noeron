@@ -88,8 +88,8 @@ listed under your task category.
 
 ## Current defaults and gotchas
 
-- **Always use gemini-3-pro-preview as the LLM for this project.**
-- **Always use Supabase as the data backend.** The `claims` table is only in Supabase (not in local JSON). Set `USE_SUPABASE=true` (or leave unset, as it defaults to true).
+- **Always use Gemini 3 models**: `gemini-3-pro-preview` for complex tasks, `gemini-3-flash-preview` for simpler/faster tasks.
+- **Supabase is the default backend.** The `claims` table is only in Supabase (not in local JSON). Set `USE_SUPABASE=false` only for offline development.
 - MCP server reads `os.environ` only; `.env` is not auto-loaded.
 - `scripts/build_vector_store.py` runs `prepare_texts.process_all_papers()` in memory and
   appends any JSONs in `data/cleaned_papers/`.
