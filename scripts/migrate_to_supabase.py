@@ -44,6 +44,34 @@ def extract_paper_id_from_url(url: str) -> str:
     return url
 
 
+def timestamp_to_ms(timestamp: str) -> Optional[int]:
+    """
+    Convert timestamp string (HH:MM:SS.mmm) to milliseconds.
+
+    Handles formats:
+    - "00:15:23.160" -> HH:MM:SS.mmm
+    - "00:15:23" -> HH:MM:SS
+    """
+    if not timestamp:
+        return None
+
+    # Remove any trailing info
+    timestamp = timestamp.split(' ')[0].strip()
+
+    try:
+        parts = timestamp.split(':')
+        if len(parts) == 3:
+            h = int(parts[0])
+            m = int(parts[1])
+            sec_parts = parts[2].split('.')
+            s = int(sec_parts[0])
+            ms = int(sec_parts[1][:3].ljust(3, '0')) if len(sec_parts) > 1 else 0
+            return (h * 3600 + m * 60 + s) * 1000 + ms
+    except (ValueError, IndexError):
+        pass
+    return None
+
+
 def migrate_episode(
     podcast_id: str,
     title: str,
@@ -101,7 +129,7 @@ def merge_claim_data(
             "speaker_stance": timing_claim.get("speaker_stance"),
         })
     
-    # Generate timestamp from start_ms
+    # Generate timestamp from start_ms, or parse segment timestamp as fallback
     if merged.get("start_ms"):
         ms = merged["start_ms"]
         hours = ms // 3600000
@@ -109,9 +137,14 @@ def merge_claim_data(
         seconds = (ms % 60000) // 1000
         merged["timestamp"] = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
     else:
-        # Fallback to segment timestamp
-        merged["timestamp"] = context_claim.get("timestamp", "00:00:00")
-    
+        # Fallback: parse segment timestamp to populate BOTH timestamp and start_ms
+        segment_ts = context_claim.get("timestamp", "00:00:00")
+        merged["timestamp"] = segment_ts
+        # Parse to milliseconds so start_ms is never NULL
+        parsed_ms = timestamp_to_ms(segment_ts)
+        if parsed_ms is not None:
+            merged["start_ms"] = parsed_ms
+
     return merged
 
 

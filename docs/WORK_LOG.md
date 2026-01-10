@@ -468,6 +468,37 @@ SELECT * FROM active_claims;  -- or WHERE duplicate_of IS NULL
 
 ---
 
+## 2026-01-10: Fix NULL start_ms and Incorrect Episode Duration
+
+**Task:** Diagnose and fix claims showing up at 0:00 and missing claims in timeline visualization
+
+**Summary:**
+- Investigated claim timestamp issues: 36 claims had NULL `start_ms`, latest claim at 180 min vs expected 222 min
+- **Root Cause 1:** Bug in `scripts/migrate_to_supabase.py` - fallback logic set `timestamp` string but not `start_ms` when timing data was missing
+- **Root Cause 2:** Episode metadata had wrong duration ("3h 42m" vs actual "3h 0m")
+- Fixed migration script to parse segment timestamp as fallback for `start_ms`
+- Created `scripts/fix_null_start_ms.py` to backfill the 36 NULL values
+- Corrected episode duration in both Supabase (`duration_ms: 10812500`) and local JSON
+
+**Key Files:**
+```
+scripts/migrate_to_supabase.py      # FIXED: Added timestamp_to_ms() fallback
+scripts/fix_null_start_ms.py        # NEW: Backfill script for NULL start_ms
+data/episodes.json                  # FIXED: duration "3h 42m" → "3h 0m"
+```
+
+**Decisions/Gotchas:**
+- The `claims` table gets `start_ms` from timing enrichment (`enrich_claims_with_timing.py`), not directly from migration
+- When timing enrichment fails to match a claim, `start_ms` was left NULL instead of using segment timestamp
+- Episode duration discrepancy: actual podcast is ~180 min, metadata incorrectly said 222 min
+- AssemblyAI transcript confirmed episode ends at 180.2 min (10812500 ms)
+
+**Next Steps:**
+- Monitor for similar issues in other episodes
+- Consider adding validation to migration script to catch NULL `start_ms` values
+
+---
+
 Template:
 
 Date:

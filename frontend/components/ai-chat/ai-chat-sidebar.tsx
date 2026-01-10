@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { MessageSquare, Trash2, Sparkles, X, ChevronLeft, ChevronRight } from "lucide-react"
+import { MessageSquare, Trash2, Sparkles, X, ChevronLeft, ChevronRight, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ChatMessage } from "./chat-message"
 import { ChatInput } from "./chat-input"
@@ -33,7 +33,7 @@ export function AIChatSidebar({
   onClaimDrop,
   onClearDroppedClaim,
 }: AIChatSidebarProps) {
-  const { messages, isLoading, sendMessage, clearHistory } = useAIChat(context)
+  const { messages, isLoading, isLoadingHistory, sendMessage, clearHistory } = useAIChat(context)
   const scrollRef = useRef<HTMLDivElement>(null)
   const [isDragOver, setIsDragOver] = useState(false)
 
@@ -183,7 +183,14 @@ export function AIChatSidebar({
 
             {/* Context badge */}
             {context && (
-              <div className="shrink-0 px-4 py-2 border-b border-border bg-card/50">
+              <div
+                className={cn(
+                  "shrink-0 px-4 py-2 border-b transition-colors",
+                  onClearDroppedClaim
+                    ? "bg-[#BE5A38]/15 border-[#BE5A38]/30"
+                    : "bg-card/50 border-border"
+                )}
+              >
                 <div className="flex items-start justify-between gap-2">
                   <p className="text-xs text-foreground/60 flex-1">
                     <span className="font-medium text-foreground/80">Context: </span>
@@ -192,7 +199,7 @@ export function AIChatSidebar({
                       <span className="text-foreground/50"> @ {context.current_timestamp}</span>
                     )}
                     {context.claim_text && (
-                      <span className="text-[var(--golden-chestnut)]"> • Claim selected</span>
+                      <span className={onClearDroppedClaim ? "text-[#BE5A38] font-medium" : "text-[var(--golden-chestnut)]"}> • Claim selected</span>
                     )}
                   </p>
                   {onClearDroppedClaim && (
@@ -219,7 +226,12 @@ export function AIChatSidebar({
               className="flex-1 overflow-y-auto px-4"
             >
               <div className="py-4 space-y-4">
-                {messages.length === 0 ? (
+                {isLoadingHistory ? (
+                  <div className="flex flex-col items-center justify-center py-12 text-center">
+                    <Loader2 className="w-8 h-8 text-[var(--golden-chestnut)] animate-spin mb-4" />
+                    <p className="text-sm text-foreground/60">Loading conversation...</p>
+                  </div>
+                ) : messages.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-12 text-center">
                     <div className="p-4 rounded-full bg-[var(--golden-chestnut)]/10 mb-4">
                       <Sparkles className="w-8 h-8 text-[var(--golden-chestnut)]" />

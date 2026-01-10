@@ -1052,6 +1052,193 @@ Provide a helpful, accurate response based on the context above. Reference speci
         return JSONResponse({"error": str(e)}, status_code=500)
 
 
+@app.post("/tools/get_episode_summary/execute")
+async def http_get_episode_summary(request: Request):
+    """Get or generate an episode summary using Gemini.
+
+    Returns cached summary if available, otherwise generates one on-demand.
+    """
+    import json
+    from pathlib import Path
+
+    try:
+        body = await request.json()
+        episode_id = body.get("episode_id")
+
+        if not episode_id:
+            return JSONResponse({"error": "episode_id is required"}, status_code=400)
+
+        # Check for cached summary
+        summaries_file = Path(__file__).parent.parent.parent / "data" / "episode_summaries.json"
+
+        if summaries_file.exists():
+            with open(summaries_file, "r") as f:
+                summaries = json.load(f)
+
+            if episode_id in summaries:
+                return {
+                    "summary": summaries[episode_id],
+                    "cached": True,
+                    "episode_id": episode_id
+                }
+
+        # No cached summary - generate one with Gemini
+        from .server import (
+            _ensure_gemini_client_ready,
+            GEMINI_MODEL_DEFAULT,
+        )
+
+        # Load episode metadata
+        episodes_file = Path(__file__).parent.parent.parent / "data" / "episodes.json"
+        episode_data = None
+
+        if episodes_file.exists():
+            with open(episodes_file, "r") as f:
+                episodes = json.load(f)
+                episode_data = next((e for e in episodes if e.get("id") == episode_id), None)
+
+        if not episode_data:
+            return JSONResponse({"error": f"Episode not found: {episode_id}"}, status_code=404)
+
+        # Load transcript if available
+        transcript_text = ""
+        transcript_file = Path(__file__).parent.parent.parent / "data" / "transcripts" / f"{episode_id}.txt"
+
+        if transcript_file.exists():
+            with open(transcript_file, "r") as f:
+                transcript_text = f.read()[:400000]  # Limit to ~400k chars for context window
+
+        # Build prompt for Gemini
+        summary_prompt = f"""You are analyzing a podcast episode to create a rich narrative summary for a research companion app.
+
+The app helps users explore bioelectricity research while listening to podcasts. Users need to understand:
+1. What this episode is about (narrative arc)
+2. How themes evolve through the conversation
+3. Key moments worth referencing
+4. The guest's main arguments and thesis
+
+===EPISODE METADATA===
+Podcast: {episode_data.get('podcast', 'Unknown')}
+Title: {episode_data.get('title', 'Unknown')}
+Guest: {episode_data.get('guest', 'Unknown')}
+Host: {episode_data.get('host', 'Unknown')}
+Duration: {episode_data.get('duration', 'Unknown')}
+Date: {episode_data.get('date', 'Unknown')}
+
+{"===TRANSCRIPT EXCERPT===" + chr(10) + transcript_text[:100000] if transcript_text else "===DESCRIPTION===" + chr(10) + episode_data.get('description', 'No description available')}
+
+===YOUR TASK===
+
+Generate a structured summary with the following sections. Return ONLY valid JSON, no markdown code blocks.
+
+{{
+  "narrative_arc": "3-5 paragraphs describing the conversation arc, how it opens, major transitions, intellectual journey, and conclusion",
+  "major_themes": [
+    {{
+      "theme_name": "Short name (2-4 words)",
+      "description": "What this theme is about (1-2 sentences)",
+      "evolution": "How this theme develops through the episode",
+      "timestamps": "Approximate time ranges (e.g., '10:00-25:00, 1:45:00-2:00:00')"
+    }}
+  ],
+  "key_moments": [
+    {{
+      "timestamp": "Approximate timestamp (e.g., '23:45')",
+      "description": "What happens at this moment (1-2 sentences)",
+      "significance": "Why this moment matters",
+      "quote": "A brief representative quote if applicable"
+    }}
+  ],
+  "guest_thesis": {{
+    "core_thesis": "The central argument or perspective (2-3 sentences)",
+    "key_claims": ["Major claim 1", "Major claim 2", "Major claim 3"],
+    "argumentation_style": "How the guest builds their case",
+    "intellectual_influences": "Referenced thinkers, fields, or frameworks"
+  }},
+  "conversation_dynamics": {{
+    "host_approach": "How the host engages with the material",
+    "memorable_exchanges": "1-2 notable back-and-forth moments",
+    "tone": "Overall tone of the conversation"
+  }}
+}}
+
+IMPORTANT: Return ONLY valid JSON. No markdown, no explanation text."""
+
+        # Call Gemini
+        import asyncio
+
+        _ensure_gemini_client_ready()
+        response = await asyncio.to_thread(
+            lambda: server._GENAI_CLIENT.models.generate_content(
+                model="gemini-2.0-flash",  # Use flash for cost efficiency on long content
+                contents=summary_prompt,
+                config={
+                    "temperature": 0.3,
+                    "max_output_tokens": 8000,
+                }
+            )
+        )
+
+        # Extract response text
+        if hasattr(response, "text"):
+            response_text = response.text
+        elif hasattr(response, "candidates") and response.candidates:
+            candidate = response.candidates[0]
+            if hasattr(candidate, "content") and hasattr(candidate.content, "parts"):
+                response_text = "".join(
+                    part.text for part in candidate.content.parts if hasattr(part, "text")
+                )
+            else:
+                return JSONResponse({"error": "Failed to generate summary"}, status_code=500)
+        else:
+            return JSONResponse({"error": "Failed to generate summary"}, status_code=500)
+
+        # Parse JSON response
+        response_text = response_text.strip()
+        if response_text.startswith("```"):
+            response_text = response_text.split("```")[1]
+            if response_text.startswith("json"):
+                response_text = response_text[4:]
+
+        try:
+            summary_data = json.loads(response_text)
+        except json.JSONDecodeError as e:
+            return JSONResponse({
+                "error": f"Failed to parse summary JSON: {e}",
+                "raw_response": response_text[:500]
+            }, status_code=500)
+
+        # Add episode_id to summary
+        summary_data["episode_id"] = episode_id
+
+        # Cache the summary
+        try:
+            existing_summaries = {}
+            if summaries_file.exists():
+                with open(summaries_file, "r") as f:
+                    existing_summaries = json.load(f)
+
+            existing_summaries[episode_id] = summary_data
+
+            with open(summaries_file, "w") as f:
+                json.dump(existing_summaries, f, indent=2)
+
+            print(f"[Summary] Cached new summary for {episode_id}")
+        except Exception as cache_error:
+            print(f"[Summary] Warning: Failed to cache summary: {cache_error}")
+
+        return {
+            "summary": summary_data,
+            "cached": False,
+            "episode_id": episode_id
+        }
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
 def run_server(host=None, port=None):
     """Run the HTTP server.
 

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import {
   ArrowLeft,
+  ArrowUp,
   Quote,
   Sparkles,
   HelpCircle,
@@ -26,6 +27,7 @@ import { callMcpTool } from "@/lib/api"
 import { ConceptExpansionGraph, convertKGSubgraph } from "./concept-graph"
 import { BookmarkButton } from "./bookmark-button"
 import { AIChatSidebar } from "./ai-chat"
+import { MarkdownContent } from "@/components/ui/markdown-content"
 import type { Paper } from "@/lib/supabase"
 import type { ChatContext } from "@/lib/chat-types"
 
@@ -586,45 +588,8 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
                         </button>
                       </div>
 
-                      {/* Render markdown-like summary */}
-                      <div className="prose prose-invert prose-sm max-w-none">
-                        {currentSummary.summary.split('\n\n').map((paragraph, idx) => {
-                          // Handle bold headers like **Finding**:
-                          if (paragraph.startsWith('**')) {
-                            const match = paragraph.match(/^\*\*([^*]+)\*\*:?\s*(.*)/)
-                            if (match) {
-                              const [, header, content] = match
-                              return (
-                                <div key={idx} className="mb-4">
-                                  <h4 className="text-[var(--golden-chestnut)] font-bold text-sm uppercase tracking-wider mb-2">
-                                    {header}
-                                  </h4>
-                                  <p className="text-foreground/80">{content}</p>
-                                </div>
-                              )
-                            }
-                          }
-                          // Handle bullet points
-                          if (paragraph.includes('\n- ') || paragraph.startsWith('- ')) {
-                            const lines = paragraph.split('\n')
-                            return (
-                              <ul key={idx} className="list-disc list-inside space-y-1 text-foreground/80 mb-4">
-                                {lines.map((line, lineIdx) => {
-                                  const bulletContent = line.replace(/^-\s*/, '').trim()
-                                  if (bulletContent) {
-                                    return <li key={lineIdx}>{bulletContent}</li>
-                                  }
-                                  return null
-                                })}
-                              </ul>
-                            )
-                          }
-                          // Regular paragraph
-                          return paragraph.trim() ? (
-                            <p key={idx} className="text-foreground/80 mb-3">{paragraph}</p>
-                          ) : null
-                        })}
-                      </div>
+                      {/* Render markdown summary */}
+                      <MarkdownContent content={currentSummary.summary} />
 
                       {/* Papers used */}
                       {currentSummary.papers && currentSummary.papers.length > 0 && (() => {

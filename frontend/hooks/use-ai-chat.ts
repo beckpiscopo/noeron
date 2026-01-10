@@ -1,7 +1,15 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect, useRef } from "react"
 import { callMcpTool } from "@/lib/api"
+import {
+  getOrCreateChatSession,
+  getChatMessages,
+  saveChatMessage,
+  deleteChatSession,
+  type ChatSession,
+  type ChatMessageRecord,
+} from "@/lib/supabase"
 import type {
   ChatMessage,
   ChatContext,
@@ -13,10 +21,67 @@ function generateId(): string {
   return `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
 }
 
+// Convert database record to ChatMessage
+function dbRecordToMessage(record: ChatMessageRecord): ChatMessage {
+  return {
+    id: record.id,
+    role: record.role as "user" | "assistant",
+    content: record.content,
+    timestamp: new Date(record.created_at),
+    sources: record.sources,
+  }
+}
+
 export function useAIChat(context: ChatContext | null) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [isLoading, setIsLoading] = useState(false)
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [session, setSession] = useState<ChatSession | null>(null)
+  const sessionLoadedRef = useRef<string | null>(null)
+
+  // Load session and history when context changes
+  useEffect(() => {
+    if (!context?.episode_id) {
+      setSession(null)
+      setMessages([])
+      sessionLoadedRef.current = null
+      return
+    }
+
+    // Create a unique key for this context to avoid duplicate loads
+    const contextKey = `${context.episode_id}-${context.claim_id || 'no-claim'}`
+    if (sessionLoadedRef.current === contextKey) {
+      return // Already loaded for this context
+    }
+
+    const loadSession = async () => {
+      setIsLoadingHistory(true)
+      try {
+        const chatSession = await getOrCreateChatSession(
+          context.episode_id,
+          context.claim_id
+        )
+
+        if (chatSession) {
+          setSession(chatSession)
+          sessionLoadedRef.current = contextKey
+
+          // Load existing messages
+          const records = await getChatMessages(chatSession.id)
+          if (records.length > 0) {
+            setMessages(records.map(dbRecordToMessage))
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load chat session:', err)
+      } finally {
+        setIsLoadingHistory(false)
+      }
+    }
+
+    loadSession()
+  }, [context?.episode_id, context?.claim_id])
 
   const sendMessage = useCallback(
     async (content: string) => {
@@ -42,6 +107,15 @@ export function useAIChat(context: ChatContext | null) {
       setMessages((prev) => [...prev, userMessage, assistantPlaceholder])
       setIsLoading(true)
       setError(null)
+
+      // Save user message to database (don't await, fire and forget)
+      if (session) {
+        saveChatMessage(session.id, {
+          role: "user",
+          content: content.trim(),
+          playback_timestamp: context.current_timestamp,
+        }).catch((err) => console.error('Failed to save user message:', err))
+      }
 
       try {
         // Build conversation history from previous messages (excluding the placeholder)
@@ -86,6 +160,17 @@ export function useAIChat(context: ChatContext | null) {
           )
         )
 
+        // Save assistant response to database
+        if (session && !response.error) {
+          saveChatMessage(session.id, {
+            role: "assistant",
+            content: response.response,
+            playback_timestamp: context.current_timestamp,
+            sources: response.sources,
+            model: response.model,
+          }).catch((err) => console.error('Failed to save assistant message:', err))
+        }
+
         if (response.error) {
           setError(response.error)
         }
@@ -112,19 +197,32 @@ export function useAIChat(context: ChatContext | null) {
         setIsLoading(false)
       }
     },
-    [context, messages]
+    [context, messages, session]
   )
 
-  const clearHistory = useCallback(() => {
+  const clearHistory = useCallback(async () => {
     setMessages([])
     setError(null)
-  }, [])
+
+    // Delete the session from database (creates a new one on next message)
+    if (session) {
+      try {
+        await deleteChatSession(session.id)
+        setSession(null)
+        sessionLoadedRef.current = null
+      } catch (err) {
+        console.error('Failed to delete chat session:', err)
+      }
+    }
+  }, [session])
 
   return {
     messages,
     isLoading,
+    isLoadingHistory,
     error,
     sendMessage,
     clearHistory,
+    session,
   }
 }

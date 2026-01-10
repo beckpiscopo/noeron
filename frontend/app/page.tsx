@@ -10,10 +10,16 @@ import { ListeningView } from "@/components/listening-view"
 import { DeepExplorationView } from "@/components/deep-exploration-view"
 import { PaperViewer } from "@/components/paper-viewer"
 import { EpisodeLibrary } from "@/components/episode-library"
+import { EpisodeOverview } from "@/components/episode-overview"
+import type { EpisodeOverviewData } from "@/components/episode-overview"
 import { BookmarksLibrary } from "@/components/bookmarks-library"
 import { QuizMode } from "@/components/quiz-mode"
 import type { Claim, ListeningEpisode } from "@/components/listening-view"
 import type { Episode as EpisodeMetadata } from "@/components/episode-library"
+
+// Episode data
+import episodesData from "../../data/episodes.json"
+import episodeSummariesData from "../../data/episode_summaries.json"
 
 const fallbackEpisode: EpisodeMetadata = {
   id: "lex_325",
@@ -120,6 +126,82 @@ function parseDurationLabelToSeconds(label: string): number {
 
 const getPlaybackStorageKey = (episodeId: string) => `playback_position:${episodeId}`
 
+// Compute claim density from actual claims data
+interface ClaimDensityPoint {
+  timestamp_ms: number
+  density: number
+  theme?: string
+  label?: string
+}
+
+function computeClaimDensity(
+  claims: Claim[],
+  durationSeconds: number,
+  bucketCount: number = 60
+): ClaimDensityPoint[] {
+  if (!claims.length || !durationSeconds) {
+    return []
+  }
+
+  const durationMs = durationSeconds * 1000
+  const bucketSize = durationMs / bucketCount
+
+  // Initialize buckets
+  const buckets: { count: number; themes: Record<string, number> }[] = Array.from(
+    { length: bucketCount },
+    () => ({ count: 0, themes: {} })
+  )
+
+  // Count claims per bucket and track themes
+  for (const claim of claims) {
+    const timestamp = claim.start_ms ?? (claim.timestamp ? claim.timestamp * 1000 : 0)
+    if (timestamp < 0 || timestamp > durationMs) continue
+
+    const bucketIndex = Math.min(
+      Math.floor(timestamp / bucketSize),
+      bucketCount - 1
+    )
+    buckets[bucketIndex].count++
+
+    // Track theme from claim_type or context_tags
+    const theme = claim.category || claim.claim_type ||
+      (claim.context_tags as Record<string, string>)?.phenomenon ||
+      (claim.context_tags as Record<string, string>)?.organism ||
+      "Research"
+
+    buckets[bucketIndex].themes[theme] = (buckets[bucketIndex].themes[theme] || 0) + 1
+  }
+
+  // Find max count for normalization
+  const maxCount = Math.max(...buckets.map(b => b.count), 1)
+
+  // Convert to density points
+  return buckets.map((bucket, i) => {
+    // Find dominant theme in this bucket
+    let dominantTheme = ""
+    let maxThemeCount = 0
+    for (const [theme, count] of Object.entries(bucket.themes)) {
+      if (count > maxThemeCount) {
+        maxThemeCount = count
+        dominantTheme = theme
+      }
+    }
+
+    // Determine if this is a peak (local maximum)
+    const isPeak = bucket.count > 0 &&
+      (i === 0 || bucket.count >= buckets[i - 1].count) &&
+      (i === buckets.length - 1 || bucket.count >= buckets[i + 1].count) &&
+      bucket.count >= maxCount * 0.7  // Only label significant peaks
+
+    return {
+      timestamp_ms: i * bucketSize + bucketSize / 2,
+      density: bucket.count / maxCount,
+      theme: dominantTheme || undefined,
+      label: isPeak && dominantTheme ? dominantTheme.toUpperCase() : undefined
+    }
+  })
+}
+
 const readStoredPlaybackTime = (episodeId: string): number | null => {
   if (typeof window === "undefined") {
     return null
@@ -144,12 +226,14 @@ const persistPlaybackTime = (episodeId: string, time: number) => {
 
 export default function Home() {
   const router = useRouter()
-  const [view, setView] = useState<"landing" | "library" | "listening" | "exploration" | "paper" | "bookmarks" | "quiz">("landing")
+  const [view, setView] = useState<"landing" | "library" | "overview" | "listening" | "exploration" | "paper" | "bookmarks" | "quiz">("landing")
   const [selectedEpisode, setSelectedEpisode] = useState<EpisodeMetadata | null>(null)
   const [currentTime, setCurrentTime] = useState(0)
   const [claims, setClaims] = useState<Claim[]>(fallbackClaims)
   const [selectedClaimId, setSelectedClaimId] = useState<string | number | null>(null)
   const [selectedPaperId, setSelectedPaperId] = useState<string | null>(null)
+  const [episodeSummary, setEpisodeSummary] = useState<any>(null)
+  const [summaryLoading, setSummaryLoading] = useState(false)
 
   const activeEpisode = selectedEpisode ?? fallbackEpisode
   const durationSeconds = parseDurationLabelToSeconds(activeEpisode.duration)
@@ -249,7 +333,21 @@ export default function Home() {
     const safeDuration = Math.max(nextDurationSeconds, 1)
     const startTime = storedTime !== null ? Math.max(0, Math.min(storedTime, safeDuration)) : 0
     setCurrentTime(startTime)
+    setView("overview") // Go to overview first, then user can start listening
+  }
+
+  const handleStartListening = (timestamp?: number) => {
+    if (timestamp !== undefined) {
+      const safeDuration = Math.max(durationSeconds, 1)
+      const safeTime = Math.max(0, Math.min(timestamp, safeDuration))
+      setCurrentTime(safeTime)
+      persistPlaybackTime(activeEpisode.id, safeTime)
+    }
     setView("listening")
+  }
+
+  const handleBackToLibrary = () => {
+    setView("library")
   }
 
   const handleGoToBookmarks = () => {
@@ -374,12 +472,122 @@ export default function Home() {
     }
   }, [activeEpisode.id, durationSeconds])
 
+  // Fetch episode summary when entering overview
+  useEffect(() => {
+    if (view !== "overview") {
+      return
+    }
+
+    // Check if we already have a cached summary (from local JSON)
+    const localSummary = (episodeSummariesData as Record<string, any>)[activeEpisode.id]
+    if (localSummary) {
+      setEpisodeSummary(localSummary)
+      return
+    }
+
+    // Check if we already fetched this summary
+    if (episodeSummary?.episode_id === activeEpisode.id) {
+      return
+    }
+
+    // Fetch from API (will use cache or generate with Gemini)
+    let cancelled = false
+    setSummaryLoading(true)
+
+    const fetchSummary = async () => {
+      try {
+        const response = await fetch("/api/mcp/tools/get_episode_summary/execute", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ episode_id: activeEpisode.id })
+        })
+
+        if (!cancelled && response.ok) {
+          const data = await response.json()
+          if (data.summary) {
+            setEpisodeSummary(data.summary)
+          }
+        }
+      } catch (error) {
+        console.warn("Failed to fetch episode summary:", error)
+      } finally {
+        if (!cancelled) {
+          setSummaryLoading(false)
+        }
+      }
+    }
+
+    fetchSummary()
+
+    return () => {
+      cancelled = true
+    }
+  }, [view, activeEpisode.id, episodeSummary?.episode_id])
+
   if (view === "landing") {
     return <LandingPage onGetStarted={handleGetStarted} />
   }
 
   if (view === "library") {
     return <EpisodeLibrary onSelectEpisode={handleSelectEpisode} />
+  }
+
+  if (view === "overview") {
+    // Find extended episode data from episodes.json
+    const extendedData = (episodesData as any[]).find((ep: any) => ep.id === activeEpisode.id)
+
+    // Use dynamically fetched summary (from local JSON or API)
+    const summaryData = episodeSummary
+
+    // Map structured summary data to our component format
+    const majorThemes = summaryData?.major_themes?.map((t: any) => ({
+      theme_name: t.theme_name,
+      description: t.description,
+      timestamps: t.timestamps
+    })) || []
+
+    const keyMoments = summaryData?.key_moments?.map((m: any) => ({
+      timestamp: m.timestamp,
+      description: m.description,
+      quote: m.quote,
+      significance: m.significance
+    })) || []
+
+    const guestThesis = summaryData?.guest_thesis ? {
+      summary: summaryData.guest_thesis.core_thesis,
+      key_claims: summaryData.guest_thesis.key_claims || []
+    } : undefined
+
+    // Compute claim density from actual claims data
+    const claimDensity = computeClaimDensity(claims, durationSeconds, 60)
+
+    const overviewData: EpisodeOverviewData = {
+      id: activeEpisode.id,
+      title: activeEpisode.title,
+      podcast: activeEpisode.podcast,
+      host: activeEpisode.host,
+      guest: activeEpisode.guest,
+      duration: activeEpisode.duration,
+      durationSeconds: durationSeconds,
+      date: activeEpisode.date,
+      papersLinked: activeEpisode.papersLinked,
+      totalClaims: claims.length,
+      description: extendedData?.description || activeEpisode.description,
+      summary: summaryData?.narrative_arc,
+      major_themes: majorThemes,
+      key_moments: keyMoments,
+      guest_thesis: guestThesis,
+      claim_density: claimDensity.length > 0 ? claimDensity : undefined,
+      isLoading: summaryLoading,
+    }
+
+    return (
+      <EpisodeOverview
+        episode={overviewData}
+        onStartListening={handleStartListening}
+        onBack={handleBackToLibrary}
+      />
+    )
   }
 
   if (view === "paper") {

@@ -2,6 +2,7 @@
 
 import { User, Bot, Loader2 } from "lucide-react"
 import { ChatSources } from "./chat-sources"
+import { MarkdownContent } from "@/components/ui/markdown-content"
 import type { ChatMessage as ChatMessageType } from "@/lib/chat-types"
 
 interface ChatMessageProps {
@@ -41,10 +42,12 @@ export function ChatMessage({ message, onViewPaper }: ChatMessageProps) {
               <Loader2 className="w-4 h-4 animate-spin" />
               <span className="text-sm">Thinking...</span>
             </div>
-          ) : (
+          ) : isUser ? (
             <p className="text-sm leading-relaxed whitespace-pre-wrap">
               {message.content}
             </p>
+          ) : (
+            <MarkdownContent content={message.content} variant="chat" />
           )}
         </div>
 
