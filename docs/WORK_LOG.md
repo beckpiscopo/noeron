@@ -658,6 +658,273 @@ python scripts/generate_claim_keywords.py --episode lex_325 --dry-run
 
 ---
 
+## 2026-01-11: Taxonomy Layer - Knowledge Cartography
+
+**Task:** Build a clustering layer that organizes the paper corpus into 8-12 labeled concept territories, enabling users to visualize their exploration coverage against the full research landscape.
+
+**Summary:**
+- Created GMM-based clustering pipeline that assigns papers to multiple clusters with confidence scores (soft assignment)
+- Uses UMAP (or PCA fallback) for 2D spatial positioning to create bubble map visualization
+- Gemini auto-generates descriptive labels for each cluster based on top papers
+- Claims inherit cluster assignments from their linked papers
+- Frontend shows "Research Territories" in notebook view and episode overview
+- Comparison feature shows "This episode covers X, Y, Z - you've touched X but not Y, Z"
+
+**Key Files:**
+```
+supabase/migrations/008_add_taxonomy_clusters.sql  # NEW: Schema + RPC functions
+├── taxonomy_clusters table (label, description, keywords, position_x/y, centroid_embedding)
+├── paper_cluster_assignments table (soft assignments with confidence scores)
+├── claim_cluster_assignments table (inherited from papers)
+├── RPC: get_episode_cluster_coverage(), get_notebook_cluster_distribution()
+├── RPC: compare_episode_to_notebook(), get_taxonomy_overview()
+└── RPC: match_nearest_cluster() for classifying new papers
+
+scripts/build_taxonomy_clusters.py                  # NEW: Clustering pipeline
+├── GMM clustering with BIC+silhouette for optimal k
+├── UMAP or PCA for 2D positioning
+├── Gemini label generation from top papers
+└── Soft assignments (papers can belong to multiple clusters)
+
+scripts/supabase_client.py                          # MODIFIED: Added 8 cluster methods
+├── get_taxonomy_clusters(), get_taxonomy_overview()
+├── get_cluster_papers(), get_paper_clusters()
+├── get_episode_cluster_coverage(), get_notebook_cluster_distribution()
+├── compare_episode_to_notebook(), get_clusters_for_papers()
+└── match_nearest_cluster()
+
+src/bioelectricity_research/server.py               # MODIFIED: Added 6 MCP tools
+├── list_taxonomy_clusters (include_papers, limit_papers)
+├── get_cluster_details (cluster_id, include_papers, include_claims)
+├── get_episode_cluster_coverage (podcast_id)
+├── get_notebook_cluster_distribution (episode_id)
+├── compare_episode_to_notebook (podcast_id) ← Key insight tool
+└── get_cluster_bubble_map_data ()
+
+frontend/lib/supabase.ts                            # MODIFIED: Added types + queries
+├── Types: TaxonomyCluster, ClusterNode, PaperClusterAssignment
+├── Types: ClusterCoverage, NotebookClusterDistribution, EpisodeNotebookComparison
+├── getTaxonomyClusters(), getClusterPapers()
+├── getEpisodeClusterCoverage(), getNotebookClusterDistribution()
+├── compareEpisodeToNotebook(), getClusterBubbleMapData()
+
+frontend/components/taxonomy-bubble-map.tsx         # NEW: Visualization components
+├── TaxonomyBubbleMap - Canvas-based bubble visualization
+├── ClusterDistributionBars - Horizontal bar chart for notebook
+└── EpisodeClusterSummary - Comparison summary card
+
+frontend/components/notebook-view.tsx               # MODIFIED: Added Research Territories
+├── Cluster distribution bars in Overview tab
+├── "X of Y territories explored" summary
+├── Unexplored territories list
+└── Full-screen taxonomy map modal
+
+frontend/components/episode-overview.tsx            # MODIFIED: Added cluster coverage
+└── EpisodeClusterSummary in sidebar
+```
+
+**Implementation Steps:**
+
+1. **Run the SQL migration** (Supabase SQL Editor):
+   ```sql
+   -- Copy contents of supabase/migrations/008_add_taxonomy_clusters.sql
+   ```
+
+2. **Install Python dependencies**:
+   ```bash
+   pip install scikit-learn
+   # Optional for better 2D layout:
+   brew install cmake && pip install umap-learn
+   ```
+
+3. **Run the clustering pipeline**:
+   ```bash
+   # Dry run first to see results without saving
+   python scripts/build_taxonomy_clusters.py --dry-run
+
+   # Full run (clusters papers, generates labels, populates claim assignments)
+   python scripts/build_taxonomy_clusters.py
+
+   # Options:
+   #   --k 10           Force specific cluster count (default: auto 8-12)
+   #   --skip-labels    Skip Gemini label generation (use "Cluster 0", etc.)
+   #   --skip-claims    Skip populating claim_cluster_assignments
+   ```
+
+4. **Restart the HTTP server** to pick up new MCP tools:
+   ```bash
+   python -m src.bioelectricity_research.http_server
+   ```
+
+5. **Test in frontend**:
+   - Notebook view → Overview tab → "Research Territories" section
+   - Episode overview → Sidebar → "Research Territory Coverage" card
+   - Click "VIEW MAP" for full bubble visualization
+
+**Algorithm Details:**
+- **Embedding Aggregation:** Chunk embeddings → paper-level via weighted mean (by token count)
+- **Optimal k Selection:** BIC + silhouette score across k=8-12
+- **Clustering:** Gaussian Mixture Model with spherical covariance
+- **Soft Assignment:** Papers assigned to clusters where GMM probability > 0.1
+- **2D Positioning:** UMAP (cosine metric) or PCA fallback, normalized to 0-1
+- **Label Generation:** Gemini analyzes top 5 papers per cluster → JSON {label, description, keywords}
+
+**Decisions/Gotchas:**
+- UMAP requires cmake + llvmlite to build; PCA fallback works without extra deps
+- Gemini model: `gemini-2.0-flash` for label generation (fast, cheap)
+- Soft assignment threshold 0.1 means papers typically belong to 1-3 clusters
+- Claims inherit clusters from their `paper_id` reference (not re-embedded)
+- Frontend uses canvas rendering (not D3) for performance with many clusters
+
+**Next Steps:**
+- Add cluster filtering to claim/paper lists
+- Consider cluster badges on claim cards in listening view
+- Add "explore cluster" drill-down view showing all papers/claims
+- Re-run clustering periodically as new papers are added
+
+---
+
+## 2026-01-11: Interactive Cluster Explorer (IN PROGRESS - HAS ERRORS)
+
+**Task:** Make taxonomy clusters interactive and explorable in episode-overview.tsx and notebook-view.tsx
+
+**Summary:**
+- Added new RPC functions for cluster drill-down queries
+- Created `EpisodeClusterExplorer` component showing clickable cluster cards in episode overview
+- Added cluster filtering to notebook saved items view
+- Added cluster badges to bookmark cards
+
+**Status:** FRONTEND ERROR - needs debugging in new context
+
+**Key Files Created/Modified:**
+
+```
+supabase/migrations/009_add_cluster_drill_down.sql  # NEW: 3 RPC functions
+├── get_episode_claims_by_cluster(p_podcast_id, p_cluster_id, p_limit)
+│   Returns claims for an episode within a specific cluster
+│   NOTE: Uses `claim_timestamp` not `timestamp` (reserved word)
+├── get_bookmarks_by_cluster(p_user_id, p_cluster_id, p_episode_id)
+│   Returns bookmarks filtered by cluster
+└── get_bookmark_cluster_mappings(p_bookmark_ids)
+    Returns cluster info for a set of bookmarks (for badges)
+
+frontend/lib/supabase.ts                            # MODIFIED: Added types + functions
+├── ClaimWithCluster interface (claim_timestamp not timestamp!)
+├── BookmarkWithCluster interface
+├── BookmarkClusterMapping interface
+├── getEpisodeClaimsByCluster() - calls RPC
+├── getBookmarksByCluster() - calls RPC
+└── getBookmarkClusterMappings() - calls RPC
+
+frontend/components/episode-overview.tsx            # MODIFIED: Added cluster explorer
+├── New imports: useEffect, useCallback, ChevronDown, Layers, Sparkles
+├── Import types: EpisodeNotebookComparison, ClaimWithCluster
+├── Import functions: compareEpisodeToNotebook, getEpisodeClaimsByCluster
+├── NEW ClusterCard component (lines ~572-681)
+│   - Shows cluster label, description, claim count, keywords
+│   - NEW/EXPLORED badges based on notebook comparison
+│   - Expandable to show claims list
+├── NEW EpisodeClusterExplorer component (lines ~684-805)
+│   - Fetches clusters via compareEpisodeToNotebook()
+│   - Grid of ClusterCard components
+│   - Caches claims when cluster is expanded
+└── Added <EpisodeClusterExplorer> after Episode Outline section (line ~958)
+
+frontend/components/notebook-view.tsx               # MODIFIED: Added cluster filtering
+├── New import: BookmarkClusterMapping, getBookmarkClusterMappings
+├── New state: clusterFilter, bookmarkClusterMappings
+├── Modified useEffect to load bookmark cluster mappings
+├── Modified filteredBookmarks useMemo to filter by cluster
+├── Replaced ClusterDistributionBars with clickable custom bars (lines ~437-477)
+│   - Shows excavation depth: DEEP/MODERATE/TOUCHED
+│   - Clicking sets clusterFilter and switches to "saved" tab
+├── Added cluster filter chips UI in Saved Items tab (lines ~598-643)
+└── Added cluster badges to bookmark cards (lines ~766-783)
+```
+
+**Architecture:**
+
+```
+User clicks cluster in Episode Overview
+    ↓
+EpisodeClusterExplorer.handleToggleCluster(clusterId)
+    ↓
+getEpisodeClaimsByCluster(episodeId, clusterId) via Supabase RPC
+    ↓
+Returns ClaimWithCluster[] with claim_timestamp, start_ms, etc.
+    ↓
+ClusterCard renders expandable claims list
+    ↓
+User clicks claim → onSeek(start_ms/1000) → jumps to listening view
+
+User clicks cluster bar in Notebook Overview
+    ↓
+setClusterFilter(clusterId) + setActiveTab("saved")
+    ↓
+filteredBookmarks useMemo filters by cluster via bookmarkClusterMappings
+    ↓
+Shows only bookmarks in that cluster
+```
+
+**Decisions/Gotchas:**
+- `timestamp` is reserved in PostgreSQL - renamed to `claim_timestamp` in RPC return type
+- Frontend type `ClaimWithCluster` uses `claim_timestamp` not `timestamp`
+- Cluster mappings loaded after bookmarks via `getBookmarkClusterMappings()`
+- Claims cached per-cluster in `claimsCache` Map to avoid re-fetching
+
+**Debugging Completed (2026-01-11):**
+
+Two errors were identified and fixed:
+
+**Error 1: Ambiguous column reference (PostgreSQL 42702)**
+```
+column reference "cluster_id" is ambiguous
+It could refer to either a PL/pgSQL variable or a table column.
+```
+
+**Root Cause:** PL/pgSQL functions with `RETURNS TABLE (cluster_id integer, ...)` conflict with table columns named `cluster_id`. PostgreSQL can't tell if you mean the output column or the source table column.
+
+**Fix:** Alias all columns in CTEs and final SELECT:
+```sql
+-- Before (broken)
+WITH episode_clusters AS (
+    SELECT cca.cluster_id, COUNT(*) as claim_count ...
+)
+SELECT tc.cluster_id FROM taxonomy_clusters tc
+LEFT JOIN episode_clusters ec ON tc.cluster_id = ec.cluster_id
+
+-- After (fixed)
+WITH episode_clusters AS (
+    SELECT cca.cluster_id AS ec_cluster_id, COUNT(*) as claim_count ...
+)
+SELECT tc.cluster_id AS cluster_id FROM taxonomy_clusters tc
+LEFT JOIN episode_clusters ec ON tc.cluster_id = ec.ec_cluster_id
+```
+
+**Files Fixed:**
+- `supabase/migrations/008_add_taxonomy_clusters.sql` - `compare_episode_to_notebook()`, `get_notebook_cluster_distribution()`
+
+**Error 2: Map icon shadowing built-in Map constructor**
+```
+Map is not a constructor
+```
+
+**Root Cause:** `import { Map } from "lucide-react"` shadows JavaScript's built-in `Map` class, so `new Map()` tries to instantiate the icon component.
+
+**Fix:** Rename the icon import:
+```tsx
+import { Map as MapIcon } from "lucide-react"
+```
+
+**Files Fixed:**
+- `frontend/components/notebook-view.tsx` - Line 32 import, lines 419 and 514 usages
+
+**Documentation Added:**
+- `docs/ARCHITECTURE.md` - Added Taxonomy Cluster System section
+- `docs/TAXONOMY_CLUSTERS.md` - NEW: Detailed implementation guide
+
+---
+
 Template:
 
 Date:

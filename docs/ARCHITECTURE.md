@@ -54,9 +54,18 @@ The system supports two storage backends, controlled by `USE_SUPABASE` environme
 - `paper_chunks` - Text chunks with 384-dim pgvector embeddings
 - `chat_sessions` / `chat_messages` - Chat persistence
 - `user_interests` - User interest tracking
+- `taxonomy_clusters` - Research territory definitions with labels, descriptions, 2D positions
+- `paper_cluster_assignments` - Soft cluster assignments for papers (GMM probabilities)
+- `claim_cluster_assignments` - Inherited cluster assignments for claims
+- `bookmarks` - User-saved items (claims, papers, snippets, AI insights, images)
+- `notebook_synthesis` - Cached AI-generated notebook overviews
 
 **Key Supabase Functions:**
 - `match_papers(query_embedding, threshold, count)` - Vector similarity search via pgvector
+- `compare_episode_to_notebook(podcast_id, user_id)` - Compare episode clusters to user's notebook
+- `get_episode_cluster_coverage(podcast_id)` - Get cluster distribution for an episode
+- `get_notebook_cluster_distribution(user_id, episode_id)` - Get cluster distribution for notebook
+- `get_episode_claims_by_cluster(podcast_id, cluster_id)` - Drill down into cluster claims
 
 ## Key runtime entrypoints
 
@@ -262,8 +271,77 @@ Currently uses shadcn's `<Sheet>` component positioned on the right. Opens/close
 - Sources include both RAG results and evidence cards
 - Evidence card sources show timestamp when they appeared
 
+## Taxonomy Cluster System (Knowledge Cartography)
+
+The taxonomy cluster system organizes the paper corpus into 8-12 labeled "research territories" using GMM clustering, enabling users to visualize their exploration coverage against the full research landscape.
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ Clustering Pipeline (scripts/build_taxonomy_clusters.py)    │
+│ 1. Aggregate chunk embeddings → paper-level embeddings      │
+│ 2. GMM clustering with BIC+silhouette for optimal k         │
+│ 3. UMAP (or PCA fallback) for 2D positioning               │
+│ 4. Gemini generates cluster labels from top papers          │
+│ 5. Soft assignments: papers belong to multiple clusters     │
+│ 6. Claims inherit assignments from linked papers            │
+└─────────────────────────────────────────────────────────────┘
+           ↓
+┌─────────────────────────────────────────────────────────────┐
+│ Supabase Tables                                             │
+│ - taxonomy_clusters: id, label, description, keywords, x/y  │
+│ - paper_cluster_assignments: paper_id, cluster_id, conf     │
+│ - claim_cluster_assignments: claim_id, cluster_id, conf     │
+└─────────────────────────────────────────────────────────────┘
+           ↓
+┌─────────────────────────────────────────────────────────────┐
+│ RPC Functions (Supabase SQL)                                │
+│ - compare_episode_to_notebook() → NEW vs EXPLORED badges    │
+│ - get_episode_claims_by_cluster() → Drill-down claims list  │
+│ - get_notebook_cluster_distribution() → Bookmark analysis   │
+│ - get_bookmark_cluster_mappings() → Badge display           │
+└─────────────────────────────────────────────────────────────┘
+           ↓
+┌─────────────────────────────────────────────────────────────┐
+│ Frontend Components                                         │
+│ - TaxonomyBubbleMap: Canvas-based cluster visualization     │
+│ - EpisodeClusterExplorer: Expandable cluster cards          │
+│ - ClusterDistributionBars: Notebook territory breakdown     │
+│ - EpisodeClusterSummary: Quick coverage stats               │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Key Files
+
+| File | Purpose |
+|------|---------|
+| `scripts/build_taxonomy_clusters.py` | GMM clustering pipeline |
+| `supabase/migrations/008_add_taxonomy_clusters.sql` | Schema + RPC functions |
+| `supabase/migrations/009_add_cluster_drill_down.sql` | Drill-down RPC functions |
+| `frontend/components/taxonomy-bubble-map.tsx` | Visualization components |
+| `frontend/components/episode-overview.tsx` | Cluster explorer integration |
+| `frontend/components/notebook-view.tsx` | Cluster filtering integration |
+| `frontend/lib/supabase.ts` | TypeScript types + query functions |
+
+### Usage
+
+```bash
+# Run clustering pipeline (first time or after adding papers)
+python scripts/build_taxonomy_clusters.py
+
+# Dry run to preview without saving
+python scripts/build_taxonomy_clusters.py --dry-run
+
+# Force specific cluster count
+python scripts/build_taxonomy_clusters.py --k 10
+```
+
+See `docs/TAXONOMY_CLUSTERS.md` for detailed implementation guide.
+
 ## Docs to read first
 
 - `docs/LLM_CONTEXT.md`
 - `docs/pipeline.md`
+- `docs/TAXONOMY_CLUSTERS.md`
 - `scripts/README.md`

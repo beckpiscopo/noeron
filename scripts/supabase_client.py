@@ -574,9 +574,128 @@ class NoeronDB:
         return response.data
     
     # =========================================================================
+    # Taxonomy Clusters
+    # =========================================================================
+
+    def get_taxonomy_clusters(self) -> List[Dict[str, Any]]:
+        """Get all taxonomy clusters with metadata."""
+        response = (
+            self.client.table("taxonomy_clusters")
+            .select("*")
+            .order("cluster_id")
+            .execute()
+        )
+        return response.data
+
+    def get_taxonomy_overview(self) -> List[Dict[str, Any]]:
+        """Get taxonomy overview via RPC function."""
+        response = self.client.rpc("get_taxonomy_overview", {}).execute()
+        return response.data
+
+    def get_cluster_papers(
+        self,
+        cluster_id: int,
+        limit: int = 20,
+        include_paper_details: bool = True
+    ) -> List[Dict[str, Any]]:
+        """Get papers assigned to a cluster."""
+        if include_paper_details:
+            response = (
+                self.client.table("paper_cluster_assignments")
+                .select("*, papers!inner(paper_id, title, abstract, year, citation_count)")
+                .eq("cluster_id", cluster_id)
+                .order("confidence", desc=True)
+                .limit(limit)
+                .execute()
+            )
+        else:
+            response = (
+                self.client.table("paper_cluster_assignments")
+                .select("*")
+                .eq("cluster_id", cluster_id)
+                .order("confidence", desc=True)
+                .limit(limit)
+                .execute()
+            )
+        return response.data
+
+    def get_paper_clusters(self, paper_id: str) -> List[Dict[str, Any]]:
+        """Get clusters assigned to a paper."""
+        response = (
+            self.client.table("paper_cluster_assignments")
+            .select("*, taxonomy_clusters!inner(cluster_id, label, description)")
+            .eq("paper_id", paper_id)
+            .order("confidence", desc=True)
+            .execute()
+        )
+        return response.data
+
+    def get_episode_cluster_coverage(self, podcast_id: str) -> List[Dict[str, Any]]:
+        """Get clusters covered by an episode via RPC function."""
+        response = self.client.rpc(
+            "get_episode_cluster_coverage",
+            {"p_podcast_id": podcast_id}
+        ).execute()
+        return response.data
+
+    def get_notebook_cluster_distribution(
+        self,
+        user_id: str = "default_user",
+        episode_id: str = None
+    ) -> List[Dict[str, Any]]:
+        """Get cluster distribution of notebook items via RPC function."""
+        params = {"p_user_id": user_id}
+        if episode_id:
+            params["p_episode_id"] = episode_id
+
+        response = self.client.rpc(
+            "get_notebook_cluster_distribution",
+            params
+        ).execute()
+        return response.data
+
+    def compare_episode_to_notebook(
+        self,
+        podcast_id: str,
+        user_id: str = "default_user"
+    ) -> List[Dict[str, Any]]:
+        """Compare episode clusters to notebook via RPC function."""
+        response = self.client.rpc(
+            "compare_episode_to_notebook",
+            {
+                "p_podcast_id": podcast_id,
+                "p_user_id": user_id
+            }
+        ).execute()
+        return response.data
+
+    def get_clusters_for_papers(self, paper_ids: List[str]) -> List[Dict[str, Any]]:
+        """Get clusters for a set of paper IDs via RPC function."""
+        response = self.client.rpc(
+            "get_clusters_for_papers",
+            {"paper_ids": paper_ids}
+        ).execute()
+        return response.data
+
+    def match_nearest_cluster(
+        self,
+        query_embedding: List[float],
+        count: int = 3
+    ) -> List[Dict[str, Any]]:
+        """Find nearest clusters for an embedding via RPC function."""
+        response = self.client.rpc(
+            "match_nearest_cluster",
+            {
+                "query_embedding": query_embedding,
+                "match_count": count
+            }
+        ).execute()
+        return response.data
+
+    # =========================================================================
     # Utility
     # =========================================================================
-    
+
     def test_connection(self) -> bool:
         """Test database connection."""
         try:

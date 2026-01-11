@@ -1,21 +1,27 @@
 "use client"
 
 import type React from "react"
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect, useCallback } from "react"
 import {
   Play,
   Grid3X3,
   Star,
   ExternalLink,
   ChevronRight,
+  ChevronDown,
   Circle,
   Loader2,
   Search,
   Settings,
-  HelpCircle
+  HelpCircle,
+  Layers,
+  Sparkles
 } from "lucide-react"
 import { NoeronHeader } from "./noeron-header"
 import { AIChatSidebar } from "./ai-chat"
+import { EpisodeClusterSummary } from "./taxonomy-bubble-map"
+import type { EpisodeNotebookComparison, ClaimWithCluster } from "@/lib/supabase"
+import { compareEpisodeToNotebook, getEpisodeClaimsByCluster } from "@/lib/supabase"
 
 // =============================================================================
 // TYPES
@@ -551,6 +557,255 @@ function TerminalFooter() {
 }
 
 // =============================================================================
+// CLUSTER EXPLORER
+// =============================================================================
+
+interface ClusterCardProps {
+  cluster: EpisodeNotebookComparison
+  isExpanded: boolean
+  onToggle: () => void
+  claims: ClaimWithCluster[]
+  isLoadingClaims: boolean
+  onClaimClick: (startMs: number) => void
+}
+
+function ClusterCard({
+  cluster,
+  isExpanded,
+  onToggle,
+  claims,
+  isLoadingClaims,
+  onClaimClick
+}: ClusterCardProps) {
+  const isNew = cluster.in_episode && !cluster.in_notebook
+  const isExplored = cluster.in_episode && cluster.in_notebook
+
+  return (
+    <div className="border border-border/50 bg-card/30 overflow-hidden">
+      {/* Card Header - Clickable */}
+      <button
+        onClick={onToggle}
+        className="w-full text-left p-4 hover:bg-[var(--golden-chestnut)]/5 transition-colors"
+      >
+        <div className="flex items-start justify-between gap-2 mb-2">
+          <h4 className="text-sm font-medium text-foreground leading-tight">
+            {cluster.label}
+          </h4>
+          <div className="flex items-center gap-2 shrink-0">
+            {isNew && (
+              <span className="px-1.5 py-0.5 bg-[var(--golden-chestnut)]/20 text-[var(--golden-chestnut)] text-[9px] mono uppercase tracking-wider">
+                NEW
+              </span>
+            )}
+            {isExplored && (
+              <span className="px-1.5 py-0.5 bg-emerald-500/20 text-emerald-400 text-[9px] mono uppercase tracking-wider">
+                EXPLORED
+              </span>
+            )}
+            {isExpanded ? (
+              <ChevronDown className="w-4 h-4 text-foreground/40" />
+            ) : (
+              <ChevronRight className="w-4 h-4 text-foreground/40" />
+            )}
+          </div>
+        </div>
+
+        <p className="text-xs text-foreground/50 leading-relaxed line-clamp-2 mb-2">
+          {cluster.description}
+        </p>
+
+        <div className="flex items-center gap-3">
+          <span className="text-[10px] mono text-[var(--golden-chestnut)]">
+            {cluster.episode_claim_count} claims
+          </span>
+          {cluster.keywords && cluster.keywords.length > 0 && (
+            <div className="flex gap-1 overflow-hidden">
+              {cluster.keywords.slice(0, 2).map((kw, i) => (
+                <span
+                  key={i}
+                  className="px-1.5 py-0.5 bg-foreground/5 text-[9px] text-foreground/40 truncate max-w-[80px]"
+                >
+                  {kw}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      </button>
+
+      {/* Expanded Claims List */}
+      {isExpanded && (
+        <div className="border-t border-border/30 bg-background/50">
+          {isLoadingClaims ? (
+            <div className="flex items-center justify-center py-6">
+              <Loader2 className="w-4 h-4 animate-spin text-foreground/50" />
+              <span className="ml-2 text-xs text-foreground/50">Loading claims...</span>
+            </div>
+          ) : claims.length === 0 ? (
+            <div className="py-4 px-4 text-center text-xs text-foreground/40 mono">
+              No claims found in this cluster
+            </div>
+          ) : (
+            <div className="divide-y divide-border/20">
+              {claims.slice(0, 5).map((claim) => (
+                <button
+                  key={claim.claim_id}
+                  onClick={() => claim.start_ms && onClaimClick(claim.start_ms / 1000)}
+                  className="w-full text-left px-4 py-3 hover:bg-[var(--golden-chestnut)]/5 transition-colors group"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="shrink-0 flex items-center gap-1.5 pt-0.5">
+                      <Play className="w-3 h-3 text-[var(--golden-chestnut)] opacity-0 group-hover:opacity-100 transition-opacity" />
+                      <span className="mono text-[10px] text-[var(--golden-chestnut)] tabular-nums">
+                        {claim.claim_timestamp || formatTimecode((claim.start_ms || 0) / 1000)}
+                      </span>
+                    </div>
+                    <p className="text-xs text-foreground/70 leading-relaxed line-clamp-2 group-hover:text-foreground transition-colors">
+                      {claim.distilled_claim || claim.claim_text}
+                    </p>
+                  </div>
+                </button>
+              ))}
+              {claims.length > 5 && (
+                <div className="px-4 py-2 text-center">
+                  <span className="text-[10px] mono text-foreground/40">
+                    + {claims.length - 5} more claims
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+interface EpisodeClusterExplorerProps {
+  episodeId: string
+  onSeek: (timestamp: number) => void
+}
+
+function EpisodeClusterExplorer({ episodeId, onSeek }: EpisodeClusterExplorerProps) {
+  const [clusters, setClusters] = useState<EpisodeNotebookComparison[]>([])
+  const [loading, setLoading] = useState(true)
+  const [expandedCluster, setExpandedCluster] = useState<number | null>(null)
+  const [claimsCache, setClaimsCache] = useState<Map<number, ClaimWithCluster[]>>(new Map())
+  const [loadingClaims, setLoadingClaims] = useState<number | null>(null)
+  const [summary, setSummary] = useState<{ new: number; overlap: number; total: number }>({
+    new: 0,
+    overlap: 0,
+    total: 0
+  })
+
+  // Load clusters on mount
+  useEffect(() => {
+    async function loadClusters() {
+      setLoading(true)
+      try {
+        const data = await compareEpisodeToNotebook(episodeId)
+        // Filter to only clusters that appear in this episode
+        const episodeClusters = data.all.filter(c => c.in_episode)
+        setClusters(episodeClusters)
+        setSummary({
+          new: data.summary.new_territory_count,
+          overlap: data.summary.overlap_count,
+          total: data.summary.episode_cluster_count
+        })
+      } catch (err) {
+        console.error("Failed to load clusters:", err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadClusters()
+  }, [episodeId])
+
+  // Load claims when a cluster is expanded
+  const handleToggleCluster = useCallback(async (clusterId: number) => {
+    if (expandedCluster === clusterId) {
+      setExpandedCluster(null)
+      return
+    }
+
+    setExpandedCluster(clusterId)
+
+    // Check cache first
+    if (claimsCache.has(clusterId)) {
+      return
+    }
+
+    // Load claims for this cluster
+    setLoadingClaims(clusterId)
+    try {
+      const claims = await getEpisodeClaimsByCluster(episodeId, clusterId, 20)
+      setClaimsCache(prev => new Map(prev).set(clusterId, claims))
+    } catch (err) {
+      console.error("Failed to load claims:", err)
+    } finally {
+      setLoadingClaims(null)
+    }
+  }, [episodeId, expandedCluster, claimsCache])
+
+  if (loading) {
+    return (
+      <CornerBrackets className="p-6 bg-card/30">
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="w-5 h-5 animate-spin text-[var(--golden-chestnut)]" />
+          <span className="ml-2 text-sm text-foreground/50">Loading research territories...</span>
+        </div>
+      </CornerBrackets>
+    )
+  }
+
+  if (clusters.length === 0) {
+    return null
+  }
+
+  return (
+    <CornerBrackets className="p-6 bg-card/30">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-3">
+          <Layers className="w-4 h-4 text-[var(--golden-chestnut)]" />
+          <span className="text-foreground/60 mono text-xs tracking-[0.2em] uppercase">
+            Research Territories
+          </span>
+        </div>
+        <div className="flex items-center gap-4 text-[10px] mono">
+          <span className="text-[var(--golden-chestnut)]">{summary.new} NEW</span>
+          <span className="text-foreground/50">{summary.overlap} EXPLORED</span>
+          <span className="text-foreground/30">{summary.total} TOTAL</span>
+        </div>
+      </div>
+
+      {/* Summary Text */}
+      <p className="text-xs text-foreground/50 mb-4">
+        This episode covers {summary.total} research {summary.total === 1 ? 'territory' : 'territories'}.
+        {summary.new > 0 && (
+          <span className="text-[var(--golden-chestnut)]"> {summary.new} {summary.new === 1 ? 'is' : 'are'} new to your notebook.</span>
+        )}
+      </p>
+
+      {/* Cluster Cards Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {clusters.map((cluster) => (
+          <ClusterCard
+            key={cluster.cluster_id}
+            cluster={cluster}
+            isExpanded={expandedCluster === cluster.cluster_id}
+            onToggle={() => handleToggleCluster(cluster.cluster_id)}
+            claims={claimsCache.get(cluster.cluster_id) || []}
+            isLoadingClaims={loadingClaims === cluster.cluster_id}
+            onClaimClick={onSeek}
+          />
+        ))}
+      </div>
+    </CornerBrackets>
+  )
+}
+
+// =============================================================================
 // MAIN COMPONENT
 // =============================================================================
 
@@ -699,6 +954,12 @@ export function EpisodeOverview({ episode, onStartListening, onBack, onBookmarks
                     onSeek={handleSeek}
                   />
                 ) : null}
+
+                {/* Research Territories Explorer */}
+                <EpisodeClusterExplorer
+                  episodeId={episode.id}
+                  onSeek={handleSeek}
+                />
               </>
             )}
           </div>
@@ -718,6 +979,9 @@ export function EpisodeOverview({ episode, onStartListening, onBack, onBookmarks
                 BROWSE RESEARCH STREAM
               </span>
             </button>
+
+            {/* Research Territory Coverage */}
+            <EpisodeClusterSummary episodeId={episode.id} />
 
             {/* Reference Manifest */}
             <ReferenceManifest papers={referencePapers} />
