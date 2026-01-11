@@ -49,6 +49,7 @@ interface DeepExplorationViewProps {
   episodeId: string
   onBack: () => void
   onViewSourcePaper: (paperId?: string) => void
+  onBookmarksClick?: () => void
 }
 
 interface EvidenceThread {
@@ -185,7 +186,7 @@ interface EvidenceThreadsResponse {
   error?: string
 }
 
-export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewSourcePaper }: DeepExplorationViewProps) {
+export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewSourcePaper, onBookmarksClick }: DeepExplorationViewProps) {
   const [synthesisMode, setSynthesisMode] = useState<"simplified" | "technical">("technical")
   const [contextData, setContextData] = useState<ClaimContextData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -391,6 +392,7 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
           </>
         }
         onLogoClick={() => window.location.assign("/")}
+        onBookmarksClick={onBookmarksClick}
       />
 
       {/* Header */}

@@ -64,35 +64,37 @@ Date: {date}
 
 Generate a structured summary with the following sections:
 
-## 1. NARRATIVE_ARC (3-5 paragraphs)
-Write a flowing narrative that describes the conversation arc. Include:
+## 1. BRIEF_SUMMARY (exactly 5 sentences)
+Write a concise 5-sentence summary of what this episode covers. This should give readers a quick overview of the main topics and takeaways.
+
+## 2. NARRATIVE_ARC (3-5 paragraphs)
+Write a flowing narrative that describes the conversation arc. IMPORTANT: Separate each paragraph with a blank line (use \\n\\n between paragraphs). Include:
 - How the conversation opens and what sets the tone
 - Major topic transitions and how ideas build on each other
 - The intellectual journey from start to finish
 - How the conversation concludes
 
-## 2. MAJOR_THEMES (list of 4-6 themes)
+## 3. MAJOR_THEMES (list of 4-6 themes)
 For each theme, provide:
 - theme_name: Short name (2-4 words)
 - description: What this theme is about (1-2 sentences)
 - evolution: How this theme develops through the episode
 - timestamps: Approximate time ranges where this theme is discussed (e.g., "10:00-25:00, 1:45:00-2:00:00")
 
-## 3. KEY_MOMENTS (list of 5-8 moments)
-Identify pivotal moments in the conversation. For each:
-- timestamp: Approximate timestamp (e.g., "23:45")
-- description: What happens at this moment (1-2 sentences)
-- significance: Why this moment matters
-- quote: A brief representative quote (if applicable)
+## 4. EPISODE_OUTLINE (list of 8-12 timestamped sections)
+Create a chronological outline of the episode. For each section:
+- timestamp: Start time of this section (e.g., "0:00", "23:45", "1:15:00")
+- topic: Brief topic title (3-6 words, e.g., "Planaria regeneration introduction")
+This should read like a table of contents for the episode.
 
-## 4. GUEST_THESIS
+## 5. GUEST_THESIS
 Summarize the guest's main arguments and worldview as expressed in this episode:
 - core_thesis: The central argument or perspective (2-3 sentences)
 - key_claims: List of 3-5 major claims or positions
 - argumentation_style: How does the guest build their case? (e.g., through examples, analogies, research findings)
 - intellectual_influences: Any referenced thinkers, fields, or frameworks
 
-## 5. CONVERSATION_DYNAMICS
+## 6. CONVERSATION_DYNAMICS
 Brief analysis of how the conversation flows:
 - host_approach: How does the host engage with the material?
 - memorable_exchanges: 1-2 notable back-and-forth moments
@@ -102,6 +104,7 @@ Brief analysis of how the conversation flows:
 
 Return a valid JSON object with this exact structure:
 {{
+  "brief_summary": "5 sentence summary...",
   "narrative_arc": "Multi-paragraph text...",
   "major_themes": [
     {{
@@ -111,12 +114,10 @@ Return a valid JSON object with this exact structure:
       "timestamps": "..."
     }}
   ],
-  "key_moments": [
+  "episode_outline": [
     {{
-      "timestamp": "...",
-      "description": "...",
-      "significance": "...",
-      "quote": "..."
+      "timestamp": "0:00",
+      "topic": "..."
     }}
   ],
   "guest_thesis": {{
@@ -150,11 +151,18 @@ class Theme:
 
 @dataclass
 class KeyMoment:
-    """A key moment in the episode."""
+    """A key moment in the episode (legacy)."""
     timestamp: str
     description: str
     significance: str
     quote: Optional[str] = None
+
+
+@dataclass
+class OutlineItem:
+    """An item in the episode outline."""
+    timestamp: str
+    topic: str
 
 
 @dataclass
@@ -178,41 +186,45 @@ class ConversationDynamics:
 class EpisodeSummary:
     """Complete structured summary of an episode."""
     episode_id: str
+    brief_summary: str
     narrative_arc: str
     major_themes: List[Theme]
-    key_moments: List[KeyMoment]
+    episode_outline: List[OutlineItem]
     guest_thesis: GuestThesis
     conversation_dynamics: ConversationDynamics
+    key_moments: Optional[List[KeyMoment]] = None  # Legacy field
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
-        return {
+        result = {
             "episode_id": self.episode_id,
+            "brief_summary": self.brief_summary,
             "narrative_arc": self.narrative_arc,
             "major_themes": [asdict(t) for t in self.major_themes],
-            "key_moments": [asdict(m) for m in self.key_moments],
+            "episode_outline": [asdict(o) for o in self.episode_outline],
             "guest_thesis": asdict(self.guest_thesis),
             "conversation_dynamics": asdict(self.conversation_dynamics),
         }
+        # Include legacy key_moments if present
+        if self.key_moments:
+            result["key_moments"] = [asdict(m) for m in self.key_moments]
+        return result
 
     def to_compact_string(self) -> str:
         """Generate a compact string summary for chat context."""
-        # Narrative arc
-        output = f"## Episode Overview\n{self.narrative_arc}\n\n"
+        # Brief summary
+        output = f"## Summary\n{self.brief_summary}\n\n"
+
+        # Episode outline
+        output += "## Episode Outline\n"
+        for item in self.episode_outline:
+            output += f"- [{item.timestamp}] {item.topic}\n"
+        output += "\n"
 
         # Major themes
         output += "## Major Themes\n"
         for theme in self.major_themes:
             output += f"- **{theme.theme_name}** ({theme.timestamps}): {theme.description}\n"
-        output += "\n"
-
-        # Key moments
-        output += "## Key Moments\n"
-        for moment in self.key_moments:
-            output += f"- [{moment.timestamp}] {moment.description}"
-            if moment.quote:
-                output += f' ("{moment.quote[:80]}...")'
-            output += "\n"
         output += "\n"
 
         # Guest thesis
@@ -373,8 +385,8 @@ class EpisodeSummaryGenerator:
             themes = [
                 Theme(**t) for t in summary_data.get("major_themes", [])
             ]
-            moments = [
-                KeyMoment(**m) for m in summary_data.get("key_moments", [])
+            outline = [
+                OutlineItem(**o) for o in summary_data.get("episode_outline", [])
             ]
             thesis_data = summary_data.get("guest_thesis", {})
             thesis = GuestThesis(
@@ -392,9 +404,10 @@ class EpisodeSummaryGenerator:
 
             return EpisodeSummary(
                 episode_id=episode_id,
+                brief_summary=summary_data.get("brief_summary", ""),
                 narrative_arc=summary_data.get("narrative_arc", ""),
                 major_themes=themes,
-                key_moments=moments,
+                episode_outline=outline,
                 guest_thesis=thesis,
                 conversation_dynamics=dynamics,
             )
@@ -463,13 +476,31 @@ def load_summary(episode_id: str) -> Optional[EpisodeSummary]:
     if not data:
         return None
 
+    # Handle both old format (key_moments) and new format (episode_outline)
+    episode_outline = []
+    if "episode_outline" in data:
+        episode_outline = [OutlineItem(**o) for o in data["episode_outline"]]
+    elif "key_moments" in data:
+        # Convert legacy key_moments to outline items
+        episode_outline = [
+            OutlineItem(timestamp=m["timestamp"], topic=m["description"][:50])
+            for m in data["key_moments"]
+        ]
+
+    # Legacy key_moments support
+    key_moments = None
+    if "key_moments" in data:
+        key_moments = [KeyMoment(**m) for m in data["key_moments"]]
+
     return EpisodeSummary(
         episode_id=data["episode_id"],
+        brief_summary=data.get("brief_summary", ""),
         narrative_arc=data["narrative_arc"],
         major_themes=[Theme(**t) for t in data["major_themes"]],
-        key_moments=[KeyMoment(**m) for m in data["key_moments"]],
+        episode_outline=episode_outline,
         guest_thesis=GuestThesis(**data["guest_thesis"]),
         conversation_dynamics=ConversationDynamics(**data["conversation_dynamics"]),
+        key_moments=key_moments,
     )
 
 

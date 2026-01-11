@@ -3,8 +3,9 @@
 import type React from "react"
 
 import { useEffect, useRef, useState } from "react"
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Play, Pause, RotateCcw, RotateCw, Info, Search, Settings, HelpCircle, Network } from "lucide-react"
+import { Play, Pause, RotateCcw, RotateCw, Info, Search, Settings, HelpCircle } from "lucide-react"
 import { NoeronHeader } from "./noeron-header"
 import { ClaimBookmarkButton } from "./bookmark-button"
 import { AIChatSidebar } from "./ai-chat"
@@ -72,7 +73,6 @@ interface ListeningViewProps {
   onViewSource: (claimId: string | number) => void
   onAskQuestion: (question: string) => void
   onTimeUpdate: (time: number) => void
-  onExploreGraph?: (conceptName: string) => void
   onBookmarksClick?: () => void
 }
 
@@ -111,11 +111,10 @@ interface CurrentClaimCardProps {
   episodeId: string
   onDiveDeeper: (id: string | number) => void
   onViewSource: (id: string | number) => void
-  onExploreGraph?: (conceptName: string) => void
   onDragStart?: (e: React.DragEvent, claim: Claim) => void
 }
 
-function CurrentClaimCard({ claim, currentTimeMs, episodeId, onDiveDeeper, onViewSource, onExploreGraph, onDragStart }: CurrentClaimCardProps) {
+function CurrentClaimCard({ claim, currentTimeMs, episodeId, onDiveDeeper, onViewSource, onDragStart }: CurrentClaimCardProps) {
   const hasWordTiming = claim.timing?.words && claim.timing.words.length > 0
   const hasDistilledClaim = !!claim.distilled_claim
   const displayText = getClaimDisplayText(claim)
@@ -151,7 +150,7 @@ function CurrentClaimCard({ claim, currentTimeMs, episodeId, onDiveDeeper, onVie
         onDragStart={(e) => onDragStart?.(e, claim)}
         className="bg-card rounded-none p-8 shadow-[0_2px_8px_rgba(0,0,0,0.08)] transition-all duration-200 relative hover:shadow-[0_8px_24px_rgba(0,0,0,0.15)] hover:-translate-y-1 border border-border cursor-grab active:cursor-grabbing"
       >
-        {/* Top row: Claim type left, Timestamp right */}
+        {/* Top row: Claim type left, Timestamp + Bookmark right */}
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <span className="text-xs font-bold text-[var(--golden-chestnut)] uppercase tracking-wider">
@@ -162,8 +161,20 @@ function CurrentClaimCard({ claim, currentTimeMs, episodeId, onDiveDeeper, onVie
               <span className="relative inline-flex size-2 rounded-full bg-[var(--golden-chestnut)]"></span>
             </span>
           </div>
-          <div className="flex items-center gap-1.5 text-xs text-foreground/40 mono">
-            <span>{timestamp}</span>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5 text-xs text-foreground/40 mono">
+              <span>{timestamp}</span>
+            </div>
+            <ClaimBookmarkButton
+              claim={{
+                id: claim.id,
+                claim_text: claim.claim_text,
+                distilled_claim: claim.distilled_claim,
+              }}
+              episodeId={episodeId}
+              size="sm"
+              variant="ghost"
+            />
           </div>
         </div>
 
@@ -199,26 +210,6 @@ function CurrentClaimCard({ claim, currentTimeMs, episodeId, onDiveDeeper, onVie
             </div>
           )}
           <div className="flex items-center gap-2 ml-auto">
-            <ClaimBookmarkButton
-              claim={{
-                id: claim.id,
-                claim_text: claim.claim_text,
-                distilled_claim: claim.distilled_claim,
-              }}
-              episodeId={episodeId}
-              size="sm"
-              variant="ghost"
-            />
-            {onExploreGraph && (
-              <Button
-                onClick={() => onExploreGraph(displayText)}
-                className="!rounded-none !bg-transparent !border !border-[var(--parchment)]/30 !text-[var(--parchment)]/70 hover:!border-[#BE7C4D] hover:!text-[#BE7C4D] hover:!bg-[#BE7C4D]/10"
-                size="sm"
-              >
-                <Network className="w-4 h-4 mr-1.5" />
-                Explore Graph
-              </Button>
-            )}
             <Button
               onClick={() => onDiveDeeper(claim.id)}
               className="!rounded-none !bg-transparent !border !border-[#BE7C4D] !text-[#BE7C4D] hover:!bg-[#BE7C4D]/10"
@@ -261,15 +252,27 @@ function PastClaimCard({ claim, relativeTime, isSelected, episodeId, onSelect, o
             : "shadow-[0_2px_8px_rgba(0,0,0,0.08)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.15)] hover:-translate-y-1"
         }`}
       >
-        {/* Top row: Claim type left, Timestamp right */}
+        {/* Top row: Claim type left, Timestamp + Bookmark right */}
         <div className="flex items-center justify-between mb-4">
           <span className="text-xs font-bold text-foreground/50 uppercase tracking-wider">
             {claim.category || 'Scientific Claim'}
           </span>
-          <div className="flex items-center gap-1.5 text-xs text-foreground/40 mono">
-            <span>{timestamp}</span>
-            <span className="text-foreground/30">•</span>
-            <span>{relativeTime}</span>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5 text-xs text-foreground/40 mono">
+              <span>{timestamp}</span>
+              <span className="text-foreground/30">•</span>
+              <span>{relativeTime}</span>
+            </div>
+            <ClaimBookmarkButton
+              claim={{
+                id: claim.id,
+                claim_text: claim.claim_text,
+                distilled_claim: claim.distilled_claim,
+              }}
+              episodeId={episodeId}
+              size="sm"
+              variant="ghost"
+            />
           </div>
         </div>
 
@@ -302,16 +305,6 @@ function PastClaimCard({ claim, relativeTime, isSelected, episodeId, onSelect, o
             </div>
           )}
           <div className="flex items-center gap-2 ml-auto">
-            <ClaimBookmarkButton
-              claim={{
-                id: claim.id,
-                claim_text: claim.claim_text,
-                distilled_claim: claim.distilled_claim,
-              }}
-              episodeId={episodeId}
-              size="sm"
-              variant="ghost"
-            />
             {isSelected && (
               <Button
                 onClick={(e) => {
@@ -338,7 +331,6 @@ export function ListeningView({
   onViewSource,
   onAskQuestion,
   onTimeUpdate,
-  onExploreGraph,
   onBookmarksClick,
 }: ListeningViewProps) {
   const [isPlaying, setIsPlaying] = useState(false)
@@ -639,7 +631,9 @@ export function ListeningView({
 
             {/* Episode Info */}
             <div className="mb-6">
-              <h1 className="display text-xl font-normal text-foreground mb-2">{episode.title}</h1>
+              <Link href={`/episode/${episode.id}`} className="block">
+                <h1 className="display text-xl font-normal text-foreground mb-2 hover:text-[var(--golden-chestnut)] transition-colors">{episode.title}</h1>
+              </Link>
               <p className="eyebrow mb-1">EPISODE {episode.id.split('_')[1] || '325'}</p>
               <p className="text-sm text-foreground/60 italic">Host: {episode.host}</p>
               <p className="text-sm text-foreground/60 italic">Guest: {episode.guest}</p>
@@ -749,7 +743,6 @@ export function ListeningView({
                   episodeId={episode.id}
                   onDiveDeeper={handleDiveDeeperWithTimestamp}
                   onViewSource={onViewSource}
-                  onExploreGraph={onExploreGraph}
                   onDragStart={handleClaimDragStart}
                 />
               </div>

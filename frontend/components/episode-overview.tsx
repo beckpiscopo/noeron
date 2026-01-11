@@ -34,6 +34,11 @@ interface KeyMoment {
   significance?: string
 }
 
+interface OutlineItem {
+  timestamp: string
+  topic: string
+}
+
 interface GuestThesis {
   summary: string
   key_claims: string[]
@@ -67,9 +72,11 @@ export interface EpisodeOverviewData {
   papersLinked: number
   totalClaims: number
   description?: string
-  summary?: string
+  brief_summary?: string
+  summary?: string  // narrative_arc (longer version)
   major_themes?: EpisodeTheme[]
-  key_moments?: KeyMoment[]
+  episode_outline?: OutlineItem[]
+  key_moments?: KeyMoment[]  // Legacy
   guest_thesis?: GuestThesis
   claim_density?: ClaimDensityPoint[]
   reference_papers?: ReferencePaper[]
@@ -80,6 +87,7 @@ interface EpisodeOverviewProps {
   episode: EpisodeOverviewData
   onStartListening: (timestamp?: number) => void
   onBack: () => void
+  onBookmarksClick?: () => void
 }
 
 // =============================================================================
@@ -263,26 +271,6 @@ function ConceptDensityAnalysis({ durationSeconds, claimDensity, keyMoments, onS
             />
           </svg>
 
-          {/* Peak labels */}
-          {peaks.slice(0, 2).map((peak, idx) => {
-            const x = (peak.timestamp_ms / (durationSeconds * 1000)) * 100
-            return (
-              <div
-                key={idx}
-                className="absolute transform -translate-x-1/2 pointer-events-none"
-                style={{ left: `${x}%`, top: `${(1 - peak.density) * 80}%` }}
-              >
-                {/* Marker dot */}
-                <div className="w-2 h-2 rounded-full bg-[var(--golden-chestnut)] shadow-[0_0_10px_var(--golden-chestnut)]" />
-                {/* Label */}
-                <div className="absolute left-4 -top-1 whitespace-nowrap">
-                  <span className="text-[10px] mono text-[var(--golden-chestnut)] tracking-wider">
-                    {idx === 0 ? "PEAK: " : "CRITICAL: "}{peak.label}
-                  </span>
-                </div>
-              </div>
-            )
-          })}
 
           {/* Hover indicator */}
           {hoveredTime !== null && (
@@ -330,59 +318,64 @@ function ConceptDensityAnalysis({ durationSeconds, claimDensity, keyMoments, onS
 // KEY MOMENTS (Clickable Timestamps)
 // =============================================================================
 
-interface KeyMomentsListProps {
-  moments: KeyMoment[]
+interface EpisodeOutlineProps {
+  items: OutlineItem[]
   onSeek: (timestamp: number) => void
 }
 
-function KeyMomentsList({ moments, onSeek }: KeyMomentsListProps) {
+function EpisodeOutlineList({ items, onSeek }: EpisodeOutlineProps) {
   return (
     <CornerBrackets className="p-6 bg-card/30">
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
         <span className="text-[var(--golden-chestnut)] text-xs">▷</span>
         <span className="text-foreground/60 mono text-xs tracking-[0.2em] uppercase">
-          Key Moments
+          Episode Outline
         </span>
       </div>
 
-      {/* Moments list */}
-      <div className="space-y-4">
-        {moments.slice(0, 5).map((moment, idx) => (
+      {/* Outline list */}
+      <div className="space-y-2">
+        {items.map((item, idx) => (
           <button
             key={idx}
-            onClick={() => onSeek(parseTimestampToSeconds(moment.timestamp))}
+            onClick={() => onSeek(parseTimestampToSeconds(item.timestamp))}
             className="w-full text-left group"
           >
-            <div className="flex items-start gap-4 p-3 -mx-3 transition-colors hover:bg-[var(--golden-chestnut)]/5">
+            <div className="flex items-center gap-4 p-2 -mx-2 transition-colors hover:bg-[var(--golden-chestnut)]/5">
               {/* Timestamp */}
               <div className="flex items-center gap-2 shrink-0">
                 <Play className="w-3 h-3 text-[var(--golden-chestnut)] opacity-0 group-hover:opacity-100 transition-opacity" />
-                <span className="mono text-sm text-[var(--golden-chestnut)] tabular-nums">
-                  [{moment.timestamp}]
+                <span className="mono text-xs text-[var(--golden-chestnut)] tabular-nums w-14">
+                  {item.timestamp}
                 </span>
               </div>
 
-              {/* Content */}
-              <div className="flex-1 min-w-0">
-                <p className="text-sm text-foreground/80 leading-relaxed line-clamp-2">
-                  {moment.description}
-                </p>
-                {moment.quote && (
-                  <p className="mt-2 text-xs text-foreground/40 italic line-clamp-1">
-                    "{moment.quote.substring(0, 60)}..."
-                  </p>
-                )}
-              </div>
-
-              {/* Arrow */}
-              <ChevronRight className="w-4 h-4 text-foreground/20 group-hover:text-[var(--golden-chestnut)] transition-colors shrink-0 mt-0.5" />
+              {/* Topic */}
+              <p className="text-sm text-foreground/70 group-hover:text-foreground transition-colors">
+                {item.topic}
+              </p>
             </div>
           </button>
         ))}
       </div>
     </CornerBrackets>
   )
+}
+
+// Legacy component for backwards compatibility
+interface KeyMomentsListProps {
+  moments: KeyMoment[]
+  onSeek: (timestamp: number) => void
+}
+
+function KeyMomentsList({ moments, onSeek }: KeyMomentsListProps) {
+  // Convert to outline items
+  const items: OutlineItem[] = moments.map(m => ({
+    timestamp: m.timestamp,
+    topic: m.description
+  }))
+  return <EpisodeOutlineList items={items} onSeek={onSeek} />
 }
 
 // =============================================================================
@@ -500,19 +493,11 @@ function BeginListeningCTA({ onStart }: BeginListeningProps) {
       onClick={onStart}
       className="w-full border border-[var(--golden-chestnut)] bg-[var(--golden-chestnut)]/10 hover:bg-[var(--golden-chestnut)]/20 transition-all group"
     >
-      <div className="px-6 py-4">
-        <div className="text-[10px] mono text-[var(--golden-chestnut)]/60 tracking-[0.2em] mb-1">
-          READY FOR INGESTION
-        </div>
-        <div className="text-xl font-bold text-[var(--golden-chestnut)] tracking-wide mb-2">
-          BEGIN LISTENING
-        </div>
-        <div className="flex items-center justify-center gap-2 text-foreground/40">
-          <Play className="w-3 h-3 group-hover:text-[var(--golden-chestnut)] transition-colors" />
-          <span className="text-[10px] mono tracking-wider group-hover:text-[var(--golden-chestnut)] transition-colors">
-            INITIATE AUDIO STREAM
-          </span>
-        </div>
+      <div className="px-6 py-4 flex items-center justify-center gap-3">
+        <Play className="w-5 h-5 text-[var(--golden-chestnut)]" />
+        <span className="text-lg font-bold text-[var(--golden-chestnut)] tracking-wide">
+          Begin Listening
+        </span>
       </div>
     </button>
   )
@@ -569,7 +554,7 @@ function TerminalFooter() {
 // MAIN COMPONENT
 // =============================================================================
 
-export function EpisodeOverview({ episode, onStartListening, onBack }: EpisodeOverviewProps) {
+export function EpisodeOverview({ episode, onStartListening, onBack, onBookmarksClick }: EpisodeOverviewProps) {
   const [chatOpen, setChatOpen] = useState(true)
   const [chatWidth, setChatWidth] = useState(440)
 
@@ -620,7 +605,7 @@ export function EpisodeOverview({ episode, onStartListening, onBack }: EpisodeOv
 
   return (
     <div className="noeron-theme min-h-screen bg-background text-foreground flex flex-col">
-      <NoeronHeader actions={headerActions} onLogoClick={() => window.location.assign("/")} />
+      <NoeronHeader actions={headerActions} onLogoClick={() => window.location.assign("/")} onBookmarksClick={onBookmarksClick} />
 
       <main
         className="flex-1 px-6 py-8 max-w-[1400px] mx-auto w-full transition-all duration-300 ease-in-out"
@@ -635,7 +620,7 @@ export function EpisodeOverview({ episode, onStartListening, onBack }: EpisodeOv
               {/* Episode Badge & Ref */}
               <div className="flex items-center justify-between mb-6">
                 <span className="mono text-[10px] text-foreground/40 tracking-[0.15em] px-2 py-1 border border-foreground/20">
-                  EPISODE #{episodeNumber} // CLASSIFIED: PUBLIC
+                  EPISODE #{episodeNumber}
                 </span>
                 <span className="mono text-[10px] text-foreground/30 tracking-wider">
                   REF: {episode.id.toUpperCase().replace("_", "-")}
@@ -654,22 +639,22 @@ export function EpisodeOverview({ episode, onStartListening, onBack }: EpisodeOv
               {/* Metadata Row */}
               <div className="grid grid-cols-3 gap-8 pt-6 border-t border-border/30">
                 <div>
-                  <div className="mono text-[10px] text-foreground/40 tracking-[0.15em] mb-1">GUEST SUBJ.</div>
+                  <div className="mono text-[10px] text-foreground/40 tracking-[0.15em] mb-1">GUEST</div>
                   <div className="text-sm font-medium text-foreground">{episode.guest.toUpperCase()}</div>
                 </div>
                 <div>
-                  <div className="mono text-[10px] text-foreground/40 tracking-[0.15em] mb-1">HOST INTERFACE</div>
+                  <div className="mono text-[10px] text-foreground/40 tracking-[0.15em] mb-1">HOST</div>
                   <div className="text-sm font-medium text-foreground">{episode.host.toUpperCase()}</div>
                 </div>
                 <div>
-                  <div className="mono text-[10px] text-foreground/40 tracking-[0.15em] mb-1">TEMPORAL LENGTH</div>
+                  <div className="mono text-[10px] text-foreground/40 tracking-[0.15em] mb-1">LENGTH</div>
                   <div className="text-sm font-medium text-foreground mono">{episode.duration.replace("h", "h ").replace("m", "m 00s")}</div>
                 </div>
               </div>
 
-              {/* Description */}
-              <p className="mt-6 text-sm text-foreground/50 leading-relaxed">
-                {episode.description || `An investigation into the software of life. ${episode.guest} discusses morphogenesis, bioelectricity, and the collective intelligence of cells. This briefing dissects the underlying code that governs biological shape and the potential for regenerative medicine.`}
+              {/* Summary */}
+              <p className="mt-6 text-sm text-foreground/70 leading-relaxed">
+                {episode.brief_summary || episode.description || `An investigation into the software of life. ${episode.guest} discusses morphogenesis, bioelectricity, and the collective intelligence of cells. This briefing dissects the underlying code that governs biological shape and the potential for regenerative medicine.`}
               </p>
             </CornerBrackets>
 
@@ -702,13 +687,18 @@ export function EpisodeOverview({ episode, onStartListening, onBack }: EpisodeOv
                   </CornerBrackets>
                 )}
 
-                {/* Key Moments */}
-                {episode.key_moments && episode.key_moments.length > 0 && (
+                {/* Episode Outline */}
+                {episode.episode_outline && episode.episode_outline.length > 0 ? (
+                  <EpisodeOutlineList
+                    items={episode.episode_outline}
+                    onSeek={handleSeek}
+                  />
+                ) : episode.key_moments && episode.key_moments.length > 0 ? (
                   <KeyMomentsList
                     moments={episode.key_moments}
                     onSeek={handleSeek}
                   />
-                )}
+                ) : null}
               </>
             )}
           </div>

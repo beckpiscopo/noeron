@@ -586,6 +586,11 @@ export default function Home() {
       significance: m.significance
     })) || []
 
+    const episodeOutline = summaryData?.episode_outline?.map((o: any) => ({
+      timestamp: o.timestamp,
+      topic: o.topic
+    })) || []
+
     const guestThesis = summaryData?.guest_thesis ? {
       summary: summaryData.guest_thesis.core_thesis,
       key_claims: summaryData.guest_thesis.key_claims || []
@@ -606,8 +611,10 @@ export default function Home() {
       papersLinked: activeEpisode.papersLinked,
       totalClaims: claims.length,
       description: extendedData?.description || activeEpisode.description,
+      brief_summary: summaryData?.brief_summary,
       summary: summaryData?.narrative_arc,
       major_themes: majorThemes,
+      episode_outline: episodeOutline.length > 0 ? episodeOutline : undefined,
       key_moments: keyMoments,
       guest_thesis: guestThesis,
       claim_density: claimDensity.length > 0 ? claimDensity : undefined,
@@ -619,6 +626,7 @@ export default function Home() {
         episode={overviewData}
         onStartListening={handleStartListening}
         onBack={handleBackToLibrary}
+        onBookmarksClick={handleGoToNotebookLibrary}
       />
     )
   }
@@ -644,6 +652,7 @@ export default function Home() {
         onViewClaim={handleBookmarkViewClaim}
         onViewPaper={handleBookmarkViewPaper}
         onStartQuiz={handleStartQuiz}
+        onBookmarksClick={handleGoToNotebookLibrary}
       />
     )
   }
@@ -660,6 +669,7 @@ export default function Home() {
         episodeId={activeEpisode.id}
         onBack={handleBackToListening}
         onViewSourcePaper={handleViewPaper}
+        onBookmarksClick={handleGoToNotebookLibrary}
       />
     )
   }

@@ -1,7 +1,7 @@
 "use client"
 
 import { ReactNode } from "react"
-import { Bookmark } from "lucide-react"
+import { Notebook } from "lucide-react"
 import { ThemeToggle } from "./theme-toggle"
 
 interface NoeronHeaderProps {
@@ -26,7 +26,7 @@ export function NoeronHeader({ onLogoClick, onBookmarksClick, actions }: NoeronH
               className="flex h-9 w-9 items-center justify-center rounded-full text-foreground/70 transition hover:text-[var(--golden-chestnut)] hover:bg-[var(--golden-chestnut)]/10"
               title="Your Library"
             >
-              <Bookmark className="h-4 w-4" />
+              <Notebook className="h-4 w-4" />
             </button>
           )}
           {actions}
