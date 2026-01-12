@@ -1088,6 +1088,42 @@ async def http_generate_image_with_context(request: Request):
         return JSONResponse({"error": str(e)}, status_code=500)
 
 
+@app.post("/tools/generate_mini_podcast/execute")
+async def http_generate_mini_podcast(request: Request):
+    """Generate a mini podcast discussing a scientific claim.
+
+    Creates a NotebookLM-style two-host dialogue using:
+    - Gemini 3 for script generation
+    - Gemini 2.5 TTS for multi-speaker audio synthesis
+
+    Audio is stored in Supabase Storage and returned as a public URL.
+    """
+    try:
+        body = await request.json()
+        claim_id = body.get("claim_id")
+        episode_id = body.get("episode_id", "lex_325")
+        force_regenerate = body.get("force_regenerate", False)
+        style = body.get("style", "casual")
+
+        if not claim_id:
+            return JSONResponse({"error": "claim_id is required"}, status_code=400)
+
+        from .server import _generate_mini_podcast_impl
+
+        result = await _generate_mini_podcast_impl(
+            claim_id=claim_id,
+            episode_id=episode_id,
+            force_regenerate=force_regenerate,
+            style=style,
+        )
+        return JSONResponse(result)
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
 @app.post("/tools/get_episode_summary/execute")
 async def http_get_episode_summary(request: Request):
     """Get or generate an episode summary using Gemini.

@@ -21,6 +21,7 @@ import {
   Search,
   Settings,
   HelpCircle as HelpIcon,
+  Mic,
 } from "lucide-react"
 import { NoeronHeader } from "./noeron-header"
 import { callMcpTool } from "@/lib/api"
@@ -28,8 +29,9 @@ import { ConceptExpansionGraph, convertKGSubgraph } from "./concept-graph"
 import { BookmarkButton } from "./bookmark-button"
 import { AIChatSidebar } from "./ai-chat"
 import { MarkdownContent } from "@/components/ui/markdown-content"
+import { MiniPodcastPlayer } from "./mini-podcast-player"
 import type { Paper } from "@/lib/supabase"
-import type { ChatContext } from "@/lib/chat-types"
+import type { ChatContext, GeneratePodcastResponse } from "@/lib/chat-types"
 
 interface DeepExplorationViewProps {
   episode: {
@@ -210,6 +212,11 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
   // AI Chat sidebar state
   const [chatOpen, setChatOpen] = useState(false)
 
+  // Mini Podcast state
+  const [miniPodcast, setMiniPodcast] = useState<GeneratePodcastResponse | null>(null)
+  const [isLoadingPodcast, setIsLoadingPodcast] = useState(false)
+  const [podcastError, setPodcastError] = useState<string | null>(null)
+
   // Fetch claim context data on mount
   useEffect(() => {
     let cancelled = false
@@ -345,6 +352,38 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
       console.error("Error fetching KG subgraph:", err)
     } finally {
       setIsLoadingKG(false)
+    }
+  }
+
+  // Function to fetch mini podcast on-demand
+  const fetchMiniPodcast = async (forceRegenerate = false) => {
+    if (!claim.id.includes("-")) return
+
+    setIsLoadingPodcast(true)
+    setPodcastError(null)
+
+    try {
+      const data = await callMcpTool<GeneratePodcastResponse>("generate_mini_podcast", {
+        claim_id: claim.id,
+        episode_id: episodeId,
+        force_regenerate: forceRegenerate,
+        style: synthesisMode === "simplified" ? "casual" : "academic",
+      })
+
+      if (data.error) {
+        setPodcastError(data.error)
+        // Still set the podcast data if script was generated (even if audio failed)
+        if (data.script) {
+          setMiniPodcast(data)
+        }
+      } else {
+        setMiniPodcast(data)
+      }
+    } catch (err) {
+      setPodcastError(err instanceof Error ? err.message : "Failed to generate mini podcast")
+      console.error("Error generating mini podcast:", err)
+    } finally {
+      setIsLoadingPodcast(false)
     }
   }
 
@@ -1029,6 +1068,22 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
                 )}
               </>
             )}
+          </div>
+
+          {/* Mini Podcast */}
+          <div className="bg-card border border-border rounded-none p-5 h-fit">
+            <div className="flex items-center gap-2 mb-4">
+              <Mic className="w-5 h-5 text-[var(--golden-chestnut)]" />
+              <h3 className="font-bold text-lg">Mini Podcast</h3>
+            </div>
+            <MiniPodcastPlayer
+              podcast={miniPodcast}
+              isLoading={isLoadingPodcast}
+              error={podcastError}
+              onGenerate={() => fetchMiniPodcast(false)}
+              onRegenerate={() => fetchMiniPodcast(true)}
+              style={synthesisMode === "simplified" ? "casual" : "academic"}
+            />
           </div>
 
           {/* Stats */}

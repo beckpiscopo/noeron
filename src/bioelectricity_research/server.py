@@ -3322,6 +3322,472 @@ async def generate_image_with_context(params: GenerateImageInput) -> dict[str, A
 
 
 # ============================================================================
+# Mini Podcast Generation Tools
+# ============================================================================
+
+# Model for Gemini TTS (supports multi-speaker audio output)
+GEMINI_TTS_MODEL = "gemini-2.5-flash-preview-tts"
+GENERATED_PODCASTS_BUCKET = "generated-podcasts"
+PODCAST_CACHE_PATH = Path(__file__).resolve().parent.parent.parent / "cache" / "generated_podcasts.json"
+
+# Voices for two-host format
+PODCAST_HOST_A = "Puck"    # Curious, upbeat interviewer
+PODCAST_HOST_B = "Charon"  # Knowledgeable expert
+
+PODCAST_SCRIPT_PROMPT_TEMPLATE = """Create a 3-5 minute podcast script about this scientific claim from a bioelectricity research podcast.
+
+## TWO HOSTS
+- ALEX: A curious and engaging interviewer who asks insightful questions. Friendly and accessible.
+- SAM: A knowledgeable expert who explains concepts clearly. Authoritative but warm.
+
+## THE CLAIM
+"{claim_text}"
+
+## CONTEXT FROM THE ORIGINAL PODCAST
+- Speaker's stance: {speaker_stance}
+- Rationale: {rationale}
+- Confidence level: {confidence_level}
+
+## SUPPORTING RESEARCH
+The following papers provide evidence for this claim:
+{papers_summary}
+
+## STYLE: {style_description}
+
+## GUIDELINES
+Write a natural, engaging conversation that:
+1. ALEX opens with a hook that draws listeners in and introduces the topic
+2. SAM explains the core scientific concept in accessible terms
+3. ALEX asks follow-up questions a curious listener would have
+4. SAM connects to the supporting research, mentioning specific experiments or findings
+5. They discuss implications and broader connections
+6. End with a thoughtful summary or takeaway
+
+Format each line exactly as:
+ALEX: [dialogue here]
+SAM: [dialogue here]
+
+Target approximately 900-1100 words for a 3-5 minute podcast when spoken.
+Keep the tone {style_tone} and scientifically accurate."""
+
+
+def _load_podcast_cache() -> dict:
+    """Load the generated podcasts cache."""
+    if not PODCAST_CACHE_PATH.exists():
+        return {}
+    try:
+        with PODCAST_CACHE_PATH.open() as fh:
+            return json_module.load(fh)
+    except json_module.JSONDecodeError:
+        return {}
+
+
+def _save_podcast_cache(cache: dict) -> None:
+    """Save the generated podcasts cache."""
+    PODCAST_CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with PODCAST_CACHE_PATH.open("w") as fh:
+        json_module.dump(cache, fh, indent=2)
+
+
+class GenerateMiniPodcastInput(BaseModel):
+    """Input for AI mini podcast generation from claim context."""
+    claim_id: str = Field(
+        ...,
+        description="The claim ID in format 'segment_key-index' (e.g., 'lex_325|00:00:00.160|1-0')"
+    )
+    episode_id: str = Field(..., description="The episode being explored")
+    force_regenerate: bool = Field(
+        default=False,
+        description="If True, regenerate even if cached podcast exists"
+    )
+    style: Literal["casual", "academic"] = Field(
+        default="casual",
+        description="Conversation style: 'casual' for accessible, 'academic' for technical depth"
+    )
+
+
+async def _generate_mini_podcast_impl(
+    claim_id: str,
+    episode_id: str,
+    force_regenerate: bool = False,
+    style: Literal["casual", "academic"] = "casual",
+) -> dict[str, Any]:
+    """
+    Core implementation for mini podcast generation. Called by both MCP tool and HTTP endpoint.
+
+    Flow:
+    1. Check cache for existing podcast
+    2. Load claim context
+    3. Get RAG results for supporting papers
+    4. Generate conversational script via Gemini 3
+    5. Synthesize audio via Gemini 2.5 TTS with multi-speaker config
+    6. Upload to Supabase Storage
+    7. Cache result
+    8. Return podcast_url, script, duration_seconds
+    """
+    try:
+        import base64
+        import uuid
+        import wave
+        import io
+        from datetime import datetime
+
+        # Step 1: Check cache
+        cache_key = f"{episode_id}:{claim_id}:{style}"
+        podcast_cache = _load_podcast_cache()
+
+        if not force_regenerate and cache_key in podcast_cache:
+            cached = podcast_cache[cache_key]
+            print(f"[MINI PODCAST] Returning cached podcast for {cache_key}")
+            return {
+                **cached,
+                "cached": True,
+            }
+
+        print(f"[MINI PODCAST] Generating new podcast for claim: {claim_id}")
+
+        # Step 2: Load claim context
+        claims_cache = _load_claims_cache()
+        if not claims_cache or "segments" not in claims_cache:
+            return {
+                "error": "Claims cache not found or empty",
+                "error_code": "CLAIM_NOT_FOUND",
+                "podcast_url": None,
+                "script": None,
+            }
+
+        # Parse claim_id (format: "segment_key-claim_index")
+        if "-" not in claim_id:
+            return {
+                "error": f"Invalid claim_id format: {claim_id}. Expected 'segment_key-index'",
+                "error_code": "CLAIM_NOT_FOUND",
+                "podcast_url": None,
+                "script": None,
+            }
+
+        parts = claim_id.rsplit("-", 1)
+        segment_key = parts[0]
+        try:
+            claim_index = int(parts[1])
+        except ValueError:
+            return {
+                "error": f"Invalid claim index in claim_id: {claim_id}",
+                "error_code": "CLAIM_NOT_FOUND",
+                "podcast_url": None,
+                "script": None,
+            }
+
+        segment = claims_cache["segments"].get(segment_key)
+        if not segment:
+            return {
+                "error": f"Segment not found: {segment_key}",
+                "error_code": "CLAIM_NOT_FOUND",
+                "podcast_url": None,
+                "script": None,
+            }
+
+        claims = segment.get("claims", [])
+        if claim_index >= len(claims):
+            return {
+                "error": f"Claim index {claim_index} out of range",
+                "error_code": "CLAIM_NOT_FOUND",
+                "podcast_url": None,
+                "script": None,
+            }
+
+        claim_data = claims[claim_index]
+        claim_text = claim_data.get("claim_text", "")
+        speaker_stance = claim_data.get("speaker_stance", "supportive")
+        rationale = claim_data.get("needs_backing_because", "This claim requires evidence.")
+
+        print(f"[MINI PODCAST] Found claim: {claim_text[:100]}...")
+
+        # Step 3: Get RAG results for supporting papers
+        research_query = _build_research_query(claim_data)
+        print(f"[MINI PODCAST] RAG query: {research_query}")
+
+        vs = get_vectorstore()
+        rag_results_raw = vs.search(research_query, n_results=7)
+
+        # Parse RAG results - combine documents with metadatas
+        docs = rag_results_raw.get("documents", [[]])[0]
+        metas = rag_results_raw.get("metadatas", [[]])[0]
+
+        rag_results = []
+        for doc, meta in zip(docs, metas):
+            rag_results.append({
+                "text": doc,
+                "paper_id": meta.get("paper_id", ""),
+                "paper_title": meta.get("paper_title", ""),
+                "section": meta.get("section_heading", ""),
+                "year": meta.get("year", ""),
+            })
+
+        # Format RAG results
+        papers_collection = _load_papers_collection()
+        formatted_papers = _format_rag_results_for_prompt(rag_results, papers_collection)
+
+        # Determine confidence level from context card registry if available
+        confidence_level = "moderate"  # Default
+        try:
+            if CONTEXT_CARD_REGISTRY_PATH.exists():
+                with CONTEXT_CARD_REGISTRY_PATH.open() as fh:
+                    context_cards = json_module.load(fh)
+                    for card in context_cards.get("cards", []):
+                        if card.get("claim_id") == claim_id:
+                            confidence_level = card.get("confidence", "moderate")
+                            break
+        except Exception:
+            pass
+
+        # Style descriptions
+        style_description = "accessible and engaging for a general science-interested audience" if style == "casual" else "detailed and technical for an academically-minded audience"
+        style_tone = "conversational and warm" if style == "casual" else "precise and scholarly"
+
+        # Step 4: Generate script via Gemini 3
+        script_prompt = PODCAST_SCRIPT_PROMPT_TEMPLATE.format(
+            claim_text=claim_text,
+            speaker_stance=speaker_stance,
+            rationale=rationale,
+            confidence_level=confidence_level,
+            papers_summary=formatted_papers[:4000],  # Limit to avoid token overflow
+            style_description=style_description,
+            style_tone=style_tone,
+        )
+
+        _ensure_gemini_client_ready()
+
+        print("[MINI PODCAST] Generating script with Gemini 3...")
+        script_response = await asyncio.to_thread(
+            lambda: _GENAI_CLIENT.models.generate_content(
+                model=GEMINI_MODEL_DEFAULT,
+                contents=script_prompt,
+                config={
+                    "temperature": 0.8,
+                    "max_output_tokens": 4096,
+                }
+            )
+        )
+
+        # Extract script text
+        script_text = ""
+        if hasattr(script_response, "text"):
+            script_text = script_response.text
+        elif hasattr(script_response, "candidates") and script_response.candidates:
+            candidate = script_response.candidates[0]
+            if hasattr(candidate, "content") and hasattr(candidate.content, "parts"):
+                script_text = "".join(part.text for part in candidate.content.parts if hasattr(part, "text"))
+
+        if not script_text:
+            return {
+                "error": "Failed to generate podcast script - no text in Gemini response",
+                "error_code": "SCRIPT_FAILED",
+                "podcast_url": None,
+                "script": None,
+            }
+
+        print(f"[MINI PODCAST] Script generated: {len(script_text)} chars")
+
+        # Step 5: Synthesize audio via Gemini 2.5 TTS
+        print("[MINI PODCAST] Synthesizing audio with Gemini TTS...")
+
+        try:
+            from google.genai import types
+
+            speech_config = types.SpeechConfig(
+                multi_speaker_voice_config=types.MultiSpeakerVoiceConfig(
+                    speaker_voice_configs=[
+                        types.SpeakerVoiceConfig(
+                            speaker='ALEX',
+                            voice_config=types.VoiceConfig(
+                                prebuilt_voice_config=types.PrebuiltVoiceConfig(
+                                    voice_name=PODCAST_HOST_A
+                                )
+                            )
+                        ),
+                        types.SpeakerVoiceConfig(
+                            speaker='SAM',
+                            voice_config=types.VoiceConfig(
+                                prebuilt_voice_config=types.PrebuiltVoiceConfig(
+                                    voice_name=PODCAST_HOST_B
+                                )
+                            )
+                        ),
+                    ]
+                )
+            )
+
+            tts_response = await asyncio.to_thread(
+                lambda: _GENAI_CLIENT.models.generate_content(
+                    model=GEMINI_TTS_MODEL,
+                    contents=script_text,
+                    config=types.GenerateContentConfig(
+                        response_modalities=["AUDIO"],
+                        speech_config=speech_config,
+                    )
+                )
+            )
+
+            # Extract audio data
+            audio_data = None
+            if hasattr(tts_response, "candidates") and tts_response.candidates:
+                candidate = tts_response.candidates[0]
+                if hasattr(candidate, "content") and hasattr(candidate.content, "parts"):
+                    for part in candidate.content.parts:
+                        if hasattr(part, "inline_data") and part.inline_data:
+                            audio_data = part.inline_data.data
+                            print(f"[MINI PODCAST] Got audio data: {len(audio_data) if audio_data else 0} bytes")
+                            break
+
+            if not audio_data:
+                # Return script even if audio fails
+                return {
+                    "error": "Failed to synthesize audio - TTS returned no audio data",
+                    "error_code": "AUDIO_FAILED",
+                    "podcast_url": None,
+                    "script": script_text,
+                    "claim_id": claim_id,
+                    "episode_id": episode_id,
+                    "style": style,
+                }
+
+            # Convert PCM to WAV format
+            # Gemini TTS outputs PCM 24kHz 16-bit mono
+            sample_rate = 24000
+            channels = 1
+            sample_width = 2  # 16-bit
+
+            wav_buffer = io.BytesIO()
+            with wave.open(wav_buffer, 'wb') as wav_file:
+                wav_file.setnchannels(channels)
+                wav_file.setsampwidth(sample_width)
+                wav_file.setframerate(sample_rate)
+                wav_file.writeframes(audio_data if isinstance(audio_data, bytes) else base64.b64decode(audio_data))
+
+            wav_bytes = wav_buffer.getvalue()
+
+            # Calculate approximate duration
+            duration_seconds = len(audio_data) / (sample_rate * channels * sample_width)
+            print(f"[MINI PODCAST] Audio duration: {duration_seconds:.1f} seconds")
+
+        except Exception as tts_error:
+            import traceback
+            print(f"[MINI PODCAST] TTS error: {tts_error}")
+            traceback.print_exc()
+            # Return script even if audio fails
+            return {
+                "error": f"Failed to synthesize audio: {str(tts_error)}",
+                "error_code": "AUDIO_FAILED",
+                "podcast_url": None,
+                "script": script_text,
+                "claim_id": claim_id,
+                "episode_id": episode_id,
+                "style": style,
+            }
+
+        # Step 6: Upload to Supabase Storage
+        db = _get_supabase_client()
+
+        timestamp_str = datetime.now().strftime("%Y%m%d_%H%M%S")
+        unique_id = str(uuid.uuid4())[:8]
+        # Create safe filename from claim_id (replace special chars)
+        safe_claim_id = claim_id.replace("|", "_").replace(":", "_")[:50]
+        filename = f"{episode_id}/{safe_claim_id}_{timestamp_str}_{unique_id}.wav"
+
+        print(f"[MINI PODCAST] Uploading to storage: {filename}")
+
+        try:
+            upload_result = db.client.storage.from_(GENERATED_PODCASTS_BUCKET).upload(
+                path=filename,
+                file=wav_bytes,
+                file_options={"content-type": "audio/wav"}
+            )
+
+            if hasattr(upload_result, 'path'):
+                print(f"[MINI PODCAST] Upload successful: {upload_result.path}")
+            elif isinstance(upload_result, dict) and upload_result.get("error"):
+                return {
+                    "error": f"Failed to upload audio: {upload_result.get('error')}",
+                    "error_code": "UPLOAD_FAILED",
+                    "podcast_url": None,
+                    "script": script_text,
+                }
+        except Exception as upload_error:
+            return {
+                "error": f"Failed to upload audio to storage: {str(upload_error)}",
+                "error_code": "UPLOAD_FAILED",
+                "podcast_url": None,
+                "script": script_text,
+            }
+
+        # Get public URL
+        public_url = db.client.storage.from_(GENERATED_PODCASTS_BUCKET).get_public_url(filename)
+        print(f"[MINI PODCAST] Public URL: {public_url}")
+
+        # Step 7: Cache result
+        generated_at = datetime.now().isoformat()
+        cache_entry = {
+            "podcast_url": public_url,
+            "script": script_text,
+            "duration_seconds": int(duration_seconds),
+            "style": style,
+            "claim_id": claim_id,
+            "episode_id": episode_id,
+            "storage_path": filename,
+            "generated_at": generated_at,
+            "model_script": GEMINI_MODEL_DEFAULT,
+            "model_tts": GEMINI_TTS_MODEL,
+        }
+
+        podcast_cache[cache_key] = cache_entry
+        _save_podcast_cache(podcast_cache)
+
+        # Step 8: Return result
+        return {
+            **cache_entry,
+            "cached": False,
+        }
+
+    except Exception as e:
+        import traceback
+        return {
+            "error": f"Error generating mini podcast: {str(e)}",
+            "traceback": traceback.format_exc(),
+            "error_code": "UNKNOWN",
+            "podcast_url": None,
+            "script": None,
+        }
+
+
+@mcp.tool()
+async def generate_mini_podcast(params: GenerateMiniPodcastInput) -> dict[str, Any]:
+    """
+    Generate a 3-5 minute conversational podcast discussing a scientific claim.
+
+    Creates a NotebookLM-style two-host dialogue that explores:
+    - The claim's core assertion and context from the original podcast
+    - Supporting evidence from research papers (via RAG retrieval)
+    - Implications and connections to broader bioelectricity research
+
+    Uses Gemini 3 for script generation and Gemini 2.5 TTS for multi-speaker
+    audio synthesis. Generated audio is stored in Supabase Storage.
+
+    Returns:
+        podcast_url: URL to the audio file in Supabase Storage
+        script: The generated conversation script
+        duration_seconds: Approximate duration of the audio
+        cached: Whether result was from cache
+        generated_at: Timestamp of generation
+    """
+    return await _generate_mini_podcast_impl(
+        claim_id=params.claim_id,
+        episode_id=params.episode_id,
+        force_regenerate=params.force_regenerate,
+        style=params.style,
+    )
+
+
+# ============================================================================
 # Taxonomy Cluster Tools
 # ============================================================================
 
