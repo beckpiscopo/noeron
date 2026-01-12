@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { ChatMessage } from "./chat-message"
 import { ChatInput } from "./chat-input"
 import { useAIChat } from "@/hooks/use-ai-chat"
+import { useBookmarks } from "@/hooks/use-bookmarks"
 import type { ChatContext } from "@/lib/chat-types"
 import { cn } from "@/lib/utils"
 
@@ -50,11 +51,26 @@ export function AIChatSidebar({
   onWidthChange,
 }: AIChatSidebarProps) {
   const { messages, isLoading, isLoadingHistory, sendMessage, clearHistory } = useAIChat(context)
+  const { addImageBookmark } = useBookmarks()
   const scrollRef = useRef<HTMLDivElement>(null)
   const [isDragOver, setIsDragOver] = useState(false)
   const [width, setWidth] = useState(DEFAULT_WIDTH)
   const [isResizing, setIsResizing] = useState(false)
   const resizeRef = useRef<{ startX: number; startWidth: number } | null>(null)
+
+  // Handle image bookmark
+  const handleBookmarkImage = useCallback(
+    async (imageUrl: string, caption?: string) => {
+      if (!context?.episode_id) return
+      await addImageBookmark(
+        context.episode_id,
+        imageUrl,
+        caption,
+        caption || "AI Generated Visualization"
+      )
+    },
+    [context?.episode_id, addImageBookmark]
+  )
 
   // Notify parent of width changes
   useEffect(() => {
@@ -343,6 +359,7 @@ export function AIChatSidebar({
                       key={message.id}
                       message={message}
                       onViewPaper={onViewPaper}
+                      onBookmarkImage={handleBookmarkImage}
                     />
                   ))
                 )}

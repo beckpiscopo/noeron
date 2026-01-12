@@ -1,17 +1,25 @@
 "use client"
 
-import { User, Bot, Loader2 } from "lucide-react"
+import { User, Bot, Loader2, ImageIcon, Download, BookmarkPlus } from "lucide-react"
 import { ChatSources } from "./chat-sources"
 import { MarkdownContent } from "@/components/ui/markdown-content"
+import { Button } from "@/components/ui/button"
 import type { ChatMessage as ChatMessageType } from "@/lib/chat-types"
 
 interface ChatMessageProps {
   message: ChatMessageType
   onViewPaper?: (paperId: string) => void
+  onBookmarkImage?: (imageUrl: string, caption?: string) => void
 }
 
-export function ChatMessage({ message, onViewPaper }: ChatMessageProps) {
+export function ChatMessage({ message, onViewPaper, onBookmarkImage }: ChatMessageProps) {
   const isUser = message.role === "user"
+
+  const handleDownloadImage = () => {
+    if (message.image?.image_url) {
+      window.open(message.image.image_url, '_blank')
+    }
+  }
 
   return (
     <div className={`flex gap-3 ${isUser ? "flex-row-reverse" : ""}`}>
@@ -40,14 +48,61 @@ export function ChatMessage({ message, onViewPaper }: ChatMessageProps) {
           {message.isLoading ? (
             <div className="flex items-center gap-2 text-foreground/60">
               <Loader2 className="w-4 h-4 animate-spin" />
-              <span className="text-sm">Thinking...</span>
+              <span className="text-sm">{message.content || "Thinking..."}</span>
             </div>
           ) : isUser ? (
             <p className="text-sm leading-relaxed whitespace-pre-wrap">
               {message.content}
             </p>
           ) : (
-            <MarkdownContent content={message.content} variant="chat" />
+            <>
+              <MarkdownContent content={message.content} variant="chat" />
+
+              {/* Generated Image Display */}
+              {message.image?.image_url && (
+                <div className="mt-3 space-y-2">
+                  <div className="relative group">
+                    <img
+                      src={message.image.image_url}
+                      alt={message.image.caption || "Generated visualization"}
+                      className="w-full max-w-md rounded-lg border border-border/50"
+                    />
+                    {/* Image overlay actions */}
+                    <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        className="h-8 w-8 p-0 bg-background/80 backdrop-blur-sm"
+                        onClick={handleDownloadImage}
+                        title="Open in new tab"
+                      >
+                        <Download className="w-4 h-4" />
+                      </Button>
+                      {onBookmarkImage && (
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          className="h-8 w-8 p-0 bg-background/80 backdrop-blur-sm"
+                          onClick={() => onBookmarkImage(
+                            message.image!.image_url,
+                            message.image!.caption
+                          )}
+                          title="Save to notebook"
+                        >
+                          <BookmarkPlus className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                  {message.image.caption && (
+                    <p className="text-xs text-foreground/60 italic flex items-center gap-1">
+                      <ImageIcon className="w-3 h-3" />
+                      {message.image.caption}
+                    </p>
+                  )}
+                </div>
+              )}
+            </>
           )}
         </div>
 

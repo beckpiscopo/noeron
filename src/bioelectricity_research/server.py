@@ -3052,6 +3052,276 @@ Provide a helpful, accurate response based on the context above. Reference speci
 
 
 # ============================================================================
+# Image Generation Tools
+# ============================================================================
+
+# Model for Gemini image generation (supports native image output)
+GEMINI_IMAGE_MODEL = "gemini-3-pro-image-preview"
+GENERATED_IMAGES_BUCKET = "generated-images"
+
+IMAGE_GENERATION_PROMPT_TEMPLATE = """You are creating a scientific visualization for a bioelectricity research podcast app.
+
+## Context
+Episode: {episode_title}
+Guest: {guest_name}
+Current Topic: {topic_context}
+
+## User Request
+"{user_prompt}"
+
+## Guidelines
+- Create a clear, educational visualization that explains scientific concepts
+- Use accurate scientific representations
+- Include relevant labels if creating a diagram
+- Style: {style_hint}
+- Make it visually appealing while maintaining scientific accuracy
+- Focus on bioelectricity, cellular mechanisms, regeneration, or related topics
+
+Generate an image that helps explain or illustrate the requested concept."""
+
+
+class GenerateImageInput(BaseModel):
+    """Input for AI image generation based on podcast context."""
+    prompt: str = Field(..., description="User's image generation request or description")
+    episode_id: str = Field(..., description="The episode being listened to")
+    claim_id: Optional[str] = Field(default=None, description="Optional current claim ID for focused context")
+    current_timestamp: Optional[str] = Field(
+        default=None,
+        description="Current playback timestamp for temporal context"
+    )
+    image_style: Optional[str] = Field(
+        default="auto",
+        description="Style hint: 'diagram', 'illustration', 'schematic', or 'auto' (AI decides)"
+    )
+
+
+async def _generate_image_impl(
+    prompt: str,
+    episode_id: str,
+    claim_id: Optional[str] = None,
+    current_timestamp: Optional[str] = None,
+    image_style: Optional[str] = "auto",
+) -> dict[str, Any]:
+    """
+    Core implementation for image generation. Called by both MCP tool and HTTP endpoint.
+    """
+    try:
+        import base64
+        import uuid
+        from datetime import datetime
+
+        # Import context builder
+        from .context_builder import build_chat_context
+
+        # Step 1: Build context from episode/timestamp
+        context_layers = build_chat_context(
+            episode_id=episode_id,
+            current_timestamp_str=current_timestamp
+        )
+
+        if context_layers:
+            episode_title = context_layers.episode.title
+            guest_name = context_layers.episode.guest
+            topic_context = context_layers.temporal_window.transcript_excerpt if context_layers.temporal_window else "Bioelectricity research discussion"
+        else:
+            # Fallback if episode not found
+            episodes = _load_episodes()
+            episode = next((e for e in episodes if e.get("id") == episode_id), None)
+            if episode:
+                episode_title = episode.get("title", f"Episode {episode_id}")
+                guest_name = episode.get("guest", "Unknown Guest")
+            else:
+                episode_title = f"Episode {episode_id}"
+                guest_name = "Unknown Guest"
+            topic_context = "Bioelectricity research discussion"
+
+        # Step 2: Determine visualization style
+        style_hint = image_style
+        if style_hint == "auto":
+            prompt_lower = prompt.lower()
+            if any(word in prompt_lower for word in ["diagram", "pathway", "mechanism", "flow", "process"]):
+                style_hint = "scientific diagram with labeled components and clear arrows"
+            elif any(word in prompt_lower for word in ["cell", "organism", "tissue", "anatomy"]):
+                style_hint = "biological illustration with accurate anatomical detail"
+            elif any(word in prompt_lower for word in ["graph", "chart", "data"]):
+                style_hint = "scientific chart or graph visualization"
+            else:
+                style_hint = "educational scientific illustration suitable for learning"
+
+        # Step 3: Build the generation prompt
+        generation_prompt = IMAGE_GENERATION_PROMPT_TEMPLATE.format(
+            episode_title=episode_title,
+            guest_name=guest_name,
+            topic_context=topic_context[:500] if topic_context else "General discussion",
+            user_prompt=prompt,
+            style_hint=style_hint,
+        )
+
+        # Step 4: Call Gemini with image modality
+        _ensure_gemini_client_ready()
+
+        response = await asyncio.to_thread(
+            lambda: _GENAI_CLIENT.models.generate_content(
+                model=GEMINI_IMAGE_MODEL,
+                contents=generation_prompt,
+                config={
+                    "response_modalities": ["TEXT", "IMAGE"],
+                }
+            )
+        )
+
+        # Step 5: Extract image data from response
+        image_data = None
+        mime_type = "image/png"
+        caption_text = ""
+
+        # Debug: Log response structure
+        print(f"[IMAGE GEN] Response type: {type(response)}")
+        print(f"[IMAGE GEN] Has candidates: {hasattr(response, 'candidates')}")
+        print(f"[IMAGE GEN] Has parts: {hasattr(response, 'parts')}")
+
+        # Try the newer SDK approach (response.parts) first
+        if hasattr(response, "parts"):
+            for part in response.parts:
+                if hasattr(part, "inline_data") and part.inline_data:
+                    image_data = part.inline_data.data
+                    if hasattr(part.inline_data, "mime_type") and part.inline_data.mime_type:
+                        mime_type = part.inline_data.mime_type
+                    print(f"[IMAGE GEN] Found image via response.parts, mime: {mime_type}")
+                elif hasattr(part, "text") and part.text:
+                    caption_text = part.text
+
+        # Fallback to candidates approach
+        if not image_data and hasattr(response, "candidates") and response.candidates:
+            candidate = response.candidates[0]
+            if hasattr(candidate, "content") and hasattr(candidate.content, "parts"):
+                for part in candidate.content.parts:
+                    if hasattr(part, "inline_data") and part.inline_data:
+                        # This is the image
+                        image_data = part.inline_data.data  # base64 encoded
+                        if hasattr(part.inline_data, "mime_type") and part.inline_data.mime_type:
+                            mime_type = part.inline_data.mime_type
+                        print(f"[IMAGE GEN] Found image via candidates, mime: {mime_type}")
+                    elif hasattr(part, "text") and part.text:
+                        # This is descriptive text/caption
+                        caption_text = part.text
+
+        if not image_data:
+            # Debug: Log what we got
+            print(f"[IMAGE GEN] No image data found in response")
+            if hasattr(response, 'text'):
+                print(f"[IMAGE GEN] Response text: {response.text[:500] if response.text else 'None'}")
+            return {
+                "error": "Failed to generate image - no image data in response. Gemini may have returned text only.",
+                "image_url": None,
+                "caption": caption_text or None,
+            }
+
+        print(f"[IMAGE GEN] Image data length: {len(image_data) if image_data else 0}")
+        print(f"[IMAGE GEN] Image data type: {type(image_data)}")
+
+        # Step 6: Upload to Supabase Storage
+        db = _get_supabase_client()
+
+        # Generate unique filename
+        timestamp_str = datetime.now().strftime("%Y%m%d_%H%M%S")
+        unique_id = str(uuid.uuid4())[:8]
+        extension = "png" if "png" in mime_type else "jpg"
+        filename = f"{episode_id}/{timestamp_str}_{unique_id}.{extension}"
+
+        # Handle image data - could be raw bytes or base64 string depending on SDK version
+        if isinstance(image_data, bytes):
+            # Already raw bytes, use directly
+            image_bytes = image_data
+            print(f"[IMAGE GEN] Using raw bytes directly, size: {len(image_bytes)}")
+        elif isinstance(image_data, str):
+            # Base64 encoded string, decode it
+            image_bytes = base64.b64decode(image_data)
+            print(f"[IMAGE GEN] Decoded base64 string, size: {len(image_bytes)}")
+        else:
+            # Unknown type, try to convert
+            print(f"[IMAGE GEN] Unknown data type: {type(image_data)}, attempting base64 decode")
+            image_bytes = base64.b64decode(image_data)
+
+        # Upload to Supabase storage
+        try:
+            upload_result = db.client.storage.from_(GENERATED_IMAGES_BUCKET).upload(
+                path=filename,
+                file=image_bytes,
+                file_options={"content-type": mime_type}
+            )
+            # Check for upload errors - supabase-py v2 returns object with path on success
+            if hasattr(upload_result, 'path'):
+                print(f"[IMAGE GEN] Upload successful: {upload_result.path}")
+            elif isinstance(upload_result, dict) and upload_result.get("error"):
+                return {
+                    "error": f"Failed to upload image: {upload_result.get('error')}",
+                    "image_url": None,
+                    "caption": None,
+                }
+        except Exception as upload_error:
+            return {
+                "error": f"Failed to upload image to storage: {str(upload_error)}",
+                "image_url": None,
+                "caption": None,
+            }
+
+        # Get public URL (bucket must be set to public in Supabase Dashboard)
+        # This is simpler and avoids signed URL expiry issues
+        public_url = db.client.storage.from_(GENERATED_IMAGES_BUCKET).get_public_url(filename)
+        print(f"[IMAGE GEN] Public URL: {public_url}")
+        result = {
+            "image_url": public_url,
+            "caption": caption_text.strip() if caption_text else f"Generated visualization: {prompt[:100]}",
+            "style_used": style_hint,
+            "model": GEMINI_IMAGE_MODEL,
+            "episode_id": episode_id,
+            "timestamp": current_timestamp,
+            "storage_path": filename,
+        }
+        print(f"[IMAGE GEN] Returning result: {result}")
+        return result
+
+    except Exception as e:
+        import traceback
+        return {
+            "error": f"Error generating image: {str(e)}",
+            "traceback": traceback.format_exc(),
+            "image_url": None,
+            "caption": None,
+        }
+
+
+@mcp.tool()
+async def generate_image_with_context(params: GenerateImageInput) -> dict[str, Any]:
+    """
+    Generate an educational image based on podcast context using Gemini's image generation.
+
+    Uses Gemini 3 Pro Image model to create scientific visualizations (diagrams,
+    illustrations) based on the current podcast context. Images are stored in
+    Supabase Storage and returned as URLs.
+
+    Supports:
+    - Conceptual diagrams explaining mechanisms and pathways
+    - Educational illustrations of biological concepts
+    - Scientific visualizations based on podcast content
+
+    Returns:
+        image_url: URL to the generated image in Supabase Storage
+        caption: AI-generated description of the image
+        style_used: The visualization style applied
+        model: Model used for generation
+    """
+    return await _generate_image_impl(
+        prompt=params.prompt,
+        episode_id=params.episode_id,
+        claim_id=params.claim_id,
+        current_timestamp=params.current_timestamp,
+        image_style=params.image_style,
+    )
+
+
+# ============================================================================
 # Taxonomy Cluster Tools
 # ============================================================================
 

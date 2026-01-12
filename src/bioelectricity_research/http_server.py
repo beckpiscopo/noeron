@@ -1052,6 +1052,42 @@ Provide a helpful, accurate response based on the context above. Reference speci
         return JSONResponse({"error": str(e)}, status_code=500)
 
 
+@app.post("/tools/generate_image_with_context/execute")
+async def http_generate_image_with_context(request: Request):
+    """Generate an AI image based on podcast context using Gemini.
+
+    Uses Gemini 3 Pro Image model to create scientific visualizations (diagrams,
+    illustrations) based on the current podcast context. Images are stored in
+    Supabase Storage and returned as URLs.
+    """
+    try:
+        body = await request.json()
+        prompt = body.get("prompt")
+        episode_id = body.get("episode_id", "lex_325")
+        claim_id = body.get("claim_id")
+        current_timestamp = body.get("current_timestamp")
+        image_style = body.get("image_style", "auto")
+
+        if not prompt:
+            return JSONResponse({"error": "prompt is required"}, status_code=400)
+
+        from .server import _generate_image_impl
+
+        result = await _generate_image_impl(
+            prompt=prompt,
+            episode_id=episode_id,
+            claim_id=claim_id,
+            current_timestamp=current_timestamp,
+            image_style=image_style,
+        )
+        return JSONResponse(result)
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
 @app.post("/tools/get_episode_summary/execute")
 async def http_get_episode_summary(request: Request):
     """Get or generate an episode summary using Gemini.

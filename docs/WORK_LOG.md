@@ -925,6 +925,73 @@ import { Map as MapIcon } from "lucide-react"
 
 ---
 
+## 2026-01-12: AI Image Generation in Chat
+
+**Task:** Add Gemini-powered image generation to the AI chat sidebar for scientific visualizations
+
+**Summary:**
+- Users can generate images via chat commands (`/visualize`, `/image`) or natural language ("generate an image of...")
+- Backend uses `gemini-3-pro-image-preview` model with `response_modalities=["TEXT", "IMAGE"]`
+- Images stored in Supabase Storage bucket (public)
+- Frontend detects image intent, renders images in chat with download/bookmark hover actions
+- Images can be saved to notebook using existing `addImageBookmark()` function
+
+**Key Files:**
+```
+supabase/migrations/
+├── 010_add_generated_images_storage.sql  # Storage bucket policies
+└── 011_add_image_to_chat_messages.sql    # image_url, image_caption columns
+
+src/bioelectricity_research/
+├── server.py        # _generate_image_impl(), generate_image_with_context MCP tool
+└── http_server.py   # /tools/generate_image_with_context/execute endpoint
+
+frontend/
+├── lib/chat-types.ts              # GeneratedImage, GenerateImageResponse types
+├── lib/supabase.ts                # ChatMessageRecord image fields
+├── hooks/use-ai-chat.ts           # detectImageIntent(), image generation flow
+├── components/ai-chat/chat-message.tsx    # Image rendering with actions
+└── components/ai-chat/ai-chat-sidebar.tsx # handleBookmarkImage callback
+```
+
+**Decisions/Gotchas:**
+- `@mcp.tool()` decorator wraps functions in `FunctionTool` object - can't call directly from HTTP endpoint. Extracted core logic to `_generate_image_impl()` helper.
+- Model: `gemini-3-pro-image-preview` (Nano Banana Pro) has best text rendering for scientific diagrams
+
+**Critical Bug Fixed: Corrupted Image Data**
+
+**Root Cause:** The `google-genai` SDK returns `part.inline_data.data` as **raw bytes**, not base64-encoded strings. The original code called `base64.b64decode(image_data)` which corrupted the image data, resulting in broken images that uploaded successfully but couldn't be displayed.
+
+**Symptoms:**
+- Image uploaded to Supabase Storage (file visible in dashboard)
+- Image URL returned correctly to frontend
+- Image failed to load in browser (`<img>` onError fired)
+- Image also failed to load when opened directly in Supabase dashboard
+- File size seemed reasonable (~600KB) but image was corrupted
+
+**Fix:** Check the type of `image_data` before processing:
+```python
+if isinstance(image_data, bytes):
+    # Already raw bytes, use directly
+    image_bytes = image_data
+elif isinstance(image_data, str):
+    # Base64 encoded string, decode it
+    image_bytes = base64.b64decode(image_data)
+```
+
+**Setup Required:**
+1. Create `generated-images` bucket in Supabase Dashboard (public bucket)
+2. Run SQL migrations 010 and 011
+3. Ensure `SUPABASE_SERVICE_KEY` is set in backend environment
+4. Restart HTTP server
+
+**Next Steps:**
+- Remove debug console.log statements from frontend
+- Consider switching to signed URLs for security
+- Add loading skeleton while image generates
+
+---
+
 Template:
 
 Date:

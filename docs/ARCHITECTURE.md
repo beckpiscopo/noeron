@@ -271,6 +271,55 @@ Currently uses shadcn's `<Sheet>` component positioned on the right. Opens/close
 - Sources include both RAG results and evidence cards
 - Evidence card sources show timestamp when they appeared
 
+## AI Image Generation
+
+Users can generate scientific visualizations directly in the chat using Gemini 3 Pro Image.
+
+### Trigger Methods
+- **Explicit commands:** `/visualize <prompt>` or `/image <prompt>`
+- **Natural language:** "Generate an image of...", "Show me a diagram of...", "Create a visualization..."
+
+### Data Flow
+
+```
+User types "/visualize cell membrane voltage"
+    ↓
+Frontend detects image intent (detectImageIntent in use-ai-chat.ts)
+    ↓
+callMcpTool("generate_image_with_context", {prompt, episode_id, ...})
+    ↓
+Backend (_generate_image_impl in server.py):
+  1. Build context from episode/timestamp
+  2. Determine visualization style (diagram vs illustration)
+  3. Call Gemini 3 Pro Image with response_modalities=["TEXT", "IMAGE"]
+  4. Upload base64 image to Supabase Storage
+  5. Generate signed URL (24h expiry)
+  6. Return image_url + caption
+    ↓
+Frontend renders image in ChatMessage with hover actions
+```
+
+### Storage
+- **Bucket:** `generated-images` (private, in Supabase Storage)
+- **Access:** Signed URLs with 24-hour expiry
+- **Path format:** `{episode_id}/{timestamp}_{uuid}.png`
+
+### Key Files
+
+| File | Purpose |
+|------|---------|
+| `src/bioelectricity_research/server.py` | `_generate_image_impl()` and `generate_image_with_context` MCP tool |
+| `src/bioelectricity_research/http_server.py` | `/tools/generate_image_with_context/execute` endpoint |
+| `frontend/hooks/use-ai-chat.ts` | `detectImageIntent()` and image generation flow |
+| `frontend/components/ai-chat/chat-message.tsx` | Image rendering with download/bookmark actions |
+| `frontend/lib/chat-types.ts` | `GeneratedImage` and `GenerateImageResponse` types |
+| `supabase/migrations/010_add_generated_images_storage.sql` | Storage bucket policies |
+| `supabase/migrations/011_add_image_to_chat_messages.sql` | `image_url`, `image_caption` columns |
+
+### Configuration
+- **Model:** `gemini-3-pro-image-preview` (4K output, advanced text rendering for diagrams)
+- **Requires:** `SUPABASE_SERVICE_KEY` env var on backend for storage uploads
+
 ## Taxonomy Cluster System (Knowledge Cartography)
 
 The taxonomy cluster system organizes the paper corpus into 8-12 labeled "research territories" using GMM clustering, enabling users to visualize their exploration coverage against the full research landscape.
