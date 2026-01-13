@@ -320,6 +320,79 @@ Frontend renders image in ChatMessage with hover actions
 - **Model:** `gemini-3-pro-image-preview` (4K output, advanced text rendering for diagrams)
 - **Requires:** `SUPABASE_SERVICE_KEY` env var on backend for storage uploads
 
+## AI Mini Podcast Generation
+
+Users can generate NotebookLM-style mini podcasts on deep dive pages. Two AI hosts discuss the claim and its supporting research in a 3-5 minute conversational format.
+
+### Architecture
+
+```
+User clicks "Generate Mini Podcast" on deep dive page
+    ↓
+Frontend: callMcpTool("generate_mini_podcast", {claim_id, episode_id, style})
+    ↓
+Backend (_generate_mini_podcast_impl in server.py):
+  1. Check cache for existing podcast
+  2. Load claim context from claims cache
+  3. RAG search for supporting papers (7 results)
+  4. Generate two-host script via Gemini 3 (gemini-3-pro-preview)
+  5. Synthesize multi-speaker audio via Gemini 2.5 TTS (gemini-2.5-flash-preview-tts)
+  6. Convert PCM to WAV format
+  7. Upload to Supabase Storage (generated-podcasts bucket)
+  8. Cache result in generated_podcasts.json
+  9. Return podcast_url, script, duration_seconds
+    ↓
+Frontend: MiniPodcastPlayer renders audio player with script toggle
+```
+
+### Two-Host Format
+
+- **ALEX** (Puck voice): Curious interviewer who asks engaging questions
+- **SAM** (Charon voice): Knowledgeable expert who explains concepts clearly
+
+The script prompt instructs Gemini to create natural dialogue that:
+1. Opens with an engaging hook
+2. Explains the core scientific concept
+3. Discusses supporting research and experiments
+4. Connects to broader implications
+5. Ends with a thoughtful summary
+
+### Key Files
+
+| File | Purpose |
+|------|---------|
+| `src/bioelectricity_research/server.py` | `_generate_mini_podcast_impl()`, `generate_mini_podcast` MCP tool, prompt template |
+| `src/bioelectricity_research/http_server.py` | `/tools/generate_mini_podcast/execute` endpoint |
+| `frontend/components/mini-podcast-player.tsx` | Audio player with play/pause, progress, script expansion |
+| `frontend/components/deep-exploration-view.tsx` | Integration point (right column, above evidence threads) |
+| `frontend/lib/chat-types.ts` | `GeneratedPodcast`, `GeneratePodcastResponse` types |
+| `supabase/migrations/012_add_generated_podcasts_storage.sql` | Storage bucket policies |
+| `cache/generated_podcasts.json` | Local cache for generated podcasts |
+
+### Storage
+- **Bucket:** `generated-podcasts` (public, in Supabase Storage)
+- **Access:** Public URLs for audio playback
+- **Path format:** `{episode_id}/{safe_claim_id}_{timestamp}_{uuid}.wav`
+- **File format:** WAV (PCM 24kHz, 16-bit mono converted from Gemini TTS output)
+
+### Caching Strategy
+- **Cache key:** `{episode_id}:{claim_id}:{style}`
+- **Storage:** `cache/generated_podcasts.json`
+- **Invalidation:** Manual via `force_regenerate=true` parameter
+
+### Configuration
+- **Script model:** `gemini-3-pro-preview` (reasoning for high-quality dialogue)
+- **TTS model:** `gemini-2.5-flash-preview-tts` (multi-speaker audio synthesis)
+- **Voices:** Puck (ALEX), Charon (SAM)
+- **Target duration:** 3-5 minutes (~900-1100 words)
+- **Requires:** `SUPABASE_SERVICE_KEY` env var for storage uploads
+
+### Setup Required
+1. Create `generated-podcasts` bucket in Supabase Dashboard (enable "Public bucket")
+2. Set file size limit to 50MB
+3. Allow MIME types: `audio/wav`, `audio/mpeg`
+4. Run SQL migration `012_add_generated_podcasts_storage.sql`
+
 ## Taxonomy Cluster System (Knowledge Cartography)
 
 The taxonomy cluster system organizes the paper corpus into 8-12 labeled "research territories" using GMM clustering, enabling users to visualize their exploration coverage against the full research landscape.

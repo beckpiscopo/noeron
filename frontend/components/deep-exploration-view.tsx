@@ -848,6 +848,22 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
 
         {/* Right Column: Evidence & Actions */}
         <div className="lg:col-span-4 flex flex-col gap-6">
+          {/* Mini Podcast */}
+          <div className="bg-card border border-border rounded-none p-5 h-fit">
+            <div className="flex items-center gap-2 mb-4">
+              <Mic className="w-5 h-5 text-[var(--golden-chestnut)]" />
+              <h3 className="font-bold text-lg">Mini Podcast</h3>
+            </div>
+            <MiniPodcastPlayer
+              podcast={miniPodcast}
+              isLoading={isLoadingPodcast}
+              error={podcastError}
+              onGenerate={() => fetchMiniPodcast(false)}
+              onRegenerate={() => fetchMiniPodcast(true)}
+              style={synthesisMode === "simplified" ? "casual" : "academic"}
+            />
+          </div>
+
           {/* AI Evidence Threads */}
           <div className="bg-card border border-border rounded-none p-5 h-fit">
             <div className="flex items-center justify-between mb-4">
@@ -1068,22 +1084,6 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
                 )}
               </>
             )}
-          </div>
-
-          {/* Mini Podcast */}
-          <div className="bg-card border border-border rounded-none p-5 h-fit">
-            <div className="flex items-center gap-2 mb-4">
-              <Mic className="w-5 h-5 text-[var(--golden-chestnut)]" />
-              <h3 className="font-bold text-lg">Mini Podcast</h3>
-            </div>
-            <MiniPodcastPlayer
-              podcast={miniPodcast}
-              isLoading={isLoadingPodcast}
-              error={podcastError}
-              onGenerate={() => fetchMiniPodcast(false)}
-              onRegenerate={() => fetchMiniPodcast(true)}
-              style={synthesisMode === "simplified" ? "casual" : "academic"}
-            />
           </div>
 
           {/* Stats */}

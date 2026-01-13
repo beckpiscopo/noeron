@@ -1,6 +1,7 @@
 "use client"
 
-import { User, Bot, Loader2, ImageIcon, Download, BookmarkPlus } from "lucide-react"
+import { useState } from "react"
+import { User, Bot, Loader2, ImageIcon, Download, BookmarkPlus, Brain, ChevronDown, ChevronRight } from "lucide-react"
 import { ChatSources } from "./chat-sources"
 import { MarkdownContent } from "@/components/ui/markdown-content"
 import { Button } from "@/components/ui/button"
@@ -14,6 +15,7 @@ interface ChatMessageProps {
 
 export function ChatMessage({ message, onViewPaper, onBookmarkImage }: ChatMessageProps) {
   const isUser = message.role === "user"
+  const [isThinkingExpanded, setIsThinkingExpanded] = useState(false)
 
   const handleDownloadImage = () => {
     if (message.image?.image_url) {
@@ -45,10 +47,11 @@ export function ChatMessage({ message, onViewPaper, onBookmarkImage }: ChatMessa
               : "bg-card border border-border"
           }`}
         >
-          {message.isLoading ? (
+          {message.isLoading && !message.isThinking && !message.content ? (
+            // Initial loading state before any content arrives
             <div className="flex items-center gap-2 text-foreground/60">
               <Loader2 className="w-4 h-4 animate-spin" />
-              <span className="text-sm">{message.content || "Thinking..."}</span>
+              <span className="text-sm">Thinking...</span>
             </div>
           ) : isUser ? (
             <p className="text-sm leading-relaxed whitespace-pre-wrap">
@@ -56,7 +59,49 @@ export function ChatMessage({ message, onViewPaper, onBookmarkImage }: ChatMessa
             </p>
           ) : (
             <>
-              <MarkdownContent content={message.content} variant="chat" />
+              {/* Thinking traces section - auto-expanded while streaming */}
+              {(message.thinking || message.isThinking) && (
+                <div className="mb-3">
+                  <button
+                    onClick={() => setIsThinkingExpanded(!isThinkingExpanded)}
+                    className="flex items-center gap-1.5 text-xs text-foreground/50 hover:text-foreground/70 transition-colors"
+                  >
+                    {message.isThinking ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin text-[var(--golden-chestnut)]" />
+                    ) : (
+                      <Brain className="w-3.5 h-3.5" />
+                    )}
+                    <span className={message.isThinking ? "text-[var(--golden-chestnut)]" : ""}>
+                      {message.isThinking ? "Reasoning..." : "Reasoning"}
+                    </span>
+                    {(isThinkingExpanded || message.isThinking) ? (
+                      <ChevronDown className="w-3 h-3" />
+                    ) : (
+                      <ChevronRight className="w-3 h-3" />
+                    )}
+                  </button>
+                  {/* Auto-expand while thinking, otherwise respect user toggle */}
+                  {(isThinkingExpanded || message.isThinking) && message.thinking && (
+                    <div className="mt-2 pl-3 border-l-2 border-foreground/10">
+                      <p className="text-xs text-foreground/60 whitespace-pre-wrap leading-relaxed">
+                        {message.thinking}
+                        {message.isThinking && (
+                          <span className="inline-block w-2 h-3 bg-[var(--golden-chestnut)]/50 animate-pulse ml-0.5" />
+                        )}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+              {/* Response content with streaming cursor */}
+              {message.content && (
+                <div className="relative">
+                  <MarkdownContent content={message.content} variant="chat" />
+                  {message.isStreaming && (
+                    <span className="inline-block w-2 h-4 bg-foreground/30 animate-pulse ml-0.5 align-middle" />
+                  )}
+                </div>
+              )}
 
               {/* Generated Image Display */}
               {message.image?.image_url && (

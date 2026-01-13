@@ -16,6 +16,7 @@ import type {
   ChatWithContextRequest,
   ChatWithContextResponse,
   GenerateImageResponse,
+  ChatSource,
 } from "@/lib/chat-types"
 
 function generateId(): string {
@@ -216,14 +217,12 @@ export function useAIChat(context: ChatContext | null) {
             }
           }
         } else {
-          // REGULAR CHAT PATH
-          // Build conversation history from previous messages (excluding the placeholder)
+          // REGULAR CHAT PATH - with SSE streaming for real-time thinking
           const conversationHistory = messages.map((msg) => ({
             role: msg.role,
             content: msg.content,
           }))
 
-          // Add the current user message to history
           conversationHistory.push({
             role: "user",
             content: content.trim(),
@@ -233,45 +232,140 @@ export function useAIChat(context: ChatContext | null) {
             message: content.trim(),
             episode_id: context.episode_id,
             claim_id: context.claim_id,
-            current_timestamp: context.current_timestamp,  // Pass current playback position
+            current_timestamp: context.current_timestamp,
             conversation_history: conversationHistory,
             n_results: 5,
-            use_layered_context: true,  // Enable advanced timestamp-aware context
+            use_layered_context: true,
+            include_thinking: true,
           }
 
-          const response = await callMcpTool<ChatWithContextResponse>(
-            "chat_with_context",
-            request
-          )
+          // Use SSE streaming endpoint for real-time thinking display
+          const apiUrl = process.env.NEXT_PUBLIC_MCP_API_URL || "http://localhost:8000"
+          const response = await fetch(`${apiUrl}/tools/chat_with_context/stream`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(request),
+          })
 
-          // Update the placeholder with the actual response
+          if (!response.ok) {
+            throw new Error(`API error: ${response.status}`)
+          }
+
+          // Update placeholder to show thinking state
           setMessages((prev) =>
             prev.map((msg) =>
               msg.id === assistantPlaceholder.id
-                ? {
-                    ...msg,
-                    content: response.error || response.response,
-                    sources: response.sources,
-                    isLoading: false,
-                    error: response.error,
-                  }
+                ? { ...msg, isThinking: true, isLoading: true }
                 : msg
             )
           )
 
-          // Save assistant response to database
-          if (session && !response.error) {
-            saveChatMessage(session.id, {
-              role: "assistant",
-              content: response.response,
-              playback_timestamp: context.current_timestamp,
-              sources: response.sources,
-              model: response.model,
-            }).catch((err) => console.error('Failed to save assistant message:', err))
-          }
+          // Read SSE stream
+          const reader = response.body?.getReader()
+          const decoder = new TextDecoder()
+          let thinkingText = ""
+          let contentText = ""
+          let sources: ChatSource[] = []
+          let buffer = ""
 
-          if (response.error) {
-            setError(response.error)
+          if (reader) {
+            while (true) {
+              const { done, value } = await reader.read()
+              if (done) break
+
+              buffer += decoder.decode(value, { stream: true })
+
+              // Parse SSE events from buffer
+              const lines = buffer.split("\n")
+              buffer = lines.pop() || "" // Keep incomplete line in buffer
+
+              let eventType = ""
+              for (const line of lines) {
+                if (line.startsWith("event: ")) {
+                  eventType = line.slice(7)
+                } else if (line.startsWith("data: ")) {
+                  const data = line.slice(6)
+                  try {
+                    const parsed = JSON.parse(data)
+
+                    if (eventType === "thinking" && parsed.text) {
+                      thinkingText += parsed.text
+                      // Update message with accumulated thinking
+                      setMessages((prev) =>
+                        prev.map((msg) =>
+                          msg.id === assistantPlaceholder.id
+                            ? { ...msg, thinking: thinkingText, isThinking: true }
+                            : msg
+                        )
+                      )
+                    } else if (eventType === "content" && parsed.text) {
+                      // Transition from thinking to content
+                      contentText += parsed.text
+                      setMessages((prev) =>
+                        prev.map((msg) =>
+                          msg.id === assistantPlaceholder.id
+                            ? {
+                                ...msg,
+                                content: contentText,
+                                isThinking: false,
+                                isStreaming: true,
+                              }
+                            : msg
+                        )
+                      )
+                    } else if (eventType === "sources" && parsed.sources) {
+                      sources = parsed.sources
+                    } else if (eventType === "done") {
+                      // Finalize message
+                      setMessages((prev) =>
+                        prev.map((msg) =>
+                          msg.id === assistantPlaceholder.id
+                            ? {
+                                ...msg,
+                                content: contentText || parsed.response_complete,
+                                thinking: thinkingText || parsed.thinking_complete,
+                                sources,
+                                isLoading: false,
+                                isThinking: false,
+                                isStreaming: false,
+                              }
+                            : msg
+                        )
+                      )
+
+                      // Save to database
+                      if (session) {
+                        saveChatMessage(session.id, {
+                          role: "assistant",
+                          content: contentText || parsed.response_complete,
+                          playback_timestamp: context.current_timestamp,
+                          sources,
+                          model: parsed.model,
+                        }).catch((err) => console.error('Failed to save assistant message:', err))
+                      }
+                    } else if (eventType === "error" && parsed.error) {
+                      setError(parsed.error)
+                      setMessages((prev) =>
+                        prev.map((msg) =>
+                          msg.id === assistantPlaceholder.id
+                            ? {
+                                ...msg,
+                                content: "Sorry, an error occurred.",
+                                error: parsed.error,
+                                isLoading: false,
+                                isThinking: false,
+                                isStreaming: false,
+                              }
+                            : msg
+                        )
+                      )
+                    }
+                  } catch {
+                    // Ignore JSON parse errors for incomplete data
+                  }
+                }
+              }
+            }
           }
         }
       } catch (err) {

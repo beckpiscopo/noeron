@@ -183,3 +183,5 @@ docs/
 
 Check the full setup guide: `SUPABASE_SETUP.md`
 
+
+

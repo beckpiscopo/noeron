@@ -992,6 +992,215 @@ elif isinstance(image_data, str):
 
 ---
 
+## 2026-01-12: AI Mini Podcast Generation
+
+**Task:** Add AI-generated mini podcasts to deep dive pages where two hosts discuss claims and supporting research in a 3-5 minute conversational format.
+
+**Summary:**
+- Created two-host podcast generation using Gemini 3 (script) + Gemini 2.5 TTS (multi-speaker audio)
+- Script features ALEX (curious interviewer, voice: Puck) and SAM (knowledgeable expert, voice: Charon)
+- Backend generates conversational script from claim context + RAG-retrieved papers, then synthesizes multi-speaker audio
+- Audio stored in Supabase Storage `generated-podcasts` bucket (public for playback)
+- Frontend shows audio player with play/pause, progress bar, time display, expandable script, download
+- Results cached in `data/cache/generated_podcasts.json` to avoid regenerating
+
+**Key Files:**
+```
+supabase/migrations/
+└── 012_add_generated_podcasts_storage.sql  # RLS policies for storage bucket
+
+src/bioelectricity_research/
+├── server.py        # Lines 3324-3776: Constants, prompt, model, implementation, MCP tool
+│   ├── GEMINI_TTS_MODEL = "gemini-2.5-flash-preview-tts"
+│   ├── PODCAST_HOST_A = "Puck", PODCAST_HOST_B = "Charon"
+│   ├── GenerateMiniPodcastInput (Pydantic model)
+│   ├── PODCAST_SCRIPT_PROMPT_TEMPLATE
+│   ├── _generate_mini_podcast_impl() - Core logic
+│   └── @mcp.tool() generate_mini_podcast
+└── http_server.py   # Lines 1091-1124: /tools/generate_mini_podcast/execute endpoint
+
+frontend/
+├── lib/chat-types.ts                    # GeneratedPodcast, GeneratePodcastResponse types
+├── components/mini-podcast-player.tsx   # NEW: Audio player component (~280 lines)
+│   ├── Play/pause, progress bar, seek
+│   ├── Time display, download button
+│   ├── Expandable script section
+│   └── Loading, error, no-audio states
+└── components/deep-exploration-view.tsx # Added Mini Podcast section above Evidence Threads
+    ├── miniPodcast, isLoadingPodcast, podcastError state
+    └── fetchMiniPodcast() function
+```
+
+**TTS Multi-Speaker Config:**
+```python
+speech_config = types.SpeechConfig(
+    multi_speaker_voice_config=types.MultiSpeakerVoiceConfig(
+        speaker_voice_configs=[
+            types.SpeakerVoiceConfig(
+                speaker='ALEX',
+                voice_config=types.VoiceConfig(
+                    prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name='Puck')
+                )
+            ),
+            types.SpeakerVoiceConfig(
+                speaker='SAM',
+                voice_config=types.VoiceConfig(
+                    prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name='Charon')
+                )
+            ),
+        ]
+    )
+)
+```
+
+**Decisions/Gotchas:**
+- Gemini 3 doesn't have TTS yet; used hybrid approach (Gemini 3 for script, Gemini 2.5 TTS for audio)
+- TTS returns PCM 24kHz audio; converted to WAV with proper header for browser playback
+- RAG results bug: was passing `documents` list (strings) instead of dicts with metadata; fixed by combining `documents` + `metadatas` before formatting
+- Script targets ~900 words for 3-5 minutes spoken duration
+- Cache key format: `{episode_id}:{claim_id}:{style}`
+- `force_regenerate` flag bypasses cache when user wants fresh generation
+
+**Setup Required:**
+1. Create `generated-podcasts` bucket in Supabase Dashboard (public bucket, 50MB limit, audio/* MIME)
+2. Run migration `012_add_generated_podcasts_storage.sql`
+3. Restart HTTP server
+
+**Next Steps:**
+- Consider adding style toggle (casual/academic) to frontend UI
+- Could pre-generate podcasts for popular claims
+- Add playback speed control to player
+- Consider episode-level podcast combining multiple claims
+
+---
+
+## 2026-01-13: Gemini 3 Thinking Traces in AI Chat (RESOLVED)
+
+**Task:** Add visible thinking/reasoning traces to AI chat to showcase Gemini 3's thinking capability for hackathon demo
+
+**Status:** FIXED - Streaming mode required for thought summaries
+
+**Root Cause:**
+Gemini 3 Pro only returns thought summaries in **streaming mode** (`generate_content_stream()`). Non-streaming mode returns `thought_signature` (proving model IS thinking) but `thought=None` (no summary exposed). This is documented as "best effort" but in practice, streaming is required.
+
+**Solution:**
+Changed from `generate_content()` to `generate_content_stream()` when `include_thinking=True`. Also fixed config structure to use `types.GenerateContentConfig` properly instead of passing a plain dict.
+
+**Key Changes:**
+```
+src/bioelectricity_research/server.py
+├── Changed GenerateContentConfig from dict to types.GenerateContentConfig
+├── Use generate_content_stream() when include_thinking=True
+└── Collect thinking_parts and response_parts from streamed chunks
+
+src/bioelectricity_research/http_server.py
+├── Same changes as server.py
+└── Removed debug logging (cleaned up)
+
+frontend/hooks/use-ai-chat.ts
+└── Removed debug console.log statements
+```
+
+**Test Results (from scripts/test_thinking_api.py):**
+```
+# Non-streaming: thought=None, thought_signature=present (model thinks but no summary)
+# Streaming: Returns 3 thinking parts with actual reasoning text!
+
+Example thinking output:
+"**Focusing on Bioelectricity**
+I'm now zeroing in on bioelectricity. My goal is to find three surprising facts..."
+```
+
+**Alternative Discovery:**
+`gemini-2.5-pro` (non-streaming) DOES return thought summaries with `thought=True`. If streaming latency is a concern, switching models is another option.
+
+**Decisions/Gotchas:**
+- Streaming is required for Gemini 3 Pro thought summaries (not optional)
+- Config must use `types.GenerateContentConfig()` not a plain dict
+- Non-streaming is still used when `include_thinking=False` for lower latency
+- Thought summaries are still "best effort" - may occasionally not appear
+
+---
+
+## 2026-01-13: Real-Time Thinking Streaming
+
+**Task:** Stream thinking traces to the frontend in real-time as the model reasons, rather than showing them only after completion.
+
+**Summary:**
+- Added new SSE (Server-Sent Events) streaming endpoint `/tools/chat_with_context/stream`
+- Frontend now consumes SSE events progressively, updating UI in real-time
+- Thinking traces appear live with a pulsing cursor while reasoning
+- Response content also streams progressively after thinking completes
+
+**Key Changes:**
+
+**Backend (http_server.py):**
+```
+@app.post("/tools/chat_with_context/stream")
+- Returns StreamingResponse with media_type="text/event-stream"
+- Event types: thinking, content, sources, done, error
+- Streams Gemini chunks directly to client as they arrive
+```
+
+**Frontend (hooks/use-ai-chat.ts):**
+```
+- Uses fetch() with ReadableStream to consume SSE
+- Parses event: and data: lines from buffer
+- Progressively updates message state for thinking, content, and sources
+- New message properties: isThinking, isStreaming
+```
+
+**Frontend (chat-message.tsx):**
+```
+- Auto-expands thinking section while isThinking is true
+- Shows animated spinner with "Reasoning..." label during thinking
+- Pulsing cursor at end of thinking text while streaming
+- Pulsing cursor at end of content while streaming response
+```
+
+**Frontend (chat-types.ts):**
+```
+- Added isThinking?: boolean (true while receiving thinking chunks)
+- Added isStreaming?: boolean (true while receiving content chunks)
+```
+
+**SSE Event Format:**
+```
+event: thinking
+data: {"text": "...reasoning chunk..."}
+
+event: content
+data: {"text": "...response chunk..."}
+
+event: sources
+data: {"sources": [...]}
+
+event: done
+data: {"query_used": "...", "model": "...", "thinking_complete": "...", "response_complete": "..."}
+
+event: error
+data: {"error": "..."}
+```
+
+**User Experience:**
+1. User sends message
+2. "Reasoning..." label appears with spinner, auto-expanded
+3. Thinking text streams in real-time with pulsing cursor
+4. When thinking completes, section stays visible
+5. Response content begins streaming below with its own cursor
+6. When done, cursors disappear, sources appear
+
+**To Test:**
+```bash
+# Restart HTTP server
+python -m src.bioelectricity_research.http_server
+
+# Frontend should already work - the hook uses the new endpoint
+cd frontend && npm run dev
+```
+
+---
+
 Template:
 
 Date:

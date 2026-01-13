@@ -5,7 +5,7 @@ load_dotenv()
 
 import asyncio
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
@@ -884,6 +884,7 @@ async def http_chat_with_context(request: Request):
         n_results = body.get("n_results", 5)
         current_timestamp = body.get("current_timestamp")
         use_layered_context = body.get("use_layered_context", True)
+        include_thinking = body.get("include_thinking", True)
 
         if not message:
             return JSONResponse({"error": "message is required"}, status_code=400)
@@ -1002,29 +1003,78 @@ Provide a helpful, accurate response based on the context above. Reference speci
 
         # Step 6: Call Gemini
         _ensure_gemini_client_ready()
-        response = await asyncio.to_thread(
-            lambda: server._GENAI_CLIENT.models.generate_content(
-                model=GEMINI_MODEL_DEFAULT,
-                contents=prompt,
-                config={
-                    "temperature": 0.7,
-                    "max_output_tokens": 2048,
-                }
-            )
-        )
 
-        # Extract response text
-        if hasattr(response, "text"):
-            response_text = response.text
-        elif hasattr(response, "candidates") and response.candidates:
-            candidate = response.candidates[0]
-            if hasattr(candidate, "content") and hasattr(candidate.content, "parts"):
-                response_text = "".join(
-                    part.text for part in candidate.content.parts if hasattr(part, "text")
+        # Build generation config with optional thinking
+        from google.genai import types
+
+        # Use proper GenerateContentConfig class (not dict) for thinking to work
+        if include_thinking:
+            generation_config = types.GenerateContentConfig(
+                temperature=0.7,
+                max_output_tokens=2048,
+                thinking_config=types.ThinkingConfig(
+                    include_thoughts=True,
+                    thinking_level="HIGH"
                 )
-            else:
-                response_text = "I apologize, but I couldn't generate a response."
+            )
         else:
+            generation_config = types.GenerateContentConfig(
+                temperature=0.7,
+                max_output_tokens=2048,
+            )
+
+        # Extract response text and thinking traces
+        response_text = ""
+        thinking_text = ""
+
+        # Use streaming mode when thinking is requested (required for thought summaries)
+        if include_thinking:
+            def _stream_with_thinking():
+                """Stream response and collect thinking parts."""
+                thinking_parts = []
+                response_parts = []
+
+                response_stream = server._GENAI_CLIENT.models.generate_content_stream(
+                    model=GEMINI_MODEL_DEFAULT,
+                    contents=prompt,
+                    config=generation_config
+                )
+
+                for chunk in response_stream:
+                    if hasattr(chunk, "candidates") and chunk.candidates:
+                        for candidate in chunk.candidates:
+                            if hasattr(candidate, "content") and hasattr(candidate.content, "parts"):
+                                for part in candidate.content.parts:
+                                    thought = getattr(part, "thought", None)
+                                    text = getattr(part, "text", "")
+                                    if thought is True and text:
+                                        thinking_parts.append(text)
+                                    elif text:
+                                        response_parts.append(text)
+
+                return "".join(thinking_parts), "".join(response_parts)
+
+            thinking_text, response_text = await asyncio.to_thread(_stream_with_thinking)
+
+        else:
+            # Non-streaming mode (faster when thinking not needed)
+            response = await asyncio.to_thread(
+                lambda: server._GENAI_CLIENT.models.generate_content(
+                    model=GEMINI_MODEL_DEFAULT,
+                    contents=prompt,
+                    config=generation_config
+                )
+            )
+
+            if hasattr(response, "candidates") and response.candidates:
+                candidate = response.candidates[0]
+                if hasattr(candidate, "content") and hasattr(candidate.content, "parts"):
+                    for part in candidate.content.parts:
+                        if hasattr(part, "text") and part.text:
+                            response_text += part.text
+
+        # Fallback if no response text found
+        if not response_text:
             response_text = "I apologize, but I couldn't generate a response."
 
         # Step 7: Build sources list
@@ -1039,17 +1089,225 @@ Provide a helpful, accurate response based on the context above. Reference speci
                     "relevance_snippet": r.get("text", "")[:200] + "..." if r.get("text") else "",
                 })
 
-        return {
+        result = {
             "response": response_text.strip(),
             "sources": sources,
             "query_used": search_query,
             "model": GEMINI_MODEL_DEFAULT,
         }
 
+        # Add thinking traces if present
+        if thinking_text.strip():
+            result["thinking"] = thinking_text.strip()
+
+        return result
+
     except Exception as e:
         import traceback
         traceback.print_exc()
         return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.post("/tools/chat_with_context/stream")
+async def http_chat_with_context_stream(request: Request):
+    """Stream chat response with real-time thinking traces via SSE.
+
+    Returns Server-Sent Events with the following event types:
+    - thinking: Reasoning/thinking chunks as they arrive
+    - content: Response content chunks as they arrive
+    - sources: Final sources list when complete
+    - done: Completion signal with metadata
+    - error: Error message if something goes wrong
+    """
+    import json
+
+    body = await request.json()
+    message = body.get("message")
+    episode_id = body.get("episode_id", "lex_325")
+    claim_id = body.get("claim_id")
+    conversation_history = body.get("conversation_history", [])
+    n_results = body.get("n_results", 5)
+    current_timestamp = body.get("current_timestamp")
+    use_layered_context = body.get("use_layered_context", True)
+    include_thinking = body.get("include_thinking", True)
+
+    async def generate_sse():
+        """Generator that yields SSE events."""
+        try:
+            if not message:
+                yield f"event: error\ndata: {json.dumps({'error': 'message is required'})}\n\n"
+                return
+
+            # Import helper functions
+            from .server import (
+                _load_claims_cache,
+                _load_papers_collection,
+                _format_conversation_history,
+                _format_rag_results_for_chat,
+                _ensure_gemini_client_ready,
+                get_vectorstore,
+                CHAT_CONTEXT_PROMPT_TEMPLATE,
+                GEMINI_MODEL_DEFAULT,
+            )
+            from .context_builder import build_chat_context, build_system_prompt
+            from google.genai import types
+
+            # Step 1: Build layered context
+            system_prompt = ""
+            episode_title = f"Episode {episode_id}"
+            guest_name = "Unknown Guest"
+
+            if use_layered_context:
+                context_layers = build_chat_context(
+                    episode_id=episode_id,
+                    current_timestamp_str=current_timestamp
+                )
+                if context_layers:
+                    system_prompt = build_system_prompt(context_layers)
+                    episode_title = context_layers.episode.title
+                    guest_name = context_layers.episode.guest
+
+            # Step 2: Load claim context if provided
+            claim_context = ""
+            if claim_id and "-" in claim_id:
+                claims_cache = _load_claims_cache()
+                parts = claim_id.rsplit("-", 1)
+                if len(parts) == 2:
+                    segment_key = parts[0]
+                    try:
+                        claim_index = int(parts[1])
+                        segments = claims_cache.get("segments", {})
+                        segment_data = segments.get(segment_key)
+                        if segment_data:
+                            claims_list = segment_data.get("claims", [])
+                            if claim_index < len(claims_list):
+                                claim_data = claims_list[claim_index]
+                                claim_text = claim_data.get("claim_text", "")
+                                distilled = claim_data.get("distilled_claim", "")
+                                claim_context = f"""
+## Currently Selected Claim
+"{distilled or claim_text}"
+"""
+                    except (ValueError, IndexError):
+                        pass
+
+            # Step 3: RAG search
+            vs = get_vectorstore()
+            search_query = message
+            if claim_context:
+                search_query = f"{message} bioelectricity Levin"
+
+            rag_results_raw = vs.search(search_query, n_results=n_results)
+            docs = rag_results_raw.get("documents", [[]])[0]
+            metas = rag_results_raw.get("metadatas", [[]])[0]
+
+            rag_results = []
+            for doc, meta in zip(docs, metas):
+                rag_results.append({
+                    "text": doc,
+                    "paper_id": meta.get("paper_id", ""),
+                    "paper_title": meta.get("paper_title", ""),
+                    "section": meta.get("section_heading", ""),
+                    "year": meta.get("year", ""),
+                })
+
+            # Step 4: Load papers collection for metadata
+            papers_collection = _load_papers_collection()
+            formatted_rag = _format_rag_results_for_chat(rag_results, papers_collection)
+
+            # Step 5: Build prompt
+            formatted_history = _format_conversation_history(conversation_history)
+            prompt = CHAT_CONTEXT_PROMPT_TEMPLATE.format(
+                episode_title=episode_title,
+                guest_name=guest_name,
+                claim_context=claim_context if claim_context else "(No specific claim selected)",
+                conversation_history=formatted_history,
+                rag_results=formatted_rag,
+                user_message=message,
+            )
+
+            # Step 6: Call Gemini with streaming
+            _ensure_gemini_client_ready()
+
+            if include_thinking:
+                generation_config = types.GenerateContentConfig(
+                    temperature=0.7,
+                    max_output_tokens=2048,
+                    thinking_config=types.ThinkingConfig(
+                        include_thoughts=True,
+                        thinking_level="HIGH"
+                    )
+                )
+            else:
+                generation_config = types.GenerateContentConfig(
+                    temperature=0.7,
+                    max_output_tokens=2048,
+                )
+
+            # Stream response from Gemini
+            response_stream = server._GENAI_CLIENT.models.generate_content_stream(
+                model=GEMINI_MODEL_DEFAULT,
+                contents=prompt,
+                config=generation_config
+            )
+
+            thinking_chunks = []
+            response_chunks = []
+
+            for chunk in response_stream:
+                if hasattr(chunk, "candidates") and chunk.candidates:
+                    for candidate in chunk.candidates:
+                        if hasattr(candidate, "content") and hasattr(candidate.content, "parts"):
+                            for part in candidate.content.parts:
+                                thought = getattr(part, "thought", None)
+                                text = getattr(part, "text", "")
+                                if thought is True and text:
+                                    thinking_chunks.append(text)
+                                    # Send thinking chunk immediately
+                                    yield f"event: thinking\ndata: {json.dumps({'text': text})}\n\n"
+                                elif text:
+                                    response_chunks.append(text)
+                                    # Send content chunk immediately
+                                    yield f"event: content\ndata: {json.dumps({'text': text})}\n\n"
+
+            # Step 7: Build sources list
+            sources = []
+            for r in rag_results:
+                if r.get("paper_id"):
+                    sources.append({
+                        "paper_id": r.get("paper_id", ""),
+                        "paper_title": r.get("paper_title", ""),
+                        "year": r.get("year", ""),
+                        "section": r.get("section", ""),
+                        "relevance_snippet": r.get("text", "")[:200] + "..." if r.get("text") else "",
+                    })
+
+            # Send sources
+            yield f"event: sources\ndata: {json.dumps({'sources': sources})}\n\n"
+
+            # Send done event with metadata
+            done_data = {
+                "query_used": search_query,
+                "model": GEMINI_MODEL_DEFAULT,
+                "thinking_complete": "".join(thinking_chunks),
+                "response_complete": "".join(response_chunks),
+            }
+            yield f"event: done\ndata: {json.dumps(done_data)}\n\n"
+
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            yield f"event: error\ndata: {json.dumps({'error': str(e)})}\n\n"
+
+    return StreamingResponse(
+        generate_sse(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",  # Disable nginx buffering
+        }
+    )
 
 
 @app.post("/tools/generate_image_with_context/execute")

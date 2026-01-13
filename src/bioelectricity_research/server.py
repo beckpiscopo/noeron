@@ -2768,6 +2768,10 @@ class ChatWithContextInput(BaseModel):
         default=True,
         description="Use the new layered context builder for rich timestamp-aware context"
     )
+    include_thinking: bool = Field(
+        default=True,
+        description="Include Gemini's thinking/reasoning traces in the response"
+    )
 
 
 def _load_episodes() -> list[dict]:
@@ -2965,29 +2969,78 @@ Provide a helpful, accurate response based on the context above. Reference speci
 
         # Step 5: Call Gemini
         _ensure_gemini_client_ready()
-        response = await asyncio.to_thread(
-            lambda: _GENAI_CLIENT.models.generate_content(
-                model=GEMINI_MODEL_DEFAULT,
-                contents=prompt,
-                config={
-                    "temperature": 0.7,
-                    "max_output_tokens": 2048,
-                }
-            )
-        )
 
-        # Extract response text
-        if hasattr(response, "text"):
-            response_text = response.text
-        elif hasattr(response, "candidates") and response.candidates:
-            candidate = response.candidates[0]
-            if hasattr(candidate, "content") and hasattr(candidate.content, "parts"):
-                response_text = "".join(
-                    part.text for part in candidate.content.parts if hasattr(part, "text")
+        # Build generation config with optional thinking
+        from google.genai import types
+
+        # Use proper GenerateContentConfig class (not dict) for thinking to work
+        if params.include_thinking:
+            generation_config = types.GenerateContentConfig(
+                temperature=0.7,
+                max_output_tokens=2048,
+                thinking_config=types.ThinkingConfig(
+                    include_thoughts=True,
+                    thinking_level="HIGH"
                 )
-            else:
-                response_text = "I apologize, but I couldn't generate a response."
+            )
         else:
+            generation_config = types.GenerateContentConfig(
+                temperature=0.7,
+                max_output_tokens=2048,
+            )
+
+        # Extract response text and thinking traces
+        response_text = ""
+        thinking_text = ""
+
+        # Use streaming mode when thinking is requested (required for thought summaries)
+        if params.include_thinking:
+            def _stream_with_thinking():
+                """Stream response and collect thinking parts."""
+                thinking_parts = []
+                response_parts = []
+
+                response_stream = _GENAI_CLIENT.models.generate_content_stream(
+                    model=GEMINI_MODEL_DEFAULT,
+                    contents=prompt,
+                    config=generation_config
+                )
+
+                for chunk in response_stream:
+                    if hasattr(chunk, "candidates") and chunk.candidates:
+                        for candidate in chunk.candidates:
+                            if hasattr(candidate, "content") and hasattr(candidate.content, "parts"):
+                                for part in candidate.content.parts:
+                                    thought = getattr(part, "thought", None)
+                                    text = getattr(part, "text", "")
+                                    if thought is True and text:
+                                        thinking_parts.append(text)
+                                    elif text:
+                                        response_parts.append(text)
+
+                return "".join(thinking_parts), "".join(response_parts)
+
+            thinking_text, response_text = await asyncio.to_thread(_stream_with_thinking)
+
+        else:
+            # Non-streaming mode (faster when thinking not needed)
+            response = await asyncio.to_thread(
+                lambda: _GENAI_CLIENT.models.generate_content(
+                    model=GEMINI_MODEL_DEFAULT,
+                    contents=prompt,
+                    config=generation_config
+                )
+            )
+
+            if hasattr(response, "candidates") and response.candidates:
+                candidate = response.candidates[0]
+                if hasattr(candidate, "content") and hasattr(candidate.content, "parts"):
+                    for part in candidate.content.parts:
+                        if hasattr(part, "text") and part.text:
+                            response_text += part.text
+
+        # Fallback if no response text found
+        if not response_text:
             response_text = "I apologize, but I couldn't generate a response."
 
         # Step 6: Build sources list (include both RAG results and evidence cards)
@@ -3026,6 +3079,10 @@ Provide a helpful, accurate response based on the context above. Reference speci
             "query_used": search_query,
             "model": GEMINI_MODEL_DEFAULT,
         }
+
+        # Add thinking traces if present
+        if thinking_text.strip():
+            response_data["thinking"] = thinking_text.strip()
 
         # Add context metadata if using layered context
         if context_layers:
