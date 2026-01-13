@@ -223,9 +223,12 @@ The `AIChatSidebar` component is mounted in:
 
 Both views pass a `ChatContext` object with episode info, optionally the selected claim, and the **current playback timestamp**.
 
-### Backend Endpoint
+### Backend Endpoints
 
-`POST /tools/chat_with_context/execute` in `http_server.py`:
+**Standard endpoint:** `POST /tools/chat_with_context/execute`
+**Streaming endpoint:** `POST /tools/chat_with_context/stream` (SSE)
+
+The streaming endpoint provides real-time thinking traces via Server-Sent Events:
 
 **With `use_layered_context: true` (default):**
 1. Imports and uses `context_builder.py`

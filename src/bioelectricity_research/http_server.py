@@ -1244,31 +1244,68 @@ async def http_chat_with_context_stream(request: Request):
                     max_output_tokens=2048,
                 )
 
-            # Stream response from Gemini
-            response_stream = server._GENAI_CLIENT.models.generate_content_stream(
-                model=GEMINI_MODEL_DEFAULT,
-                contents=prompt,
-                config=generation_config
-            )
+            # Use a queue to bridge sync Gemini streaming with async SSE
+            import queue
+            import threading
 
+            chunk_queue: queue.Queue = queue.Queue()
             thinking_chunks = []
             response_chunks = []
 
-            for chunk in response_stream:
-                if hasattr(chunk, "candidates") and chunk.candidates:
-                    for candidate in chunk.candidates:
-                        if hasattr(candidate, "content") and hasattr(candidate.content, "parts"):
-                            for part in candidate.content.parts:
-                                thought = getattr(part, "thought", None)
-                                text = getattr(part, "text", "")
-                                if thought is True and text:
-                                    thinking_chunks.append(text)
-                                    # Send thinking chunk immediately
-                                    yield f"event: thinking\ndata: {json.dumps({'text': text})}\n\n"
-                                elif text:
-                                    response_chunks.append(text)
-                                    # Send content chunk immediately
-                                    yield f"event: content\ndata: {json.dumps({'text': text})}\n\n"
+            def stream_gemini():
+                """Run Gemini streaming in a thread and put chunks in queue."""
+                try:
+                    response_stream = server._GENAI_CLIENT.models.generate_content_stream(
+                        model=GEMINI_MODEL_DEFAULT,
+                        contents=prompt,
+                        config=generation_config
+                    )
+                    for chunk in response_stream:
+                        if hasattr(chunk, "candidates") and chunk.candidates:
+                            for candidate in chunk.candidates:
+                                if hasattr(candidate, "content") and hasattr(candidate.content, "parts"):
+                                    for part in candidate.content.parts:
+                                        thought = getattr(part, "thought", None)
+                                        text = getattr(part, "text", "")
+                                        if thought is True and text:
+                                            chunk_queue.put(("thinking", text))
+                                        elif text:
+                                            chunk_queue.put(("content", text))
+                    chunk_queue.put(("done", None))
+                except Exception as e:
+                    chunk_queue.put(("error", str(e)))
+
+            # Start Gemini streaming in background thread
+            thread = threading.Thread(target=stream_gemini)
+            thread.start()
+
+            # Yield SSE events as chunks arrive
+            while True:
+                try:
+                    # Use timeout to allow event loop to process
+                    event_type, text = await asyncio.get_event_loop().run_in_executor(
+                        None, lambda: chunk_queue.get(timeout=0.1)
+                    )
+
+                    if event_type == "done":
+                        break
+                    elif event_type == "error":
+                        yield f"event: error\ndata: {json.dumps({'error': text})}\n\n"
+                        thread.join()
+                        return
+                    elif event_type == "thinking":
+                        thinking_chunks.append(text)
+                        yield f"event: thinking\ndata: {json.dumps({'text': text})}\n\n"
+                    elif event_type == "content":
+                        response_chunks.append(text)
+                        yield f"event: content\ndata: {json.dumps({'text': text})}\n\n"
+
+                except queue.Empty:
+                    # Queue empty, yield control and continue waiting
+                    await asyncio.sleep(0.01)
+                    continue
+
+            thread.join()
 
             # Step 7: Build sources list
             sources = []

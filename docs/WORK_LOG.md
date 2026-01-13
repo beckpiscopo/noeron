@@ -1190,6 +1190,37 @@ data: {"error": "..."}
 5. Response content begins streaming below with its own cursor
 6. When done, cursors disappear, sources appear
 
+**Bugs Fixed During Implementation:**
+
+1. **KeyError: 'episode_title'** - The SSE endpoint was using incorrect template variables (`system_prompt` instead of `episode_title`, `guest_name`, etc.). Fixed by matching the format call to `CHAT_CONTEXT_PROMPT_TEMPLATE`'s expected variables.
+
+2. **Events not streaming in real-time** - The synchronous Gemini iterator was blocking the async event loop, causing all SSE events to be batched and sent only after completion. Fixed by using a **queue-based approach**:
+   - Gemini streaming runs in a background thread via `threading.Thread`
+   - Chunks are put into a `queue.Queue` as they arrive
+   - The async generator reads from the queue using `run_in_executor` with timeout
+   - `await asyncio.sleep(0.01)` yields control when queue is empty
+
+**Final Implementation (http_server.py lines ~1247-1308):**
+```python
+# Queue bridges sync Gemini streaming with async SSE
+chunk_queue = queue.Queue()
+
+def stream_gemini():
+    for chunk in response_stream:
+        # Parse and put chunks in queue
+        chunk_queue.put(("thinking", text))  # or ("content", text)
+    chunk_queue.put(("done", None))
+
+thread = threading.Thread(target=stream_gemini)
+thread.start()
+
+while True:
+    event_type, text = await loop.run_in_executor(
+        None, lambda: chunk_queue.get(timeout=0.1)
+    )
+    yield f"event: {event_type}\ndata: {json.dumps({'text': text})}\n\n"
+```
+
 **To Test:**
 ```bash
 # Restart HTTP server
