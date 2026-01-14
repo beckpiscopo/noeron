@@ -274,6 +274,69 @@ Currently uses shadcn's `<Sheet>` component positioned on the right. Opens/close
 - Sources include both RAG results and evidence cards
 - Evidence card sources show timestamp when they appeared
 
+## Real-Time Thinking Traces
+
+The AI chat displays Gemini 3's reasoning process in real-time using SSE streaming.
+
+### How It Works
+
+```
+User sends message
+    ↓
+Frontend: fetch("/tools/chat_with_context/stream", {method: "POST"})
+    ↓
+Backend spawns thread for Gemini streaming
+    ↓
+Gemini returns chunks with thought=True (reasoning) or thought=None (response)
+    ↓
+Chunks put in queue.Queue, async generator yields SSE events
+    ↓
+Frontend ReadableStream parses events progressively
+    ↓
+UI updates: "Reasoning..." section auto-expands with live text
+    ↓
+When thinking done, response content streams below
+```
+
+### SSE Event Types
+
+| Event | Data | Description |
+|-------|------|-------------|
+| `thinking` | `{"text": "..."}` | Reasoning chunk from Gemini |
+| `content` | `{"text": "..."}` | Response content chunk |
+| `sources` | `{"sources": [...]}` | RAG sources array |
+| `done` | `{"thinking_complete": "...", "response_complete": "..."}` | Final complete texts |
+| `error` | `{"error": "..."}` | Error message |
+
+### Key Implementation Details
+
+**Backend (http_server.py):**
+- Uses `threading.Thread` to run synchronous Gemini streaming
+- `queue.Queue` bridges sync iterator with async SSE generator
+- `run_in_executor` with timeout allows event loop to flush SSE events
+- Gemini 3 requires streaming mode (`generate_content_stream()`) to return thought summaries
+
+**Frontend (use-ai-chat.ts):**
+- Uses `fetch()` with `response.body.getReader()` for streaming
+- Parses `event:` and `data:` lines from chunked buffer
+- Updates message state progressively (`isThinking`, `isStreaming` flags)
+
+**Frontend (chat-message.tsx):**
+- Auto-expands reasoning section while `isThinking=true`
+- Shows animated spinner with "Reasoning..." label
+- Pulsing cursor at end of streaming text
+
+### ChatMessage Type Extensions
+
+```typescript
+interface ChatMessage {
+  // ... existing fields
+  thinking?: string        // Accumulated reasoning text
+  isThinking?: boolean     // True while receiving thinking chunks
+  isStreaming?: boolean    // True while receiving content chunks
+}
+```
+
 ## AI Image Generation
 
 Users can generate scientific visualizations directly in the chat using Gemini 3 Pro Image.

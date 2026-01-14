@@ -3845,6 +3845,206 @@ async def generate_mini_podcast(params: GenerateMiniPodcastInput) -> dict[str, A
 
 
 # ============================================================================
+# Text-to-Speech Tools (Chat Audio)
+# ============================================================================
+
+CHAT_AUDIO_BUCKET = "chat-audio"
+DEFAULT_TTS_VOICE = "Zephyr"
+
+
+class TextToSpeechInput(BaseModel):
+    """Input for text-to-speech conversion."""
+    text: str = Field(
+        ...,
+        description="The text to convert to speech"
+    )
+    voice: str = Field(
+        default=DEFAULT_TTS_VOICE,
+        description="Voice to use for TTS (default: Zephyr)"
+    )
+
+
+async def _text_to_speech_impl(
+    text: str,
+    voice: str = DEFAULT_TTS_VOICE,
+) -> dict[str, Any]:
+    """
+    Core implementation for text-to-speech conversion using Gemini TTS.
+
+    Uses single-voice Gemini TTS to convert text to audio, then uploads
+    to Supabase Storage and returns a signed URL.
+
+    Args:
+        text: The text to convert to speech
+        voice: Voice name to use (default: Zephyr)
+
+    Returns:
+        audio_url: Signed URL to the audio file
+        duration_seconds: Approximate duration
+        voice: Voice used
+    """
+    try:
+        import base64
+        import uuid
+        import wave
+        import io
+        from datetime import datetime
+        from google.genai import types
+
+        if not text or not text.strip():
+            return {
+                "error": "Text cannot be empty",
+                "error_code": "INVALID_INPUT",
+                "audio_url": None,
+            }
+
+        print(f"[TTS] Generating audio for {len(text)} chars with voice: {voice}")
+
+        # Ensure Gemini client is initialized
+        _ensure_gemini_client_ready()
+
+        # Single-voice config (not multi-speaker like podcasts)
+        speech_config = types.SpeechConfig(
+            voice_config=types.VoiceConfig(
+                prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name=voice)
+            )
+        )
+
+        # Generate audio via Gemini TTS
+        tts_response = await asyncio.to_thread(
+            lambda: _GENAI_CLIENT.models.generate_content(
+                model=GEMINI_TTS_MODEL,
+                contents=text,
+                config=types.GenerateContentConfig(
+                    response_modalities=["AUDIO"],
+                    speech_config=speech_config,
+                )
+            )
+        )
+
+        # Extract audio data from response
+        audio_data = None
+        if hasattr(tts_response, "candidates") and tts_response.candidates:
+            candidate = tts_response.candidates[0]
+            if hasattr(candidate, "content") and hasattr(candidate.content, "parts"):
+                for part in candidate.content.parts:
+                    if hasattr(part, "inline_data") and part.inline_data:
+                        audio_data = part.inline_data.data
+                        print(f"[TTS] Got audio data: {len(audio_data) if audio_data else 0} bytes")
+                        break
+
+        if not audio_data:
+            return {
+                "error": "Failed to generate audio - TTS returned no data",
+                "error_code": "AUDIO_FAILED",
+                "audio_url": None,
+            }
+
+        # Convert PCM to WAV format (Gemini TTS outputs PCM 24kHz 16-bit mono)
+        sample_rate = 24000
+        channels = 1
+        sample_width = 2  # 16-bit
+
+        wav_buffer = io.BytesIO()
+        with wave.open(wav_buffer, 'wb') as wav_file:
+            wav_file.setnchannels(channels)
+            wav_file.setsampwidth(sample_width)
+            wav_file.setframerate(sample_rate)
+            wav_file.writeframes(audio_data if isinstance(audio_data, bytes) else base64.b64decode(audio_data))
+
+        wav_bytes = wav_buffer.getvalue()
+
+        # Calculate approximate duration
+        duration_seconds = len(audio_data) / (sample_rate * channels * sample_width)
+        print(f"[TTS] Audio duration: {duration_seconds:.1f} seconds")
+
+        # Upload to Supabase Storage
+        db = _get_supabase_client()
+
+        timestamp_str = datetime.now().strftime("%Y%m%d_%H%M%S")
+        unique_id = str(uuid.uuid4())[:8]
+        filename = f"{timestamp_str}_{unique_id}.wav"
+
+        print(f"[TTS] Uploading to storage: {filename}")
+
+        try:
+            upload_result = db.client.storage.from_(CHAT_AUDIO_BUCKET).upload(
+                path=filename,
+                file=wav_bytes,
+                file_options={"content-type": "audio/wav"}
+            )
+
+            if hasattr(upload_result, 'path'):
+                print(f"[TTS] Upload successful: {upload_result.path}")
+            elif isinstance(upload_result, dict) and upload_result.get("error"):
+                return {
+                    "error": f"Failed to upload audio: {upload_result.get('error')}",
+                    "error_code": "UPLOAD_FAILED",
+                    "audio_url": None,
+                }
+        except Exception as upload_error:
+            return {
+                "error": f"Failed to upload audio to storage: {str(upload_error)}",
+                "error_code": "UPLOAD_FAILED",
+                "audio_url": None,
+            }
+
+        # Get signed URL (24h expiry for private bucket)
+        signed_url_response = db.client.storage.from_(CHAT_AUDIO_BUCKET).create_signed_url(
+            path=filename,
+            expires_in=86400  # 24 hours
+        )
+
+        if isinstance(signed_url_response, dict) and signed_url_response.get("signedURL"):
+            audio_url = signed_url_response["signedURL"]
+        elif hasattr(signed_url_response, 'signed_url'):
+            audio_url = signed_url_response.signed_url
+        else:
+            # Fallback to public URL if signed URL fails
+            audio_url = db.client.storage.from_(CHAT_AUDIO_BUCKET).get_public_url(filename)
+
+        print(f"[TTS] Audio URL: {audio_url}")
+
+        return {
+            "audio_url": audio_url,
+            "duration_seconds": round(duration_seconds, 1),
+            "voice": voice,
+            "storage_path": filename,
+        }
+
+    except Exception as e:
+        import traceback
+        print(f"[TTS] Error: {e}")
+        traceback.print_exc()
+        return {
+            "error": f"Error generating audio: {str(e)}",
+            "error_code": "UNKNOWN",
+            "audio_url": None,
+        }
+
+
+@mcp.tool()
+async def text_to_speech(params: TextToSpeechInput) -> dict[str, Any]:
+    """
+    Convert text to speech using Gemini TTS.
+
+    Generates audio from the provided text using a natural-sounding voice.
+    The audio is uploaded to Supabase Storage and a signed URL is returned.
+
+    Use this to provide audio playback of AI chat responses.
+
+    Returns:
+        audio_url: Signed URL to the audio file (24h expiry)
+        duration_seconds: Approximate duration of the audio
+        voice: Voice used for synthesis
+    """
+    return await _text_to_speech_impl(
+        text=params.text,
+        voice=params.voice,
+    )
+
+
+# ============================================================================
 # Taxonomy Cluster Tools
 # ============================================================================
 

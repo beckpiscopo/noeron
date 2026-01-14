@@ -107,7 +107,7 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
 
             <div className="animate-fade-in-up" style={{ animationDelay: "0.2s" }}>
               <p className="text-xl md:text-2xl font-light leading-relaxed text-foreground mb-3">
-                The <i>knowledge layer</i> for podcasts.
+                The <i className="text-[var(--golden-chestnut)]">knowledge layer</i> for podcasts.
               </p>
               <p className="text-base md:text-lg font-light leading-relaxed text-foreground/70 mb-12">
               Real-time synchronization between conversation and research.
@@ -142,9 +142,9 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
                 <span className="relative z-10">Try Live Demo</span>
                 <div className="absolute inset-0 bg-gradient-to-r from-[var(--golden-chestnut)]/0 via-[var(--golden-chestnut)]/10 to-[var(--golden-chestnut)]/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
               </button>
-              <button className="btn-noeron btn-noeron-secondary flex items-center gap-2.5 group">
-                <Play className="w-3 h-3 fill-current group-hover:scale-110 transition-transform" />
-                <span>Demo Video</span>
+              <button className="btn-noeron btn-noeron-secondary flex items-center gap-2 group">
+                <Play className="w-4 h-4 fill-current group-hover:scale-110 transition-transform inline-block align-middle" />
+                <span className="inline-block align-middle">Demo Video</span>
                 <span className="mono text-xs opacity-60">3M</span>
               </button>
             </div>
@@ -153,141 +153,153 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
         </section>
 
         {/* Section 2: The Problem */}
-        <section className="min-w-[100vw] h-screen flex flex-col justify-start items-center px-6 md:px-[60px] pt-[120px] pb-[80px] relative overflow-y-auto bg-background">
+        <section className="min-w-[100vw] h-screen flex flex-col justify-center items-center px-6 md:px-[60px] pt-[60px] pb-[60px] relative overflow-hidden bg-background">
           {/* Enhanced grid background */}
           <div className="absolute inset-0 opacity-[0.15]" style={{
             backgroundImage: 'linear-gradient(to right, var(--parchment) 1px, transparent 1px), linear-gradient(to bottom, var(--parchment) 1px, transparent 1px)',
-            backgroundSize: '60px 60px'
+            backgroundSize: '40px 40px'
           }} />
           <div className="absolute inset-0 bg-gradient-to-b from-background via-transparent to-background" />
 
-          <div className="max-w-[1200px] w-full relative z-10">
+          <div className="max-w-[1400px] w-full relative z-10">
             {/* Header row with stronger hierarchy */}
-            <div className="flex justify-between items-start mb-6">
+            <div className="flex justify-between items-start mb-4">
               <div>
-                <div className="mono text-sm tracking-[0.2em] text-[var(--golden-chestnut)] mb-4 font-medium">
+                <div className="mono text-xs tracking-[0.2em] text-[var(--golden-chestnut)] mb-2 font-medium">
                   SEC. 02 // SYSTEM DIAGNOSTICS
                 </div>
-                <h2 className="display text-5xl md:text-6xl font-normal tracking-[-1px] text-foreground">THE PROBLEM</h2>
+                <h2 className="text-4xl md:text-5xl tracking-[-1px] text-foreground" style={{ fontFamily: "var(--font-space-grotesk), 'Space Grotesk', sans-serif", fontWeight: 700 }}>THE PROBLEM</h2>
               </div>
               <div className="text-right hidden md:block">
-                <div className="inline-block border-2 border-[#be5a38] bg-[#be5a38]/10 px-4 py-2 shadow-[0_0_20px_rgba(216,71,39,0.3)]">
-                  <div className="mono text-xs text-[#be5a38]/70 tracking-wider">STATUS</div>
-                  <div className="mono text-lg text-[#be5a38] font-bold tracking-wider">CRITICAL</div>
+                <div className="inline-block border-2 border-[#be5a38] bg-[#be5a38]/10 px-3 py-1.5 shadow-[0_0_20px_rgba(216,71,39,0.3)]">
+                  <div className="mono text-[10px] text-[#be5a38]/70 tracking-wider">STATUS</div>
+                  <div className="mono text-base text-[#be5a38] font-bold tracking-wider">CRITICAL</div>
                 </div>
               </div>
             </div>
 
             {/* Main content grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_1fr] gap-10 mt-8 items-start">
+            <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_0.8fr] gap-6 mt-4 items-start">
               {/* Left column */}
               <div>
-                <h3 className="text-3xl md:text-4xl font-normal mb-6 leading-tight text-foreground">
+                <h3 className="text-2xl md:text-3xl mb-4 leading-tight text-foreground">
                   The Information Gap in <span className="text-[var(--golden-chestnut)]">Audio Media</span>
                 </h3>
 
-                <p className="text-lg leading-[1.8] text-foreground/90 mb-8 border-l-4 border-[var(--golden-chestnut)] pl-6 bg-[var(--golden-chestnut)]/5 py-4 pr-4">
+                <p className="text-base leading-[1.7] text-foreground/90 mb-5 border-l-4 border-[var(--golden-chestnut)] pl-4 bg-[var(--golden-chestnut)]/5 py-3 pr-3">
                   While podcast consumption is at an all-time high, the bridge between spoken assertions and verifiable facts remains nonexistent. Listeners are passive consumers of unverified data streams, creating a critical vulnerability in global information architecture.
                 </p>
 
                 {/* Stats box - enhanced with shadows and stronger borders */}
-                <div className="bg-card border-2 border-foreground/20 p-6 mb-8 shadow-[0_4px_24px_rgba(0,0,0,0.4)]">
-                  <div className="grid grid-cols-2 gap-6">
-                    <div className="bg-card p-5 border border-foreground/10">
-                      <div className="mono text-xs tracking-[0.15em] text-foreground/40 uppercase mb-3">Monthly Listeners</div>
-                      <div className="mono text-4xl font-bold text-foreground mb-2">150M+</div>
-                      <div className="mono text-xs text-[var(--golden-chestnut)]">Global Audio Data</div>
+                <div className="bg-card border-2 border-foreground/20 p-4 mb-5 shadow-[0_4px_24px_rgba(0,0,0,0.4)]">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-card p-3 border border-foreground/10 text-center">
+                      <div className="mono text-[10px] tracking-[0.15em] text-foreground/40 uppercase mb-2">Monthly Listeners</div>
+                      <div className="mono text-3xl font-bold text-foreground mb-1">150M+</div>
+                      <div className="mono text-[10px] text-[var(--golden-chestnut)]">Global Audio Data</div>
                     </div>
-                    <div className="bg-card p-5 border border-[#be5a38]/30">
-                      <div className="mono text-xs tracking-[0.15em] text-foreground/40 uppercase mb-3">Real-Time Verification</div>
-                      <div className="mono text-4xl font-bold text-[#be5a38] mb-2">0.0%</div>
-                      <div className="mono text-xs text-[#be5a38]/70">System Failure</div>
+                    <div className="bg-card p-3 border border-[#be5a38]/30 text-center">
+                      <div className="mono text-[10px] tracking-[0.15em] text-foreground/40 uppercase mb-2">Real-Time Verification</div>
+                      <div className="mono text-3xl font-bold text-[#be5a38] mb-1">0.0%</div>
+                      <div className="mono text-[10px] text-[#be5a38]/70">System Failure</div>
                     </div>
                   </div>
                 </div>
 
-                {/* Diagnostic Report - enhanced cards */}
-                <div className="mono text-sm tracking-[0.2em] text-[var(--golden-chestnut)] uppercase mb-5 font-medium">
+                {/* Diagnostic Report - horizontal layout */}
+                <div className="mono text-xs tracking-[0.2em] text-[var(--golden-chestnut)] uppercase mb-3 font-medium">
                   Failure Points
                 </div>
 
-                <div className="space-y-4">
+                <div className="grid grid-cols-3 gap-3">
                   {[
-                    { num: "01", title: "Citation Void", desc: "Audio content lacks immediate, clickable citations, leaving claims stranded without proof.", color: "golden-chestnut" },
-                    { num: "02", title: "Hallucination Risk", desc: "AI transcription and summary tools amplify errors rather than correcting them.", color: "D84727" },
-                    { num: "03", title: "Ephemeral Context", desc: "Context is lost the moment audio is played. Historical data becomes inaccessible.", color: "golden-chestnut" },
+                    { num: "01", title: "Citation Void", desc: "Audio lacks clickable citations, leaving claims without proof.", color: "golden-chestnut" },
+                    { num: "02", title: "Hallucination Risk", desc: "AI tools amplify errors rather than correcting them.", color: "D84727" },
+                    { num: "03", title: "Ephemeral Context", desc: "Context lost the moment audio plays. Data inaccessible.", color: "golden-chestnut" },
                   ].map((item) => (
-                    <div key={item.num} className="bg-card border border-foreground/10 p-5 flex gap-5 items-start hover:border-foreground/30 transition-colors shadow-[0_2px_12px_rgba(0,0,0,0.3)]">
-                      <div className={`w-12 h-12 flex-shrink-0 flex items-center justify-center border-2 ${item.color === 'D84727' ? 'border-[#be5a38] bg-[#be5a38]/10' : 'border-[var(--golden-chestnut)] bg-[var(--golden-chestnut)]/10'}`}>
-                        <span className={`mono text-lg font-bold ${item.color === 'D84727' ? 'text-[#be5a38]' : 'text-[var(--golden-chestnut)]'}`}>{item.num}</span>
+                    <div key={item.num} className={`bg-card border border-foreground/10 p-3 transition-all duration-300 shadow-[0_2px_12px_rgba(0,0,0,0.3)] hover:-translate-y-1 hover:shadow-[0_8px_24px_rgba(0,0,0,0.4)] ${item.color === 'D84727' ? 'hover:shadow-[0_8px_24px_rgba(190,90,56,0.3)]' : 'hover:shadow-[0_8px_24px_rgba(253,169,43,0.2)]'} hover:border-foreground/30`}>
+                      <div className={`w-8 h-8 flex-shrink-0 flex items-center justify-center border-2 mb-2 ${item.color === 'D84727' ? 'border-[#be5a38] bg-[#be5a38]/10' : 'border-[var(--golden-chestnut)] bg-[var(--golden-chestnut)]/10'}`}>
+                        <span className={`mono text-sm font-bold ${item.color === 'D84727' ? 'text-[#be5a38]' : 'text-[var(--golden-chestnut)]'}`}>{item.num}</span>
                       </div>
-                      <div>
-                        <div className="text-lg font-medium text-foreground mb-1">{item.title}</div>
-                        <p className="text-base text-foreground/60 leading-relaxed">{item.desc}</p>
-                      </div>
+                      <div className="text-sm font-medium text-foreground mb-1">{item.title}</div>
+                      <p className="text-xs text-foreground/60 leading-relaxed">{item.desc}</p>
                     </div>
                   ))}
                 </div>
               </div>
 
               {/* Right column - Signal Loss Diagram - HERO treatment */}
-              <div className="border-2 border-foreground/20 bg-card p-8 relative hidden lg:block shadow-[0_8px_32px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.05)]">
-                <div className="mono text-sm tracking-[0.2em] text-[var(--golden-chestnut)] mb-8 font-medium">
+              <div className="border-2 border-foreground/20 bg-card p-5 relative hidden lg:block shadow-[0_8px_32px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.05)]">
+                <div className="mono text-xs tracking-[0.2em] text-[var(--golden-chestnut)] mb-4 font-medium">
                   FIG 1.1 // SIGNAL LOSS
                 </div>
 
                 {/* Diagram container */}
-                <div className="relative h-[360px]">
+                <div className="relative h-[280px]">
+                  {/* Animated dashed line styles */}
+                  <style>{`
+                    @keyframes dashMove {
+                      0% { stroke-dashoffset: 0; }
+                      100% { stroke-dashoffset: -28; }
+                    }
+                    @keyframes pulse {
+                      0%, 100% { opacity: 1; box-shadow: 0 0 20px rgba(190,90,56,0.4); }
+                      50% { opacity: 0.85; box-shadow: 0 0 35px rgba(190,90,56,0.6); }
+                    }
+                    .animate-dash { animation: dashMove 1s linear infinite; }
+                    .animate-pulse-glow { animation: pulse 2s ease-in-out infinite; }
+                  `}</style>
+
                   {/* Enhanced grid */}
                   <div className="absolute inset-0 opacity-30" style={{
                     backgroundImage: 'linear-gradient(to right, var(--parchment) 1px, transparent 1px), linear-gradient(to bottom, var(--parchment) 1px, transparent 1px)',
-                    backgroundSize: '30px 30px'
+                    backgroundSize: '15px 15px'
                   }} />
 
-                  {/* Audio Input box - LARGER */}
-                  <div className="absolute top-4 left-1/2 -translate-x-1/2">
-                    <div className="w-24 h-24 border-2 border-[var(--golden-chestnut)] bg-background flex items-center justify-center shadow-[0_0_30px_rgba(253,169,43,0.3)]">
-                      <svg className="w-10 h-10 text-[var(--golden-chestnut)]" fill="currentColor" viewBox="0 0 24 24">
+                  {/* Audio Input box - positioned for line alignment */}
+                  <div className="absolute top-4 left-1/2 -translate-x-1/2 flex flex-col items-center">
+                    <div className="w-16 h-16 border-2 border-[var(--golden-chestnut)] bg-background flex items-center justify-center shadow-[0_0_30px_rgba(253,169,43,0.3)]">
+                      <svg className="w-7 h-7 text-[var(--golden-chestnut)]" fill="currentColor" viewBox="0 0 24 24">
                         <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
                         <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
                       </svg>
                     </div>
-                    <div className="mono text-sm text-center mt-3 text-foreground uppercase tracking-wider font-medium">Audio Input</div>
+                    <div className="mono text-xs text-center mt-2 text-foreground uppercase tracking-wider font-medium">Audio Input</div>
                     {/* RAW_DATA label */}
-                    <div className="absolute -right-24 top-1/2 -translate-y-1/2 flex items-center gap-2">
-                      <div className="w-12 h-[2px] bg-[var(--golden-chestnut)]" />
-                      <span className="mono text-sm text-[var(--golden-chestnut)] font-medium">RAW_DATA</span>
+                    <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 flex items-center gap-1">
+                      <div className="w-8 h-[2px] bg-[var(--golden-chestnut)]" />
+                      <span className="mono text-xs text-[var(--golden-chestnut)] font-medium whitespace-nowrap">RAW_DATA</span>
                     </div>
                   </div>
 
-                  {/* Disconnected label - PROMINENT */}
+                  {/* Disconnected label - PROMINENT with pulse */}
                   <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
-                    <div className="border-2 border-[#be5a38] px-6 py-3 bg-[#be5a38]/10 shadow-[0_0_30px_rgba(216,71,39,0.4)]">
-                      <span className="mono text-base text-[#be5a38] tracking-wider font-bold">DISCONNECTED</span>
+                    <div className="border-2 border-[#be5a38] px-4 py-2 bg-[#be5a38]/10 animate-pulse-glow">
+                      <span className="mono text-sm text-[#be5a38] tracking-wider font-bold">DISCONNECTED</span>
                     </div>
                   </div>
 
-                  {/* Thicker dashed connection lines */}
+                  {/* Animated dashed connection lines */}
                   <svg className="absolute inset-0 w-full h-full" style={{ pointerEvents: 'none' }}>
-                    <line x1="50%" y1="130" x2="50%" y2="155" stroke="#be5a38" strokeOpacity="0.6" strokeWidth="3" strokeDasharray="8 6" />
-                    <line x1="50%" y1="205" x2="50%" y2="250" stroke="#be5a38" strokeOpacity="0.6" strokeWidth="3" strokeDasharray="8 6" />
+                    <line className="animate-dash" x1="50%" y1="100" x2="50%" y2="125" stroke="#be5a38" strokeOpacity="0.6" strokeWidth="3" strokeDasharray="8 6" />
+                    <line className="animate-dash" x1="50%" y1="155" x2="50%" y2="195" stroke="#be5a38" strokeOpacity="0.6" strokeWidth="3" strokeDasharray="8 6" />
                   </svg>
 
-                  {/* Truth Layer box - LARGER, faded */}
-                  <div className="absolute bottom-4 left-1/2 -translate-x-1/2">
-                    <div className="w-24 h-24 border-2 border-dashed border-foreground/30 bg-background/50 flex items-center justify-center">
-                      <svg className="w-8 h-8 text-foreground/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  {/* Truth Layer box - faded, positioned for line alignment */}
+                  <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex flex-col items-center">
+                    <div className="w-16 h-16 border-2 border-dashed border-foreground/30 bg-background/50 flex items-center justify-center">
+                      <svg className="w-6 h-6 text-foreground/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                       </svg>
                     </div>
-                    <div className="mono text-sm text-center mt-3 text-foreground/40 uppercase tracking-wider">Truth Layer</div>
+                    <div className="mono text-xs text-center mt-2 text-foreground/40 uppercase tracking-wider">Truth Layer</div>
                   </div>
 
-                  {/* Corner markers - larger */}
-                  <div className="absolute top-0 right-0 w-6 h-6 border-t-2 border-r-2 border-foreground/40" />
-                  <div className="absolute bottom-0 left-0 w-6 h-6 border-b-2 border-l-2 border-foreground/40" />
-                  <div className="absolute top-0 left-0 w-6 h-6 border-t-2 border-l-2 border-foreground/40" />
-                  <div className="absolute bottom-0 right-0 w-6 h-6 border-b-2 border-r-2 border-foreground/40" />
+                  {/* Corner markers */}
+                  <div className="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-foreground/40" />
+                  <div className="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-foreground/40" />
+                  <div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-foreground/40" />
+                  <div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-foreground/40" />
                 </div>
               </div>
             </div>
@@ -299,7 +311,7 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
           {/* Enhanced grid background */}
           <div className="absolute inset-0 opacity-[0.12]" style={{
             backgroundImage: 'linear-gradient(to right, var(--parchment) 1px, transparent 1px), linear-gradient(to bottom, var(--parchment) 1px, transparent 1px)',
-            backgroundSize: '50px 50px'
+            backgroundSize: '12px 12px'
           }} />
           <div className="absolute inset-0 bg-gradient-to-b from-background via-transparent to-background" />
 
@@ -310,7 +322,7 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
                 <div className="mono text-sm tracking-[0.2em] text-[var(--golden-chestnut)] mb-4 font-medium">
                   SEC. 03 // PROCESS FLOW
                 </div>
-                <h2 className="display text-5xl md:text-6xl font-normal tracking-[-1px] text-foreground">HOW IT WORKS</h2>
+                <h2 className="text-5xl md:text-6xl tracking-[-1px] text-foreground" style={{ fontFamily: "var(--font-space-grotesk), 'Space Grotesk', sans-serif", fontWeight: 700 }}>HOW IT WORKS</h2>
               </div>
               <div className="text-right hidden md:block">
                 <div className="inline-block border-2 border-[var(--golden-chestnut)] bg-[var(--golden-chestnut)]/10 px-4 py-2">
@@ -453,7 +465,7 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
                 <div className="mono text-sm tracking-[0.1em] text-[#D84727] dark:text-[var(--golden-chestnut)] mb-4 font-medium">
                   SEC. 04 // AI ENGINE
                 </div>
-                <h2 className="display text-5xl md:text-6xl font-normal tracking-[-1px] text-[#2C3138] dark:text-foreground">POWERED BY GEMINI 3</h2>
+                <h2 className="text-5xl md:text-6xl tracking-[-1px] text-[#2C3138] dark:text-foreground" style={{ fontFamily: "var(--font-space-grotesk), 'Space Grotesk', sans-serif", fontWeight: 700 }}>POWERED BY GEMINI 3</h2>
               </div>
               <div className="text-right hidden md:block">
                 <div className="inline-block bg-[#D84727] dark:bg-[var(--golden-chestnut)]/10 dark:border-2 dark:border-[var(--golden-chestnut)] px-5 py-3 rounded-lg shadow-lg">
@@ -577,7 +589,7 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
           {/* Enhanced grid background */}
           <div className="absolute inset-0 opacity-[0.12]" style={{
             backgroundImage: 'linear-gradient(to right, var(--parchment) 1px, transparent 1px), linear-gradient(to bottom, var(--parchment) 1px, transparent 1px)',
-            backgroundSize: '50px 50px'
+            backgroundSize: '12px 12px'
           }} />
           <div className="absolute inset-0 bg-gradient-to-b from-background via-transparent to-background" />
 
@@ -588,7 +600,7 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
                 <div className="mono text-sm tracking-[0.2em] text-[var(--golden-chestnut)] mb-4 font-medium">
                   SEC. 05 // SYSTEM ARCHITECTURE
                 </div>
-                <h2 className="display text-5xl md:text-6xl font-normal tracking-[-1px] text-foreground">TECHNICAL STACK</h2>
+                <h2 className="text-5xl md:text-6xl tracking-[-1px] text-foreground" style={{ fontFamily: "var(--font-space-grotesk), 'Space Grotesk', sans-serif", fontWeight: 700 }}>TECHNICAL STACK</h2>
               </div>
               <div className="text-right hidden md:block">
                 <div className="inline-block border-2 border-[var(--golden-chestnut)] bg-[var(--golden-chestnut)]/10 px-4 py-2">
@@ -696,7 +708,7 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
         <section className="min-w-[100vw] h-screen flex flex-col justify-center items-center px-6 md:px-[60px] py-[100px] pb-[120px] relative overflow-y-auto bg-background">
           <div className="blueprint-pattern" />
           <div className="max-w-[1200px] w-full relative z-10">
-            <h2 className="display text-4xl md:text-5xl font-normal mb-10 tracking-[-0.5px] text-center">EXPERIENCE IT YOURSELF</h2>
+            <h2 className="text-4xl md:text-5xl mb-10 tracking-[-0.5px] text-center" style={{ fontFamily: "var(--font-space-grotesk), 'Space Grotesk', sans-serif", fontWeight: 700 }}>EXPERIENCE IT YOURSELF</h2>
             <div className="text-center mt-[60px]">
               <div className="w-full max-w-[900px] aspect-video bg-[rgba(29,30,32,0.4)] border border-foreground/20 flex items-center justify-center mx-auto mb-10 mono text-sm text-foreground/50">
                 [ 16:9 DEMO VIDEO PLACEHOLDER ]
@@ -723,7 +735,7 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
         {/* Section 7: Market Opportunity */}
         <section className="min-w-[100vw] h-screen flex flex-col justify-center items-center px-6 md:px-[60px] py-[100px] pb-[120px] relative overflow-y-auto bg-card text-foreground">
           <div className="max-w-[1200px] w-full relative z-10">
-            <h2 className="display text-4xl md:text-5xl font-normal mb-10 tracking-[-0.5px] text-foreground">THE OPPORTUNITY</h2>
+            <h2 className="text-4xl md:text-5xl mb-10 tracking-[-0.5px] text-foreground" style={{ fontFamily: "var(--font-space-grotesk), 'Space Grotesk', sans-serif", fontWeight: 700 }}>THE OPPORTUNITY</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-10 mt-[60px]">
               {[
                 { stat: "10-30M", label: "Monthly addressable listeners" },
@@ -755,7 +767,7 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
         <section className="min-w-[100vw] h-screen flex flex-col justify-center items-center px-6 md:px-[60px] py-[100px] pb-[120px] relative overflow-y-auto bg-background">
           <div className="blueprint-pattern" />
           <div className="max-w-[1200px] w-full relative z-10">
-            <h2 className="display text-4xl md:text-5xl font-normal mb-10 tracking-[-0.5px]">WHAT'S NEXT</h2>
+            <h2 className="text-4xl md:text-5xl mb-10 tracking-[-0.5px]" style={{ fontFamily: "var(--font-space-grotesk), 'Space Grotesk', sans-serif", fontWeight: 700 }}>WHAT'S NEXT</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-10 mt-[60px]">
               {[
                 { quarter: "Q1 2025", title: "CORE DEMO", items: ["500+ paper corpus", "Gemini 3 integration", "75% accuracy"] },

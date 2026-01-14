@@ -627,6 +627,7 @@ export default function Home() {
         onStartListening={handleStartListening}
         onBack={handleBackToLibrary}
         onBookmarksClick={handleGoToNotebookLibrary}
+        onViewPaper={handleViewPaper}
       />
     )
   }
@@ -684,6 +685,7 @@ export default function Home() {
       onTimeUpdate={handleTimeUpdate}
       onExploreGraph={handleExploreGraph}
       onBookmarksClick={handleGoToNotebookLibrary}
+      onViewPaper={handleViewPaper}
     />
   )
 }

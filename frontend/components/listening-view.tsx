@@ -11,6 +11,26 @@ import { ClaimBookmarkButton } from "./bookmark-button"
 import { AIChatSidebar } from "./ai-chat"
 import type { ChatContext } from "@/lib/chat-types"
 
+// =============================================================================
+// CORNER BRACKET FRAME (matches episode-overview.tsx)
+// =============================================================================
+
+function CornerBrackets({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+  return (
+    <div className={`relative ${className}`}>
+      {/* Top-left corner */}
+      <div className="absolute -top-px -left-px w-4 h-4 border-l border-t border-[var(--golden-chestnut)]/40" />
+      {/* Top-right corner */}
+      <div className="absolute -top-px -right-px w-4 h-4 border-r border-t border-[var(--golden-chestnut)]/40" />
+      {/* Bottom-left corner */}
+      <div className="absolute -bottom-px -left-px w-4 h-4 border-l border-b border-[var(--golden-chestnut)]/40" />
+      {/* Bottom-right corner */}
+      <div className="absolute -bottom-px -right-px w-4 h-4 border-r border-b border-[var(--golden-chestnut)]/40" />
+      {children}
+    </div>
+  )
+}
+
 export interface ListeningEpisode {
   id: string
   title: string
@@ -74,6 +94,7 @@ interface ListeningViewProps {
   onAskQuestion: (question: string) => void
   onTimeUpdate: (time: number) => void
   onBookmarksClick?: () => void
+  onViewPaper?: (paperId: string) => void
 }
 
 function formatTime(seconds: number): string {
@@ -145,11 +166,12 @@ function CurrentClaimCard({ claim, currentTimeMs, episodeId, onDiveDeeper, onVie
 
   return (
     <div className="mb-8">
-      <div
-        draggable
-        onDragStart={(e) => onDragStart?.(e, claim)}
-        className="bg-card rounded-none p-8 shadow-[0_2px_8px_rgba(0,0,0,0.08)] transition-all duration-200 relative hover:shadow-[0_8px_24px_rgba(0,0,0,0.15)] hover:-translate-y-1 border border-border cursor-grab active:cursor-grabbing"
-      >
+      <CornerBrackets className="bg-card/30">
+        <div
+          draggable
+          onDragStart={(e) => onDragStart?.(e, claim)}
+          className="p-8 transition-all duration-200 relative hover:shadow-[0_8px_24px_rgba(0,0,0,0.15)] hover:-translate-y-1 cursor-grab active:cursor-grabbing"
+        >
         {/* Top row: Claim type left, Timestamp + Bookmark right */}
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
@@ -218,7 +240,8 @@ function CurrentClaimCard({ claim, currentTimeMs, episodeId, onDiveDeeper, onVie
             </Button>
           </div>
         </div>
-      </div>
+        </div>
+      </CornerBrackets>
     </div>
   )
 }
@@ -242,16 +265,17 @@ function PastClaimCard({ claim, relativeTime, isSelected, episodeId, onSelect, o
 
   return (
     <div>
-      <div
-        draggable
-        onDragStart={(e) => onDragStart?.(e, claim)}
-        onClick={onSelect}
-        className={`bg-card rounded-none p-6 cursor-grab active:cursor-grabbing transition-all duration-200 border border-border ${
-          isSelected
-            ? "shadow-[0_8px_30px_rgba(190,124,77,0.15)] -translate-y-1 border-[var(--golden-chestnut)]/30"
-            : "shadow-[0_2px_8px_rgba(0,0,0,0.08)] hover:shadow-[0_8px_24px_rgba(0,0,0,0.15)] hover:-translate-y-1"
-        }`}
-      >
+      <CornerBrackets className={`bg-card/30 ${isSelected ? "shadow-[0_8px_30px_rgba(190,124,77,0.15)]" : ""}`}>
+        <div
+          draggable
+          onDragStart={(e) => onDragStart?.(e, claim)}
+          onClick={onSelect}
+          className={`p-6 cursor-grab active:cursor-grabbing transition-all duration-200 ${
+            isSelected
+              ? "-translate-y-1"
+              : "hover:shadow-[0_8px_24px_rgba(0,0,0,0.15)] hover:-translate-y-1"
+          }`}
+        >
         {/* Top row: Claim type left, Timestamp + Bookmark right */}
         <div className="flex items-center justify-between mb-4">
           <span className="text-xs font-bold text-foreground/50 uppercase tracking-wider">
@@ -319,7 +343,8 @@ function PastClaimCard({ claim, relativeTime, isSelected, episodeId, onSelect, o
             )}
           </div>
         </div>
-      </div>
+        </div>
+      </CornerBrackets>
     </div>
   )
 }
@@ -332,6 +357,7 @@ export function ListeningView({
   onAskQuestion,
   onTimeUpdate,
   onBookmarksClick,
+  onViewPaper,
 }: ListeningViewProps) {
   const [isPlaying, setIsPlaying] = useState(false)
   const [question, setQuestion] = useState("")
@@ -620,13 +646,13 @@ export function ListeningView({
           <div className="p-6 w-full flex flex-col justify-center min-h-full">
             {/* Episode Artwork */}
             <div className="mb-6">
-              <div className="aspect-square w-full rounded-none shadow-lg overflow-hidden border border-border">
+              <CornerBrackets className="aspect-square w-full shadow-lg overflow-hidden">
                 <img
                   src="/images/wavelengths.jpg"
                   alt={episode.title}
                   className="h-full w-full object-cover"
                 />
-              </div>
+              </CornerBrackets>
             </div>
 
             {/* Episode Info */}
@@ -725,13 +751,12 @@ export function ListeningView({
           <div className="max-w-4xl mx-auto px-8 py-8">
             {/* Header */}
             <div className="text-center mb-12">
-              <div className="inline-flex flex-col items-center gap-3">
-                <div className="h-px w-16 bg-foreground/20" />
-                <h1 className="display text-3xl md:text-2xl font-semibold text-[var(--golden-chestnut)]">
-                  Live Research Stream
+              <CornerBrackets className="inline-flex flex-col items-center gap-3 px-8 py-4">
+                <h1 className="display text-2xl font-semibold text-[var(--golden-chestnut)]">
+                  Research Stream
                 </h1>
-                <div className="h-px w-16 bg-foreground/20" />
-              </div>
+                <span className="text-[10px] mono text-foreground/40 tracking-[0.15em]">CLAIMS EXTRACTED AS YOU LISTEN</span>
+              </CornerBrackets>
             </div>
 
             {/* Current Topic - Always at Top */}
@@ -801,6 +826,7 @@ export function ListeningView({
           claim_text: droppedClaim?.distilled_claim || droppedClaim?.claim_text || currentClaim?.distilled_claim || currentClaim?.claim_text,
           current_timestamp: formatTime(episode.currentTime),  // Pass current playback position
         }}
+        onViewPaper={onViewPaper}
         onClaimDrop={handleClaimDroppedInChat}
         onClearDroppedClaim={droppedClaim ? clearDroppedClaim : undefined}
       />

@@ -1419,6 +1419,37 @@ async def http_generate_mini_podcast(request: Request):
         return JSONResponse({"error": str(e)}, status_code=500)
 
 
+@app.post("/tools/text_to_speech/execute")
+async def http_text_to_speech(request: Request):
+    """Convert text to speech using Gemini TTS.
+
+    Uses Gemini 2.5 TTS to generate natural-sounding audio from text.
+    Audio is stored in Supabase Storage and returned as a signed URL.
+
+    Use this to provide audio playback of AI chat responses.
+    """
+    try:
+        body = await request.json()
+        text = body.get("text")
+        voice = body.get("voice", "Zephyr")
+
+        if not text:
+            return JSONResponse({"error": "text is required"}, status_code=400)
+
+        from .server import _text_to_speech_impl
+
+        result = await _text_to_speech_impl(
+            text=text,
+            voice=voice,
+        )
+        return JSONResponse(result)
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
 @app.post("/tools/get_episode_summary/execute")
 async def http_get_episode_summary(request: Request):
     """Get or generate an episode summary using Gemini.

@@ -9,7 +9,7 @@
 
 :root {
   /* Font Families - Noeron Specific */
-  --font-display: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-display: var(--font-space-grotesk), 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
   --font-body-noeron: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
   --font-mono-noeron: 'IBM Plex Mono', 'Courier New', monospace;
 }
@@ -89,7 +89,7 @@ body.noeron-theme {
     linear-gradient(90deg, var(--parchment) 1px, transparent 1px),
     linear-gradient(var(--parchment) 0.5px, transparent 0.5px),
     linear-gradient(90deg, var(--parchment) 0.5px, transparent 0.5px);
-  background-size: 100px 100px, 100px 100px, 20px 20px, 20px 20px;
+  background-size: 50px 50px, 50px 50px, 10px 10px, 10px 10px;
   background-position: -1px -1px, -1px -1px, -1px -1px, -1px -1px;
   pointer-events: none;
 }

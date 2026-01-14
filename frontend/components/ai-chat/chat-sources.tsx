@@ -32,11 +32,14 @@ export function ChatSources({ sources, onViewPaper }: ChatSourcesProps) {
         {sources.map((source, index) => (
           <div
             key={`${source.paper_id}-${index}`}
-            className="bg-background/50 border border-border rounded-sm p-3 text-xs"
+            className={`bg-background/50 border border-border rounded-sm p-3 text-xs ${
+              onViewPaper ? "cursor-pointer hover:border-[var(--golden-chestnut)]/50 hover:bg-background/80 transition-colors" : ""
+            }`}
+            onClick={() => onViewPaper?.(source.paper_id)}
           >
             <div className="flex items-start justify-between gap-2">
               <div className="flex-1 min-w-0">
-                <p className="font-medium text-foreground/80 leading-snug">
+                <p className={`font-medium leading-snug ${onViewPaper ? "text-[var(--golden-chestnut)] hover:underline" : "text-foreground/80"}`}>
                   {source.paper_title}
                 </p>
                 <p className="text-foreground/50 mt-1">
@@ -44,13 +47,7 @@ export function ChatSources({ sources, onViewPaper }: ChatSourcesProps) {
                 </p>
               </div>
               {onViewPaper && (
-                <button
-                  onClick={() => onViewPaper(source.paper_id)}
-                  className="shrink-0 p-1 text-[var(--golden-chestnut)] hover:text-[var(--golden-chestnut)]/80"
-                  title="View Paper"
-                >
-                  <ExternalLink className="w-3 h-3" />
-                </button>
+                <ExternalLink className="shrink-0 w-3 h-3 text-[var(--golden-chestnut)]/60" />
               )}
             </div>
             {source.relevance_snippet && (

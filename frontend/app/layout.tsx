@@ -1,6 +1,6 @@
 import type React from "react"
 import type { Metadata } from "next"
-import { Bodoni_Moda, Manrope } from "next/font/google"
+import { Bodoni_Moda, Manrope, Space_Grotesk } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import { ThemeProvider } from "@/contexts/theme-context"
 import { BookmarkProvider } from "@/hooks/use-bookmarks"
@@ -17,6 +17,11 @@ const bodoniModa = Bodoni_Moda({
 const manrope = Manrope({
   subsets: ["latin"],
   variable: "--font-manrope",
+})
+
+const spaceGrotesk = Space_Grotesk({
+  subsets: ["latin"],
+  variable: "--font-space-grotesk",
 })
 
 export const metadata: Metadata = {
@@ -49,7 +54,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${bodoniModa.variable} ${manrope.variable} font-sans antialiased`}>
+      <body className={`${bodoniModa.variable} ${manrope.variable} ${spaceGrotesk.variable} font-sans antialiased`}>
         <ThemeProvider>
           <BookmarkProvider>
             {children}

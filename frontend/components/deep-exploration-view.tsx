@@ -33,6 +33,26 @@ import { MiniPodcastPlayer } from "./mini-podcast-player"
 import type { Paper } from "@/lib/supabase"
 import type { ChatContext, GeneratePodcastResponse } from "@/lib/chat-types"
 
+// =============================================================================
+// CORNER BRACKET FRAME (matches episode-overview.tsx)
+// =============================================================================
+
+function CornerBrackets({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+  return (
+    <div className={`relative ${className}`}>
+      {/* Top-left corner */}
+      <div className="absolute -top-px -left-px w-4 h-4 border-l border-t border-[var(--golden-chestnut)]/40" />
+      {/* Top-right corner */}
+      <div className="absolute -top-px -right-px w-4 h-4 border-r border-t border-[var(--golden-chestnut)]/40" />
+      {/* Bottom-left corner */}
+      <div className="absolute -bottom-px -left-px w-4 h-4 border-l border-b border-[var(--golden-chestnut)]/40" />
+      {/* Bottom-right corner */}
+      <div className="absolute -bottom-px -right-px w-4 h-4 border-r border-b border-[var(--golden-chestnut)]/40" />
+      {children}
+    </div>
+  )
+}
+
 interface DeepExplorationViewProps {
   episode: {
     title: string
@@ -455,7 +475,7 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
           </div>
           <button
             onClick={onBack}
-            className="btn-noeron btn-noeron-accent flex items-center gap-2 !py-2 !px-4"
+            className="flex items-center gap-2 px-4 py-2 border border-[var(--golden-chestnut)] bg-[var(--golden-chestnut)]/10 hover:bg-[var(--golden-chestnut)]/20 text-[var(--golden-chestnut)] font-medium tracking-wide transition-all"
           >
             <ArrowLeft className="w-4 h-4" />
             <span className="hidden sm:inline">Back to Podcast</span>
@@ -497,7 +517,7 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
           {/* Left Column: Core Exploration */}
           <div className="lg:col-span-8 flex flex-col gap-6">
             {/* Anchor Claim */}
-            <div className="relative overflow-hidden rounded-none bg-gradient-to-br from-card to-background border border-border shadow-lg">
+            <CornerBrackets className="relative overflow-hidden bg-gradient-to-br from-card to-background">
               <div className="blueprint-pattern" />
               <div className="absolute top-0 right-0 p-4 opacity-10">
                 <Quote className="w-36 h-36" />
@@ -533,10 +553,10 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
                   </p>
                 </div>
               </div>
-            </div>
+            </CornerBrackets>
 
             {/* Synthesis Section */}
-            <div className="bg-card border border-border rounded-none p-6 md:p-8 shadow-sm">
+            <CornerBrackets className="bg-card/30 p-6 md:p-8">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
                 <h3 className="text-xl font-bold flex items-center gap-2">
                   <Sparkles className="w-5 h-5 text-[var(--golden-chestnut)]" />
@@ -710,14 +730,14 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
                     </p>
                     <button
                       onClick={() => fetchDeepDiveSummary(synthesisMode)}
-                      className="px-6 py-2.5 bg-[var(--golden-chestnut)] hover:bg-[var(--golden-chestnut)]/90 text-background font-bold rounded-none transition-colors"
+                      className="px-6 py-3 border border-[var(--golden-chestnut)] bg-[var(--golden-chestnut)]/10 hover:bg-[var(--golden-chestnut)]/20 text-[var(--golden-chestnut)] font-bold tracking-wide transition-all"
                     >
                       Generate {synthesisMode === "simplified" ? "Simplified" : "Technical"} Summary
                     </button>
                   </div>
                 )}
               </div>
-            </div>
+            </CornerBrackets>
 
           {/* Guided Prompts */}
           <div>
@@ -761,12 +781,12 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
 
             {/* Loading State */}
             {isLoadingKG && (
-              <div className="bg-card border border-border rounded-none p-8">
+              <CornerBrackets className="bg-card/30 p-8">
                 <div className="flex flex-col items-center justify-center">
                   <Loader2 className="w-6 h-6 text-[var(--golden-chestnut)] animate-spin mb-3" />
                   <p className="text-foreground/60 text-sm">Loading knowledge graph...</p>
                 </div>
-              </div>
+              </CornerBrackets>
             )}
 
             {/* Error State */}
@@ -817,31 +837,31 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
                     />
                   </>
                 ) : (
-                  <div className="bg-card border border-border rounded-none p-6 text-center">
+                  <CornerBrackets className="bg-card/30 p-6 text-center">
                     <Network className="w-8 h-8 text-foreground/40 mx-auto mb-3" />
                     <p className="text-foreground/50 text-sm">
                       {kgSubgraph.message || "No matching entities found in knowledge graph"}
                     </p>
-                  </div>
+                  </CornerBrackets>
                 )}
               </div>
             )}
 
             {/* Initial state - prompt to load */}
             {!kgSubgraph && !isLoadingKG && !kgError && (
-              <div className="bg-card border border-border rounded-none p-8 text-center">
+              <CornerBrackets className="bg-card/30 p-8 text-center">
                 <Network className="w-10 h-10 text-foreground/40 mx-auto mb-4" />
                 <p className="text-foreground/60 text-sm mb-4">
                   Explore how concepts in this claim connect to the broader research
                 </p>
                 <button
                   onClick={fetchKGSubgraph}
-                  className="px-5 py-2 bg-[var(--golden-chestnut)] hover:bg-[var(--golden-chestnut)]/90 text-background font-bold text-sm rounded-none transition-colors inline-flex items-center gap-2"
+                  className="px-5 py-2.5 border border-[var(--golden-chestnut)] bg-[var(--golden-chestnut)]/10 hover:bg-[var(--golden-chestnut)]/20 text-[var(--golden-chestnut)] font-bold text-sm tracking-wide transition-all inline-flex items-center gap-2"
                 >
                   <Network className="w-4 h-4" />
                   Load Knowledge Graph
                 </button>
-              </div>
+              </CornerBrackets>
             )}
           </div>
         </div>
@@ -849,7 +869,7 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
         {/* Right Column: Evidence & Actions */}
         <div className="lg:col-span-4 flex flex-col gap-6">
           {/* Mini Podcast */}
-          <div className="bg-card border border-border rounded-none p-5 h-fit">
+          <CornerBrackets className="bg-card/30 p-5 h-fit">
             <div className="flex items-center gap-2 mb-4">
               <Mic className="w-5 h-5 text-[var(--golden-chestnut)]" />
               <h3 className="font-bold text-lg">Mini Podcast</h3>
@@ -862,10 +882,10 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
               onRegenerate={() => fetchMiniPodcast(true)}
               style={synthesisMode === "simplified" ? "casual" : "academic"}
             />
-          </div>
+          </CornerBrackets>
 
           {/* AI Evidence Threads */}
-          <div className="bg-card border border-border rounded-none p-5 h-fit">
+          <CornerBrackets className="bg-card/30 p-5 h-fit">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <GitBranch className="w-5 h-5 text-[var(--golden-chestnut)]" />
@@ -1084,11 +1104,11 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
                 )}
               </>
             )}
-          </div>
+          </CornerBrackets>
 
           {/* Stats */}
           <div className="grid grid-cols-2 gap-3">
-            <div className="bg-card p-3 rounded-none border border-border">
+            <CornerBrackets className="bg-card/30 p-3">
               <p className="text-foreground/50 text-[10px] uppercase font-bold tracking-wider mb-1">Confidence</p>
               <p className="text-lg font-bold flex items-center gap-1">
                 {confidenceMetrics?.confidence_level || "Unknown"}
@@ -1102,11 +1122,11 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
                   }`}
                 />
               </p>
-            </div>
-            <div className="bg-card p-3 rounded-none border border-border">
+            </CornerBrackets>
+            <CornerBrackets className="bg-card/30 p-3">
               <p className="text-foreground/50 text-[10px] uppercase font-bold tracking-wider mb-1">Consensus</p>
               <p className="text-lg font-bold">{confidenceMetrics?.consensus_percentage || 0}%</p>
-            </div>
+            </CornerBrackets>
           </div>
         </div>
       </main>

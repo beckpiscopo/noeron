@@ -17,3 +17,4 @@ COMMENT ON COLUMN claims.segment_claim_id IS
 
 
 
+

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { User, Bot, Loader2, ImageIcon, Download, BookmarkPlus, Brain, ChevronDown, ChevronRight } from "lucide-react"
+import { User, Bot, Loader2, ImageIcon, Download, BookmarkPlus, Brain, ChevronDown, ChevronRight, Volume2, Square, Copy, Check } from "lucide-react"
 import { ChatSources } from "./chat-sources"
 import { MarkdownContent } from "@/components/ui/markdown-content"
 import { Button } from "@/components/ui/button"
@@ -11,11 +11,37 @@ interface ChatMessageProps {
   message: ChatMessageType
   onViewPaper?: (paperId: string) => void
   onBookmarkImage?: (imageUrl: string, caption?: string) => void
+  onSpeak?: (text: string, messageId: string) => void
+  onStopAudio?: () => void
+  isGeneratingAudio?: boolean
+  isPlayingAudio?: boolean
+  audioMessageId?: string | null
 }
 
-export function ChatMessage({ message, onViewPaper, onBookmarkImage }: ChatMessageProps) {
+export function ChatMessage({
+  message,
+  onViewPaper,
+  onBookmarkImage,
+  onSpeak,
+  onStopAudio,
+  isGeneratingAudio,
+  isPlayingAudio,
+  audioMessageId,
+}: ChatMessageProps) {
   const isUser = message.role === "user"
   const [isThinkingExpanded, setIsThinkingExpanded] = useState(false)
+  const [copied, setCopied] = useState(false)
+
+  // Check if this message is currently being spoken
+  const isThisMessageAudio = audioMessageId === message.id
+  const isThisGenerating = isThisMessageAudio && isGeneratingAudio
+  const isThisPlaying = isThisMessageAudio && isPlayingAudio
+
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(message.content)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
 
   const handleDownloadImage = () => {
     if (message.image?.image_url) {
@@ -144,6 +170,56 @@ export function ChatMessage({ message, onViewPaper, onBookmarkImage }: ChatMessa
                       <ImageIcon className="w-3 h-3" />
                       {message.image.caption}
                     </p>
+                  )}
+                </div>
+              )}
+
+              {/* Action buttons for assistant messages */}
+              {message.content && !message.isLoading && !message.isStreaming && (
+                <div className="mt-3 pt-2 border-t border-border/30 flex items-center gap-1">
+                  {/* Copy button */}
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 w-7 p-0 text-foreground/50 hover:text-foreground hover:bg-foreground/5"
+                    onClick={handleCopy}
+                    title="Copy response"
+                  >
+                    {copied ? (
+                      <Check className="w-3.5 h-3.5 text-green-500" />
+                    ) : (
+                      <Copy className="w-3.5 h-3.5" />
+                    )}
+                  </Button>
+
+                  {/* Read aloud button */}
+                  {onSpeak && (
+                    isThisPlaying ? (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 w-7 p-0 text-[var(--golden-chestnut)] hover:text-[var(--golden-chestnut)] hover:bg-[var(--golden-chestnut)]/10"
+                        onClick={onStopAudio}
+                        title="Stop audio"
+                      >
+                        <Square className="w-3.5 h-3.5 fill-current" />
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 w-7 p-0 text-foreground/50 hover:text-foreground hover:bg-foreground/5"
+                        onClick={() => onSpeak(message.content, message.id)}
+                        disabled={isThisGenerating || isGeneratingAudio}
+                        title="Read aloud"
+                      >
+                        {isThisGenerating ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <Volume2 className="w-3.5 h-3.5" />
+                        )}
+                      </Button>
+                    )
                   )}
                 </div>
               )}

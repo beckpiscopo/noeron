@@ -94,6 +94,7 @@ interface EpisodeOverviewProps {
   onStartListening: (timestamp?: number) => void
   onBack: () => void
   onBookmarksClick?: () => void
+  onViewPaper?: (paperId: string) => void
 }
 
 // =============================================================================
@@ -809,7 +810,7 @@ function EpisodeClusterExplorer({ episodeId, onSeek }: EpisodeClusterExplorerPro
 // MAIN COMPONENT
 // =============================================================================
 
-export function EpisodeOverview({ episode, onStartListening, onBack, onBookmarksClick }: EpisodeOverviewProps) {
+export function EpisodeOverview({ episode, onStartListening, onBack, onBookmarksClick, onViewPaper }: EpisodeOverviewProps) {
   const [chatOpen, setChatOpen] = useState(true)
   const [chatWidth, setChatWidth] = useState(440)
 
@@ -1004,6 +1005,7 @@ export function EpisodeOverview({ episode, onStartListening, onBack, onBookmarks
           episode_title: episode.title,
           guest: episode.guest,
         }}
+        onViewPaper={onViewPaper}
       />
     </div>
   )
