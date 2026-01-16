@@ -11,7 +11,7 @@ sentence-transformers>=2.2.0
 
 # Database
 supabase>=2.0.0
-chromadb>=0.4.0
+# chromadb>=0.4.0  # Only needed for local dev, production uses Supabase pgvector
 
 # Text processing
 tiktoken>=0.5.0
