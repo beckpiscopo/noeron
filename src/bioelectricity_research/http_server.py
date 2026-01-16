@@ -23,6 +23,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+@app.get("/health")
+async def health_check():
+    """Health check endpoint for Railway."""
+    return {"status": "healthy"}
+
+
 @app.post("/tools/list_episodes/execute")
 async def http_list_episodes(request: Request):
     """List available episodes."""
