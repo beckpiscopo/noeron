@@ -277,7 +277,7 @@ class NoeronDB:
         Vector similarity search using pgvector via RPC function.
 
         Args:
-            query_embedding: 384-dimensional embedding vector
+            query_embedding: 768-dimensional embedding vector (Gemini text-embedding-004)
             threshold: Minimum similarity threshold (0.0-1.0)
             count: Maximum number of results
 
@@ -307,7 +307,7 @@ class NoeronDB:
         Vector similarity search with optional filters.
 
         Args:
-            query_embedding: 384-dimensional embedding vector
+            query_embedding: 768-dimensional embedding vector (Gemini text-embedding-004)
             threshold: Minimum similarity threshold
             count: Maximum number of results
             year_min: Filter papers published on or after this year

@@ -2,6 +2,9 @@
 
 Supports both ChromaDB (local) and Supabase pgvector (cloud) backends.
 Set USE_SUPABASE=true to use Supabase pgvector.
+
+Production (Supabase) uses Gemini text-embedding-004 for embeddings.
+Local dev (ChromaDB) uses sentence-transformers all-MiniLM-L6-v2.
 """
 
 from __future__ import annotations
@@ -12,6 +15,50 @@ from typing import Dict, List, Optional
 
 # Data source toggle - set to True to use Supabase pgvector
 USE_SUPABASE = os.getenv("USE_SUPABASE", "true").lower() == "true"
+
+# Gemini embedding model - 768 dimensions
+GEMINI_EMBEDDING_MODEL = "text-embedding-004"
+
+# Lazy-loaded Gemini client
+_GEMINI_CLIENT = None
+
+
+def _get_gemini_client():
+    """Get or create the Gemini client for embeddings."""
+    global _GEMINI_CLIENT
+    if _GEMINI_CLIENT is None:
+        from google import genai
+        api_key = os.environ.get("GEMINI_API_KEY")
+        if not api_key:
+            raise RuntimeError("GEMINI_API_KEY environment variable is required for embeddings")
+        _GEMINI_CLIENT = genai.Client(api_key=api_key)
+    return _GEMINI_CLIENT
+
+
+def get_gemini_embedding(text: str) -> List[float]:
+    """Generate embedding for a single text using Gemini."""
+    client = _get_gemini_client()
+    result = client.models.embed_content(
+        model=GEMINI_EMBEDDING_MODEL,
+        contents=text,
+    )
+    return result.embeddings[0].values
+
+
+def get_gemini_embeddings_batch(texts: List[str]) -> List[List[float]]:
+    """Generate embeddings for multiple texts using Gemini."""
+    client = _get_gemini_client()
+    embeddings = []
+    # Gemini has a limit on batch size, process in chunks
+    batch_size = 100
+    for i in range(0, len(texts), batch_size):
+        batch = texts[i:i + batch_size]
+        result = client.models.embed_content(
+            model=GEMINI_EMBEDDING_MODEL,
+            contents=batch,
+        )
+        embeddings.extend([e.values for e in result.embeddings])
+    return embeddings
 
 
 class VectorStore:
@@ -109,17 +156,14 @@ class SupabaseVectorStore:
 
     This class provides the same interface as VectorStore but uses
     Supabase's pgvector extension for vector similarity search.
+    Uses Gemini text-embedding-004 for embeddings (768 dimensions).
     """
 
     def __init__(self):
-        from sentence_transformers import SentenceTransformer
         from scripts.supabase_client import get_db
 
         self.db = get_db(use_service_key=True)
-
-        print("Loading embedding model...")
-        self.model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
-        print("✓ Model loaded (Supabase pgvector mode)")
+        print("✓ Supabase pgvector mode (Gemini embeddings)")
 
     def search(self, query: str, n_results: int = 5, threshold: float = 0.3):
         """Search for similar paper chunks using pgvector.
@@ -132,8 +176,8 @@ class SupabaseVectorStore:
         Returns:
             Results in ChromaDB-compatible format for backward compatibility
         """
-        # Generate embedding for query
-        query_embedding = self.model.encode([query])[0].tolist()
+        # Generate embedding for query using Gemini
+        query_embedding = get_gemini_embedding(query)
 
         # Call Supabase RPC function
         results = self.db.match_papers(
@@ -188,16 +232,19 @@ class SupabaseVectorStore:
 
         Note: For bulk ingestion, use the migration script instead.
         """
-        print(f"Adding {len(chunks)} chunks to Supabase...")
+        print(f"Adding {len(chunks)} chunks to Supabase using Gemini embeddings...")
 
         for i in range(0, len(chunks), batch_size):
             batch = chunks[i : i + batch_size]
+
+            # Extract texts for batch embedding
+            texts = [c.text if hasattr(c, 'text') else c.get('text', '') for c in batch]
+
+            # Get embeddings for entire batch
+            embeddings = get_gemini_embeddings_batch(texts)
+
             rows = []
-
-            for c in batch:
-                text = c.text if hasattr(c, 'text') else c.get('text', '')
-                embedding = self.model.encode(text).tolist()
-
+            for c, text, embedding in zip(batch, texts, embeddings):
                 rows.append({
                     "paper_id": c.paper_id if hasattr(c, 'paper_id') else c.get('paper_id'),
                     "chunk_index": c.chunk_index if hasattr(c, 'chunk_index') else c.get('chunk_index'),

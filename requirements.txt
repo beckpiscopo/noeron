@@ -7,7 +7,7 @@ python-dotenv>=1.0.0
 
 # AI/ML
 google-genai>=0.6.0
-sentence-transformers>=2.2.0
+# sentence-transformers removed - production uses Gemini text-embedding-004
 
 # Database
 supabase>=2.0.0
