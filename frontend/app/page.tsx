@@ -19,8 +19,8 @@ import type { Claim, ListeningEpisode } from "@/components/listening-view"
 import type { Episode as EpisodeMetadata } from "@/components/episode-library"
 
 // Episode data
-import episodesData from "../../data/episodes.json"
-import episodeSummariesData from "../../data/episode_summaries.json"
+import episodesData from "@/data/episodes.json"
+import episodeSummariesData from "@/data/episode_summaries.json"
 
 const fallbackEpisode: EpisodeMetadata = {
   id: "lex_325",
