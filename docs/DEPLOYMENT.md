@@ -33,7 +33,7 @@ Railway is recommended for Python backends because it supports long-running proc
 
 ### 1.2 Configure Build Settings
 
-Railway should auto-detect Python. If not, add a `railway.toml`:
+Railway should auto-detect Python and use `requirements.txt` for dependencies. The repo already includes a `railway.toml`:
 
 ```toml
 [build]
@@ -41,11 +41,13 @@ builder = "nixpacks"
 
 [deploy]
 startCommand = "python -m src.bioelectricity_research.http_server"
-healthcheckPath = "/"
+healthcheckPath = "/tools/list_episodes/execute"
 healthcheckTimeout = 300
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
 ```
 
-Or create a `Procfile` in the root:
+There's also a `Procfile` as a fallback:
 
 ```
 web: python -m src.bioelectricity_research.http_server
@@ -77,7 +79,7 @@ Railway will automatically deploy when you push to main. Note your deployment UR
 1. Go to [vercel.com](https://vercel.com) and sign in
 2. Click **Add New** → **Project**
 3. Import your GitHub repository
-4. Set **Root Directory** to `frontend`
+4. **IMPORTANT**: Set **Root Directory** to `frontend` (the Next.js app lives in a subdirectory)
 5. Framework Preset should auto-detect **Next.js**
 
 ### 2.2 Set Environment Variables
@@ -165,12 +167,18 @@ Currently it's set to `allow_origins=["*"]` which allows all origins.
 
 ### Railway build fails
 
-Make sure `pyproject.toml` or `requirements.txt` lists all dependencies:
-- `fastapi`
-- `uvicorn`
-- `google-genai`
-- `supabase`
-- `sentence-transformers`
+Railway uses `requirements.txt` for Python dependencies (not `pyproject.toml`). Ensure it includes all required packages:
+
+```
+fastapi>=0.104.0
+uvicorn>=0.24.0
+google-genai>=0.6.0
+supabase>=2.0.0
+sentence-transformers>=2.2.0
+chromadb>=0.4.0
+```
+
+If builds fail with import errors, check Railway logs for the missing package and add it to `requirements.txt`.
 
 ---
 
@@ -180,7 +188,7 @@ If Railway doesn't work for you, [Render](https://render.com) is another good op
 
 1. Create a new **Web Service**
 2. Connect your GitHub repo
-3. Set **Build Command**: `pip install -e .`
+3. Set **Build Command**: `pip install -r requirements.txt`
 4. Set **Start Command**: `python -m src.bioelectricity_research.http_server`
 5. Add environment variables (same as Railway)
 
