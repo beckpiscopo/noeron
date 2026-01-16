@@ -254,6 +254,9 @@ export default function Home() {
 
   const activeEpisode = selectedEpisode ?? fallbackEpisode
   const durationSeconds = parseDurationLabelToSeconds(activeEpisode.duration)
+  // Look up audioUrl from episodes.json (has Supabase storage URLs)
+  const episodeJsonData = (episodesData as any[]).find((ep: any) => ep.id === activeEpisode.id)
+  const audioUrl = episodeJsonData?.audioUrl || `/api/audio/${activeEpisode.id}`
   const listeningEpisode: ListeningEpisode = {
     id: activeEpisode.id,
     title: activeEpisode.title,
@@ -263,7 +266,7 @@ export default function Home() {
     durationSeconds,
     durationLabel: activeEpisode.duration,
     currentTime,
-    audioUrl: activeEpisode.audioUrl || `/api/audio/${activeEpisode.id}`,
+    audioUrl,
   }
   const explorationEpisode = {
     title: activeEpisode.title,
