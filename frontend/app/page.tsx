@@ -263,7 +263,7 @@ export default function Home() {
     durationSeconds,
     durationLabel: activeEpisode.duration,
     currentTime,
-    audioUrl: `/api/audio/${activeEpisode.id}`,
+    audioUrl: activeEpisode.audioUrl || `/api/audio/${activeEpisode.id}`,
   }
   const explorationEpisode = {
     title: activeEpisode.title,

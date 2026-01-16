@@ -16,6 +16,7 @@ export interface Episode {
   papersLinked: number
   thumbnail?: string
   description?: string
+  audioUrl?: string
 }
 
 interface EpisodeLibraryProps {
