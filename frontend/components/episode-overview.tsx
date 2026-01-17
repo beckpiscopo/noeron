@@ -749,11 +749,14 @@ function EpisodeClusterExplorer({ episodeId, onSeek }: EpisodeClusterExplorerPro
 
     async function loadPreviewClaims() {
       setLoadingPreview(true)
+      console.log('[ClusterExplorer] Loading preview claims for', clusters.length, 'clusters, episodeId:', episodeId)
       try {
         // Load 3 claims for each cluster in parallel
         const results = await Promise.all(
           clusters.map(async (cluster) => {
+            console.log('[ClusterExplorer] Fetching claims for cluster:', cluster.cluster_id, cluster.label)
             const claims = await getEpisodeClaimsByCluster(episodeId, cluster.cluster_id, 3)
+            console.log('[ClusterExplorer] Got', claims.length, 'claims for cluster', cluster.cluster_id)
             return { clusterId: cluster.cluster_id, claims }
           })
         )
@@ -762,9 +765,10 @@ function EpisodeClusterExplorer({ episodeId, onSeek }: EpisodeClusterExplorerPro
         results.forEach(({ clusterId, claims }) => {
           newCache.set(clusterId, claims)
         })
+        console.log('[ClusterExplorer] Preview claims cache populated with', newCache.size, 'entries')
         setPreviewClaimsCache(newCache)
       } catch (err) {
-        console.error("Failed to load preview claims:", err)
+        console.error("[ClusterExplorer] Failed to load preview claims:", err)
       } finally {
         setLoadingPreview(false)
       }

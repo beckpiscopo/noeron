@@ -1345,7 +1345,12 @@ export async function getEpisodeClaimsByCluster(
   clusterId: number,
   limit: number = 20
 ): Promise<ClaimWithCluster[]> {
-  if (!supabase) return []
+  if (!supabase) {
+    console.warn('[getEpisodeClaimsByCluster] No supabase client')
+    return []
+  }
+
+  console.log('[getEpisodeClaimsByCluster] Calling RPC with:', { podcastId, clusterId, limit })
 
   const { data, error } = await supabase
     .rpc('get_episode_claims_by_cluster', {
@@ -1355,10 +1360,11 @@ export async function getEpisodeClaimsByCluster(
     })
 
   if (error) {
-    console.error('Error fetching episode claims by cluster:', error)
+    console.error('[getEpisodeClaimsByCluster] Error:', error)
     return []
   }
 
+  console.log('[getEpisodeClaimsByCluster] Got data:', data?.length || 0, 'claims')
   return data as ClaimWithCluster[]
 }
 
