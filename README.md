@@ -179,7 +179,7 @@ Podcasts/Interviews
        ↓
 [Gemini 3: Claim Detection] ← thinking_level='medium'
        ↓
-[RAG: Paper Retrieval] ← ChromaDB + SentenceTransformers
+[RAG: Paper Retrieval] ← Supabase pgvector + Gemini embeddings
        ↓
 [Gemini 3: Context Synthesis] ← thinking_level='high', context_caching
        ↓
@@ -234,9 +234,9 @@ Papers (150+ on bioelectricity)
        ↓
 [Chunking] (400 tokens, 50 token overlap, tiktoken)
        ↓
-[Embedding: SentenceTransformer all-MiniLM-L6-v2]
+[Embedding: Gemini text-embedding-004] (768 dimensions)
        ↓
-[ChromaDB Vector Store]
+[Supabase pgvector] (production) / [ChromaDB] (local dev)
        ↓
 [RAG Search] ← Query from Gemini claim detection
 ```
@@ -324,7 +324,7 @@ Visit `http://localhost:3000`
 ### Processing Stats
 - **Total chunks:** ~15,000
 - **Average chunk size:** 400 tokens
-- **Embedding model:** all-MiniLM-L6-v2 (384 dimensions)
+- **Embedding model:** Gemini text-embedding-004 (768 dimensions)
 - **RAG accuracy:** 75% (validated on test queries)
 
 ## UI/UX Design

@@ -10,7 +10,7 @@ Backend (Python):
 - `src/bioelectricity_research/server.py` is the MCP tool surface and core orchestration.
 - `src/bioelectricity_research/context_builder.py` builds layered chat context (episode + temporal window + evidence cards).
 - `src/bioelectricity_research/storage.py` handles paper metadata, PDF caching, and text extraction.
-- `src/bioelectricity_research/vector_store.py` manages vector embeddings (supports both ChromaDB local and Supabase pgvector).
+- `src/bioelectricity_research/vector_store.py` manages vector embeddings (ChromaDB local or Supabase pgvector with Gemini embeddings).
 - `src/bioelectricity_research/http_server.py` exposes MCP tools as REST endpoints.
 - `scripts/supabase_client.py` provides Supabase database client with query methods.
 
@@ -51,7 +51,7 @@ The system supports two storage backends, controlled by `USE_SUPABASE` environme
 - `temporal_windows` - 3-minute transcript windows
 - `evidence_cards` - Paper-backed claims with RAG results
 - `papers` - Paper metadata (title, abstract, year, citations)
-- `paper_chunks` - Text chunks with 384-dim pgvector embeddings
+- `paper_chunks` - Text chunks with 768-dim pgvector embeddings (Gemini text-embedding-004)
 - `chat_sessions` / `chat_messages` - Chat persistence
 - `user_interests` - User interest tracking
 - `taxonomy_clusters` - Research territory definitions with labels, descriptions, 2D positions

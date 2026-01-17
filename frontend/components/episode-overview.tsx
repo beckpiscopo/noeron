@@ -9,6 +9,7 @@ import {
   ExternalLink,
   ChevronRight,
   ChevronDown,
+  ChevronUp,
   Circle,
   Loader2,
   Search,
@@ -565,8 +566,10 @@ interface ClusterCardProps {
   cluster: EpisodeNotebookComparison
   isExpanded: boolean
   onToggle: () => void
-  claims: ClaimWithCluster[]
-  isLoadingClaims: boolean
+  previewClaims: ClaimWithCluster[]
+  allClaims: ClaimWithCluster[]
+  isLoadingPreview: boolean
+  isLoadingAll: boolean
   onClaimClick: (startMs: number) => void
 }
 
@@ -574,20 +577,20 @@ function ClusterCard({
   cluster,
   isExpanded,
   onToggle,
-  claims,
-  isLoadingClaims,
+  previewClaims,
+  allClaims,
+  isLoadingPreview,
+  isLoadingAll,
   onClaimClick
 }: ClusterCardProps) {
   const isNew = cluster.in_episode && !cluster.in_notebook
   const isExplored = cluster.in_episode && cluster.in_notebook
+  const hasMoreClaims = cluster.episode_claim_count > 3
 
   return (
     <div className="border border-border/50 bg-card/30 overflow-hidden">
-      {/* Card Header - Clickable */}
-      <button
-        onClick={onToggle}
-        className="w-full text-left p-4 hover:bg-[var(--golden-chestnut)]/5 transition-colors"
-      >
+      {/* Card Header */}
+      <div className="p-4">
         <div className="flex items-start justify-between gap-2 mb-2">
           <h4 className="text-sm font-medium text-foreground leading-tight">
             {cluster.label}
@@ -602,11 +605,6 @@ function ClusterCard({
               <span className="px-1.5 py-0.5 bg-emerald-500/20 text-emerald-400 text-[9px] mono uppercase tracking-wider">
                 EXPLORED
               </span>
-            )}
-            {isExpanded ? (
-              <ChevronDown className="w-4 h-4 text-foreground/40" />
-            ) : (
-              <ChevronRight className="w-4 h-4 text-foreground/40" />
             )}
           </div>
         </div>
@@ -632,52 +630,73 @@ function ClusterCard({
             </div>
           )}
         </div>
-      </button>
+      </div>
 
-      {/* Expanded Claims List */}
-      {isExpanded && (
-        <div className="border-t border-border/30 bg-background/50">
-          {isLoadingClaims ? (
-            <div className="flex items-center justify-center py-6">
-              <Loader2 className="w-4 h-4 animate-spin text-foreground/50" />
-              <span className="ml-2 text-xs text-foreground/50">Loading claims...</span>
-            </div>
-          ) : claims.length === 0 ? (
-            <div className="py-4 px-4 text-center text-xs text-foreground/40 mono">
-              No claims found in this cluster
-            </div>
-          ) : (
-            <div className="divide-y divide-border/20">
-              {claims.slice(0, 5).map((claim) => (
-                <button
-                  key={claim.claim_id}
-                  onClick={() => claim.start_ms && onClaimClick(claim.start_ms / 1000)}
-                  className="w-full text-left px-4 py-3 hover:bg-[var(--golden-chestnut)]/5 transition-colors group"
-                >
-                  <div className="flex items-start gap-3">
-                    <div className="shrink-0 flex items-center gap-1.5 pt-0.5">
-                      <Play className="w-3 h-3 text-[var(--golden-chestnut)] opacity-0 group-hover:opacity-100 transition-opacity" />
-                      <span className="mono text-[10px] text-[var(--golden-chestnut)] tabular-nums">
-                        {claim.claim_timestamp || formatTimecode((claim.start_ms || 0) / 1000)}
-                      </span>
-                    </div>
-                    <p className="text-xs text-foreground/70 leading-relaxed line-clamp-2 group-hover:text-foreground transition-colors">
-                      {claim.distilled_claim || claim.claim_text}
-                    </p>
+      {/* Claims Preview - Always visible */}
+      <div className="border-t border-border/30 bg-background/50">
+        {isLoadingPreview ? (
+          <div className="flex items-center justify-center py-4">
+            <Loader2 className="w-4 h-4 animate-spin text-foreground/50" />
+            <span className="ml-2 text-xs text-foreground/50">Loading claims...</span>
+          </div>
+        ) : previewClaims.length === 0 ? (
+          <div className="py-3 px-4 text-center text-xs text-foreground/40 mono">
+            No claims found
+          </div>
+        ) : (
+          <div className="divide-y divide-border/20">
+            {/* Show preview claims (3) when collapsed, all claims when expanded */}
+            {(isExpanded ? allClaims : previewClaims).map((claim) => (
+              <button
+                key={claim.claim_id}
+                onClick={() => claim.start_ms && onClaimClick(claim.start_ms / 1000)}
+                className="w-full text-left px-4 py-2.5 hover:bg-[var(--golden-chestnut)]/5 transition-colors group"
+              >
+                <div className="flex items-start gap-3">
+                  <div className="shrink-0 flex items-center gap-1.5 pt-0.5">
+                    <Play className="w-3 h-3 text-[var(--golden-chestnut)] opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <span className="mono text-[10px] text-[var(--golden-chestnut)] tabular-nums">
+                      {claim.claim_timestamp || formatTimecode((claim.start_ms || 0) / 1000)}
+                    </span>
                   </div>
-                </button>
-              ))}
-              {claims.length > 5 && (
-                <div className="px-4 py-2 text-center">
-                  <span className="text-[10px] mono text-foreground/40">
-                    + {claims.length - 5} more claims
-                  </span>
+                  <p className="text-xs text-foreground/70 leading-relaxed line-clamp-2 group-hover:text-foreground transition-colors">
+                    {claim.distilled_claim || claim.claim_text}
+                  </p>
                 </div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
+              </button>
+            ))}
+
+            {/* Load More / Show Less button */}
+            {hasMoreClaims && (
+              <button
+                onClick={onToggle}
+                className="w-full px-4 py-2 text-center hover:bg-[var(--golden-chestnut)]/5 transition-colors group"
+              >
+                {isLoadingAll ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <Loader2 className="w-3 h-3 animate-spin text-foreground/50" />
+                    <span className="text-[10px] mono text-foreground/40">Loading...</span>
+                  </span>
+                ) : isExpanded ? (
+                  <span className="flex items-center justify-center gap-1.5">
+                    <ChevronUp className="w-3 h-3 text-foreground/40 group-hover:text-[var(--golden-chestnut)] transition-colors" />
+                    <span className="text-[10px] mono text-foreground/40 group-hover:text-[var(--golden-chestnut)] transition-colors">
+                      Show less
+                    </span>
+                  </span>
+                ) : (
+                  <span className="flex items-center justify-center gap-1.5">
+                    <ChevronDown className="w-3 h-3 text-foreground/40 group-hover:text-[var(--golden-chestnut)] transition-colors" />
+                    <span className="text-[10px] mono text-foreground/40 group-hover:text-[var(--golden-chestnut)] transition-colors">
+                      Load more ({cluster.episode_claim_count - 3} more)
+                    </span>
+                  </span>
+                )}
+              </button>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   )
 }
@@ -691,8 +710,10 @@ function EpisodeClusterExplorer({ episodeId, onSeek }: EpisodeClusterExplorerPro
   const [clusters, setClusters] = useState<EpisodeNotebookComparison[]>([])
   const [loading, setLoading] = useState(true)
   const [expandedCluster, setExpandedCluster] = useState<number | null>(null)
-  const [claimsCache, setClaimsCache] = useState<Map<number, ClaimWithCluster[]>>(new Map())
-  const [loadingClaims, setLoadingClaims] = useState<number | null>(null)
+  const [previewClaimsCache, setPreviewClaimsCache] = useState<Map<number, ClaimWithCluster[]>>(new Map())
+  const [allClaimsCache, setAllClaimsCache] = useState<Map<number, ClaimWithCluster[]>>(new Map())
+  const [loadingPreview, setLoadingPreview] = useState(true)
+  const [loadingAllClaims, setLoadingAllClaims] = useState<number | null>(null)
   const [summary, setSummary] = useState<{ new: number; overlap: number; total: number }>({
     new: 0,
     overlap: 0,
@@ -722,7 +743,36 @@ function EpisodeClusterExplorer({ episodeId, onSeek }: EpisodeClusterExplorerPro
     loadClusters()
   }, [episodeId])
 
-  // Load claims when a cluster is expanded
+  // Load preview claims (3 per cluster) after clusters load
+  useEffect(() => {
+    if (clusters.length === 0) return
+
+    async function loadPreviewClaims() {
+      setLoadingPreview(true)
+      try {
+        // Load 3 claims for each cluster in parallel
+        const results = await Promise.all(
+          clusters.map(async (cluster) => {
+            const claims = await getEpisodeClaimsByCluster(episodeId, cluster.cluster_id, 3)
+            return { clusterId: cluster.cluster_id, claims }
+          })
+        )
+
+        const newCache = new Map<number, ClaimWithCluster[]>()
+        results.forEach(({ clusterId, claims }) => {
+          newCache.set(clusterId, claims)
+        })
+        setPreviewClaimsCache(newCache)
+      } catch (err) {
+        console.error("Failed to load preview claims:", err)
+      } finally {
+        setLoadingPreview(false)
+      }
+    }
+    loadPreviewClaims()
+  }, [episodeId, clusters])
+
+  // Toggle expanded state and load all claims if needed
   const handleToggleCluster = useCallback(async (clusterId: number) => {
     if (expandedCluster === clusterId) {
       setExpandedCluster(null)
@@ -732,21 +782,21 @@ function EpisodeClusterExplorer({ episodeId, onSeek }: EpisodeClusterExplorerPro
     setExpandedCluster(clusterId)
 
     // Check cache first
-    if (claimsCache.has(clusterId)) {
+    if (allClaimsCache.has(clusterId)) {
       return
     }
 
-    // Load claims for this cluster
-    setLoadingClaims(clusterId)
+    // Load all claims for this cluster
+    setLoadingAllClaims(clusterId)
     try {
-      const claims = await getEpisodeClaimsByCluster(episodeId, clusterId, 20)
-      setClaimsCache(prev => new Map(prev).set(clusterId, claims))
+      const claims = await getEpisodeClaimsByCluster(episodeId, clusterId, 50)
+      setAllClaimsCache(prev => new Map(prev).set(clusterId, claims))
     } catch (err) {
-      console.error("Failed to load claims:", err)
+      console.error("Failed to load all claims:", err)
     } finally {
-      setLoadingClaims(null)
+      setLoadingAllClaims(null)
     }
-  }, [episodeId, expandedCluster, claimsCache])
+  }, [episodeId, expandedCluster, allClaimsCache])
 
   if (loading) {
     return (
@@ -796,8 +846,10 @@ function EpisodeClusterExplorer({ episodeId, onSeek }: EpisodeClusterExplorerPro
             cluster={cluster}
             isExpanded={expandedCluster === cluster.cluster_id}
             onToggle={() => handleToggleCluster(cluster.cluster_id)}
-            claims={claimsCache.get(cluster.cluster_id) || []}
-            isLoadingClaims={loadingClaims === cluster.cluster_id}
+            previewClaims={previewClaimsCache.get(cluster.cluster_id) || []}
+            allClaims={allClaimsCache.get(cluster.cluster_id) || []}
+            isLoadingPreview={loadingPreview}
+            isLoadingAll={loadingAllClaims === cluster.cluster_id}
             onClaimClick={onSeek}
           />
         ))}

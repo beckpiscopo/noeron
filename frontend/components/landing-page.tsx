@@ -623,8 +623,8 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
                     { step: "02", label: "EXTRACT", desc: "GROBID TEI Processing", color: "golden" },
                     { step: "03", label: "TRANSCRIBE", desc: "AssemblyAI + Diarization", color: "vermillion" },
                     { step: "04", label: "CHUNK", desc: "400 tokens / 50 overlap", color: "golden" },
-                    { step: "05", label: "EMBED", desc: "all-MiniLM-L6-v2", color: "golden" },
-                    { step: "06", label: "INDEX", desc: "ChromaDB Vector Store", color: "vermillion" },
+                    { step: "05", label: "EMBED", desc: "Gemini text-embedding-004", color: "golden" },
+                    { step: "06", label: "INDEX", desc: "Supabase pgvector", color: "vermillion" },
                     { step: "07", label: "DETECT", desc: "Gemini Claim Extraction", color: "vermillion" },
                     { step: "08", label: "VERIFY", desc: "RAG + Citation Scoring", color: "golden" },
                   ].map((item, i, arr) => (
@@ -653,7 +653,7 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
                   {[
                     { label: "Backend", value: "Python + FastMCP", desc: "MCP protocol server with HTTP adapter", color: "golden" },
                     { label: "Frontend", value: "Next.js + React", desc: "Real-time sync via API proxy routes", color: "golden" },
-                    { label: "Vector Store", value: "ChromaDB", desc: "Persistent embeddings + metadata", color: "vermillion" },
+                    { label: "Vector Store", value: "Supabase pgvector", desc: "Persistent embeddings + metadata", color: "vermillion" },
                     { label: "AI Engine", value: "Gemini 3 Pro", desc: "Claim detection + synthesis", color: "vermillion" },
                   ].map((item) => (
                     <div key={item.label} className={`border-2 ${item.color === 'vermillion' ? 'border-[#be5a38]/30' : 'border-foreground/15'} bg-card p-5 shadow-[0_4px_20px_rgba(0,0,0,0.4)]`}>
@@ -669,7 +669,7 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
                   {[
                     { value: "500+", label: "Papers Indexed", color: "golden" },
                     { value: "< 3s", label: "Query Latency", color: "vermillion" },
-                    { value: "384", label: "Embedding Dims", color: "golden" },
+                    { value: "768", label: "Embedding Dims", color: "golden" },
                   ].map((stat) => (
                     <div key={stat.label} className="border-2 border-foreground/15 bg-card p-5 text-center shadow-[0_4px_20px_rgba(0,0,0,0.4)]">
                       <div className={`mono text-3xl font-bold ${stat.color === 'vermillion' ? 'text-[#be5a38]' : 'text-[var(--golden-chestnut)]'}`}>{stat.value}</div>
