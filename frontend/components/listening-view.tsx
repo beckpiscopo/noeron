@@ -636,7 +636,7 @@ export function ListeningView({
 
   return (
     <div className="noeron-theme flex min-h-screen flex-col bg-background text-foreground font-sans">
-      <NoeronHeader actions={headerActions} onLogoClick={() => window.location.assign("/")} onBookmarksClick={onBookmarksClick} />
+      <NoeronHeader actions={headerActions} onBookmarksClick={onBookmarksClick} />
       <audio ref={audioRef} preload="metadata" className="hidden" />
 
       {/* Two Column Layout */}

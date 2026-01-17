@@ -122,7 +122,7 @@ export function EpisodeLibrary({ onSelectEpisode }: EpisodeLibraryProps) {
 
   return (
     <div className="noeron-theme relative flex min-h-screen w-full flex-col bg-background text-foreground">
-      <NoeronHeader actions={headerActions} onLogoClick={() => window.location.assign("/")} />
+      <NoeronHeader actions={headerActions} />
 
       {/* Main Content */}
       <main className="flex-1 w-full px-4 md:px-10 py-8">

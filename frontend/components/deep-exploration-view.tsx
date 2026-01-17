@@ -450,7 +450,6 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
             </button>
           </>
         }
-        onLogoClick={() => window.location.assign("/")}
         onBookmarksClick={onBookmarksClick}
       />
 

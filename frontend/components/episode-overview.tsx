@@ -917,7 +917,7 @@ export function EpisodeOverview({ episode, onStartListening, onBack, onBookmarks
 
   return (
     <div className="noeron-theme min-h-screen bg-background text-foreground flex flex-col">
-      <NoeronHeader actions={headerActions} onLogoClick={() => window.location.assign("/")} onBookmarksClick={onBookmarksClick} />
+      <NoeronHeader actions={headerActions} onBookmarksClick={onBookmarksClick} />
 
       <main
         className="flex-1 px-6 py-8 max-w-[1400px] mx-auto w-full transition-all duration-300 ease-in-out"
