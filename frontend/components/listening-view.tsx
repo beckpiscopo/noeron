@@ -5,10 +5,14 @@ import type React from "react"
 import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Play, Pause, RotateCcw, RotateCw, Info, Search, Settings, HelpCircle } from "lucide-react"
+import { Play, Pause, RotateCcw, RotateCw, Info, Search, Settings, HelpCircle, MessageSquare } from "lucide-react"
 import { NoeronHeader } from "./noeron-header"
 import { ClaimBookmarkButton } from "./bookmark-button"
 import { AIChatSidebar } from "./ai-chat"
+import { useIsMobile } from "./ui/use-mobile"
+import { CompactPlayer } from "./mobile/compact-player"
+import { PastClaimsStrip } from "./mobile/past-claims-strip"
+import { ClaimPreviewSheet } from "./mobile/claim-preview-sheet"
 import type { ChatContext } from "@/lib/chat-types"
 
 // =============================================================================
@@ -359,14 +363,18 @@ export function ListeningView({
   onBookmarksClick,
   onViewPaper,
 }: ListeningViewProps) {
+  const isMobile = useIsMobile()
   const [isPlaying, setIsPlaying] = useState(false)
   const [question, setQuestion] = useState("")
   const [selectedClaimId, setSelectedClaimId] = useState<string | number | null>(null)
   const [isAudioReady, setIsAudioReady] = useState(false)
-  const [chatOpen, setChatOpen] = useState(true)
+  const [chatOpen, setChatOpen] = useState(!isMobile) // Start closed on mobile
   const [chatWidth, setChatWidth] = useState(440)
   // Track claim dropped into chat (overrides currentClaim for chat context)
   const [droppedClaim, setDroppedClaim] = useState<Claim | null>(null)
+  // Mobile-specific state
+  const [previewClaim, setPreviewClaim] = useState<Claim | null>(null)
+  const [showAllClaims, setShowAllClaims] = useState(false)
   const audioRef = useRef<HTMLAudioElement | null>(null)
   // Track if we've completed the initial seek (to prevent timeupdate from resetting position)
   const hasCompletedInitialSeekRef = useRef(false)
@@ -422,8 +430,12 @@ export function ListeningView({
     e.dataTransfer.effectAllowed = 'copy'
   }
 
-  const handleClaimDroppedInChat = (claim: Claim) => {
-    setDroppedClaim(claim)
+  const handleClaimDroppedInChat = (claim: { id: string | number; segment_claim_id?: string; claim_text?: string; distilled_claim?: string }) => {
+    // Create a minimal Claim object from the dropped data
+    setDroppedClaim({
+      ...claim,
+      timestamp: 0, // Required field, will use claim_id for context
+    } as Claim)
     setChatOpen(true)
   }
 
@@ -431,7 +443,23 @@ export function ListeningView({
   const clearDroppedClaim = () => {
     setDroppedClaim(null)
   }
-  
+
+  // Mobile: seek to specific time
+  const handleSeek = (time: number) => {
+    const audio = audioRef.current
+    if (audio) {
+      audio.currentTime = time
+      onTimeUpdate(time)
+    }
+  }
+
+  // Mobile: jump to claim timestamp
+  const handleJumpToClaim = (claim: Claim) => {
+    const timeSeconds = claim.start_ms ? claim.start_ms / 1000 : claim.timestamp
+    handleSeek(timeSeconds)
+    setPreviewClaim(null)
+  }
+
   const handlePlayPause = () => {
     setIsPlaying(!isPlaying)
   }
@@ -634,6 +662,175 @@ export function ListeningView({
     console.log(`[Claims Filter] ${validClaims.length} valid claims loaded`)
   }, [claims.length, validClaims.length])
 
+  // Mobile current claim card - simplified version
+  const MobileCurrentClaimCard = ({ claim }: { claim: Claim }) => {
+    const displayText = getClaimDisplayText(claim)
+    const fullText = getClaimFullText(claim)
+    const timestamp = formatTimestamp(claim)
+    const hasDistilledClaim = !!claim.distilled_claim
+
+    return (
+      <div className="mx-4 mb-4">
+        <CornerBrackets className="bg-card/30">
+          <div className="p-4">
+            {/* Top row: Category + Timestamp + Bookmark */}
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-bold text-[var(--golden-chestnut)] uppercase tracking-wider">
+                  {claim.category || 'Scientific Claim'}
+                </span>
+                <span className="relative flex size-1.5">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--golden-chestnut)] opacity-75"></span>
+                  <span className="relative inline-flex size-1.5 rounded-full bg-[var(--golden-chestnut)]"></span>
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] text-foreground/40 mono">{timestamp}</span>
+                <ClaimBookmarkButton
+                  claim={{
+                    id: claim.id,
+                    claim_text: claim.claim_text,
+                    distilled_claim: claim.distilled_claim,
+                  }}
+                  episodeId={episode.id}
+                  size="sm"
+                  variant="ghost"
+                />
+              </div>
+            </div>
+
+            {/* Distilled claim - hero text */}
+            <h3 className="text-lg font-medium text-foreground mb-2 leading-snug">
+              {displayText}
+            </h3>
+
+            {/* Full transcript quote */}
+            {hasDistilledClaim && fullText && (
+              <p className="text-sm text-foreground/60 leading-relaxed mb-3 line-clamp-2">
+                "{fullText}"
+              </p>
+            )}
+
+            {/* Confidence + Dive Deeper */}
+            <div className="flex items-center justify-between">
+              {claim.confidence_score !== undefined && (
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] text-foreground/50 uppercase">Confidence:</span>
+                  <span className="text-[10px] font-bold text-[var(--golden-chestnut)] mono">
+                    {Math.round(claim.confidence_score * 100)}%
+                  </span>
+                </div>
+              )}
+              <Button
+                onClick={() => handleDiveDeeperWithTimestamp(claim.id)}
+                size="sm"
+                className="!rounded-none !bg-transparent !border !border-[var(--golden-chestnut)] !text-[var(--golden-chestnut)] hover:!bg-[var(--golden-chestnut)]/10 text-xs px-3 py-1 h-auto"
+              >
+                Dive Deeper
+              </Button>
+            </div>
+          </div>
+        </CornerBrackets>
+      </div>
+    )
+  }
+
+  // ==========================================================================
+  // MOBILE LAYOUT
+  // ==========================================================================
+  if (isMobile) {
+    return (
+      <div className="noeron-theme flex min-h-screen flex-col bg-background text-foreground font-sans">
+        {/* Mobile Header */}
+        <NoeronHeader
+          showMobileBack
+          onBookmarksClick={onBookmarksClick}
+        />
+
+        {/* Hidden audio element */}
+        <audio ref={audioRef} preload="metadata" className="hidden" />
+
+        {/* Compact Player - sticky below header */}
+        <CompactPlayer
+          isPlaying={isPlaying}
+          currentTime={episode.currentTime}
+          duration={episode.durationSeconds}
+          episodeTitle={episode.title}
+          onPlayPause={handlePlayPause}
+          onSeek={handleSeek}
+          onSkipBack={handleSkipBack}
+          onSkipForward={handleSkipForward}
+        />
+
+        {/* Main Content Area */}
+        <main className="flex-1 overflow-y-auto pb-20">
+          {/* Current Claim Card */}
+          {currentClaim && (
+            <div ref={currentClaimRef} className="pt-4">
+              <MobileCurrentClaimCard claim={currentClaim} />
+            </div>
+          )}
+
+          {/* Past Claims Strip */}
+          {pastClaims.length > 0 && (
+            <PastClaimsStrip
+              claims={pastClaims}
+              onClaimClick={(claim) => setPreviewClaim(claim)}
+              onViewAllClick={() => setShowAllClaims(true)}
+            />
+          )}
+
+          {/* Empty State */}
+          {!currentClaim && pastClaims.length === 0 && (
+            <div className="text-center py-16 px-4">
+              <p className="text-foreground/60 text-sm">
+                Start playing to see research insights appear here
+              </p>
+            </div>
+          )}
+        </main>
+
+        {/* Chat FAB */}
+        <button
+          onClick={() => setChatOpen(true)}
+          className="fixed bottom-4 right-4 z-40 w-14 h-14 rounded-full bg-[var(--golden-chestnut)] text-background shadow-lg flex items-center justify-center hover:scale-105 transition-transform"
+          aria-label="Open AI Chat"
+        >
+          <MessageSquare className="w-6 h-6" />
+        </button>
+
+        {/* Claim Preview Bottom Sheet */}
+        <ClaimPreviewSheet
+          claim={previewClaim}
+          open={!!previewClaim}
+          onOpenChange={(open) => !open && setPreviewClaim(null)}
+          onJumpTo={handleJumpToClaim}
+          onDiveDeeper={handleDiveDeeperWithTimestamp}
+        />
+
+        {/* AI Chat Bottom Sheet */}
+        <AIChatSidebar
+          open={chatOpen}
+          onOpenChange={setChatOpen}
+          context={{
+            episode_id: episode.id,
+            episode_title: episode.title,
+            guest: episode.guest,
+            claim_id: droppedClaim?.segment_claim_id || currentClaim?.segment_claim_id,
+            claim_text: droppedClaim?.distilled_claim || droppedClaim?.claim_text || currentClaim?.distilled_claim || currentClaim?.claim_text,
+            current_timestamp: formatTime(episode.currentTime),
+          }}
+          onViewPaper={onViewPaper}
+          onClaimDrop={handleClaimDroppedInChat}
+          onClearDroppedClaim={droppedClaim ? clearDroppedClaim : undefined}
+        />
+      </div>
+    )
+  }
+
+  // ==========================================================================
+  // DESKTOP LAYOUT (original)
+  // ==========================================================================
   return (
     <div className="noeron-theme flex min-h-screen flex-col bg-background text-foreground font-sans">
       <NoeronHeader actions={headerActions} onBookmarksClick={onBookmarksClick} />
