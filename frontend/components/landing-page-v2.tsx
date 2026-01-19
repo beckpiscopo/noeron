@@ -4,11 +4,11 @@ import { useState } from "react"
 import { Play, Moon, Sun, Bookmark, Info, MessageSquare, Sparkles, Forward, Rewind, ChevronRight, Database, Brain, Zap, FileJson, Github } from "lucide-react"
 import { useTheme } from "next-themes"
 
-interface LandingPageProps {
+interface LandingPageV2Props {
   onGetStarted: () => void
 }
 
-export function LandingPage({ onGetStarted }: LandingPageProps) {
+export function LandingPageV2({ onGetStarted }: LandingPageV2Props) {
   const { theme, setTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
 
@@ -18,75 +18,46 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
   })
 
   return (
-    <div className="bg-[#1a1a1a] text-[#E0E0E0] font-sans antialiased overflow-x-hidden scroll-smooth">
+    <div className="bg-[#121212] text-[#E0E0E0] font-sans antialiased overflow-x-hidden scroll-smooth">
       {/* Custom styles for this page */}
-      <style dangerouslySetInnerHTML={{ __html: `
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Fira+Code:wght@400;500&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600;1,700&family=Russo+One&display=swap');
+      <style jsx global>{`
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Fira+Code:wght@400;500&family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400;1,500&display=swap');
 
         .perspective-container {
           perspective: 2000px;
         }
 
-        /* Mobile: flat mockup, no 3D transform */
         .rotate-3d {
-          transform: none;
-          transform-style: flat;
-          box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-          transition: transform 0.5s ease-out, box-shadow 0.5s ease-out;
+          transform: rotateX(20deg) rotateY(0deg) rotateZ(-4deg) scale(0.95);
+          transform-style: preserve-3d;
+          box-shadow: 0 50px 100px -20px rgba(0, 0, 0, 0.9);
+          transition: transform 0.5s ease-out;
         }
 
-        /* Desktop (lg+): 3D perspective transform */
-        @media (min-width: 1024px) {
-          .rotate-3d {
-            transform: rotateX(20deg) rotateY(0deg) rotateZ(-4deg) scale(0.95);
-            transform-style: preserve-3d;
-            box-shadow: 0 50px 100px -20px rgba(0, 0, 0, 0.9);
-          }
-
-          .rotate-3d:hover {
-            transform: rotateX(15deg) rotateY(0deg) rotateZ(-2deg) scale(0.98);
-          }
+        .rotate-3d:hover {
+          transform: rotateX(15deg) rotateY(0deg) rotateZ(-2deg) scale(0.98);
         }
 
         .preserve-3d {
           transform-style: preserve-3d;
         }
 
-        @media (min-width: 1024px) {
-          .preserve-3d {
-            transform-style: preserve-3d;
-          }
-        }
-
         .bg-bio-texture {
-          background-color: #1a1a1a;
+          background-color: #121212;
           background-image:
-            radial-gradient(ellipse 100% 60% at 55% 25%, rgba(196, 139, 96, 0.18) 0%, rgba(196, 139, 96, 0.06) 35%, transparent 65%),
-            linear-gradient(rgba(255, 0, 0, 0.3) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(255, 0, 0, 0.3) 1px, transparent 1px);
-          background-size: 100% 100%, 40px 40px, 40px 40px;
+            radial-gradient(circle at 50% 0%, rgba(196, 139, 96, 0.08) 0%, transparent 60%),
+            linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+          background-size: 100% 100%, 60px 60px, 60px 60px;
           position: relative;
         }
 
-        /* Vignette effect */
         .bg-bio-texture::before {
           content: "";
           position: absolute;
           inset: 0;
-          background: radial-gradient(ellipse at center, transparent 0%, transparent 40%, rgba(0, 0, 0, 0.5) 100%);
+          background-image: repeating-linear-gradient(45deg, transparent 0, transparent 40px, rgba(196, 139, 96, 0.015) 40px, rgba(196, 139, 96, 0.015) 41px);
           pointer-events: none;
-          z-index: 1;
-        }
-
-        /* Noise/grain texture */
-        .bg-bio-texture::after {
-          content: "";
-          position: absolute;
-          inset: 0;
-          background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
-          opacity: 0.04;
-          pointer-events: none;
-          z-index: 2;
         }
 
         .pop-out-card {
@@ -103,7 +74,7 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
         }
 
         .glow-effect {
-          background: radial-gradient(ellipse 120% 80% at 70% 30%, rgba(196, 139, 96, 0.15) 0%, rgba(196, 139, 96, 0.05) 40%, transparent 70%);
+          background: radial-gradient(circle at center, rgba(196, 139, 96, 0.1) 0%, transparent 70%);
         }
 
         @keyframes pulse-slow {
@@ -156,28 +127,16 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
         ::-webkit-scrollbar-thumb:hover {
           background: rgba(255,255,255,0.2);
         }
-      `}} />
+      `}</style>
 
       {/* Navigation */}
-      <nav className="fixed top-0 w-full z-50 backdrop-blur-md bg-[#1a1a1a]/80 border-b border-white/10">
-        <div className="w-full pl-4 sm:pl-6 lg:pl-12 xl:pl-20 pr-4 sm:pr-6 lg:pr-12 xl:pr-20">
+      <nav className="fixed top-0 w-full z-50 backdrop-blur-md bg-[#121212]/80 border-b border-white/10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex-shrink-0 flex items-center gap-2">
               <span className="font-bold text-2xl tracking-tighter text-white" style={{ fontFamily: "'Inter', sans-serif" }}>
                 Noeron
               </span>
-            </div>
-            {/* Nav links */}
-            <div className="hidden md:flex items-center space-x-8">
-              <a href="#gemini" className="text-sm text-gray-400 hover:text-white transition-colors" style={{ fontFamily: "'Fira Code', monospace" }}>
-                Gemini 3
-              </a>
-              <a href="#tech-stack" className="text-sm text-gray-400 hover:text-white transition-colors" style={{ fontFamily: "'Fira Code', monospace" }}>
-                Tech Stack
-              </a>
-              <a href="#demo" className="text-sm text-gray-400 hover:text-white transition-colors" style={{ fontFamily: "'Fira Code', monospace" }}>
-                Demo
-              </a>
             </div>
             <div className="flex items-center space-x-4">
               <button
@@ -202,91 +161,55 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
         </div>
       </nav>
 
-      {/* Section 1: Hero - Asymmetric Layout */}
-      <section className="snap-section relative min-h-screen flex items-center pt-20 pb-12 lg:pt-24 lg:pb-0 overflow-hidden text-white">
-        {/* Bio-texture background with grid, glow, vignette, and noise */}
-        <div
-          className="absolute inset-0"
-          style={{
-            backgroundColor: '#1a1a1a',
-            backgroundImage: `
-              radial-gradient(ellipse 100% 60% at 55% 25%, rgba(196, 139, 96, 0.18) 0%, rgba(196, 139, 96, 0.06) 35%, transparent 65%),
-              linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-              linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px)
-            `,
-            backgroundSize: '100% 100%, 50px 50px, 50px 50px'
-          }}
-        >
-          {/* Vignette overlay */}
-          <div
-            className="absolute inset-0 pointer-events-none"
-            style={{
-              background: 'radial-gradient(ellipse at center, transparent 0%, transparent 40%, rgba(0, 0, 0, 0.5) 100%)'
-            }}
-          />
-          {/* Noise texture */}
-          <div
-            className="absolute inset-0 pointer-events-none opacity-[0.04]"
-            style={{
-              backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`
-            }}
-          />
+      {/* Section 1: Hero */}
+      <section className="snap-section relative min-h-screen flex flex-col justify-center items-center pt-20 pb-12 lg:pt-24 lg:pb-16 overflow-hidden bg-[#121212] text-white">
+        {/* Bio-texture background */}
+        <div className="absolute inset-0 z-0 bg-bio-texture">
+          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-full h-full max-w-4xl glow-effect pointer-events-none" />
         </div>
 
-        <div className="relative z-10 w-full px-4 sm:px-6 lg:pl-12 xl:pl-20 lg:pr-0">
-          <div className="grid grid-cols-1 lg:grid-cols-[32%_68%] gap-8 lg:gap-4 items-center">
-            {/* Left column - Text content */}
-            <div className="text-center lg:text-left items-center lg:items-start flex flex-col -mt-8 lg:-mt-12">
-              {/* Headline */}
-              <h1 className="text-4xl md:text-5xl lg:text-5xl min-[1550px]:text-8xl tracking-tight mb-6 leading-tight text-white animate-fade-in-up" style={{ fontFamily: "'Russo One', sans-serif" }}>
-                The{' '}
-                <span className="text-[#C48B60] inline-block" style={{ transform: 'skewX(-6deg)' }}>
-                  knowledge layer
-                </span>
-                <br />
-                for podcasts.
-              </h1>
-
-              {/* Subhead */}
-              <p className="mt-3 max-w-lg text-base md:text-lg font-light leading-relaxed text-gray-300 mb-6 mx-auto lg:mx-0">
-                Real-time synchronization between conversation and research.
-              </p>
-
-              {/* Terminal-style loading text with typing animation */}
-              <div className="text-xs leading-[1.8] mb-8 max-w-[450px] mx-auto lg:mx-0" style={{ fontFamily: "'Fira Code', monospace" }}>
-                <div className="animate-typing text-[#C48B60]/80 mb-1">
-                  // PARSING AUDIO STREAMS
-                </div>
-                <div className="animate-typing text-[#C48B60]/80 mb-1" style={{ animationDelay: "0.4s" }}>
-                  // VERIFYING FACTS WITH GEMINI 3
-                </div>
-                <div className="animate-typing text-[#C48B60]/80 flex items-center gap-2" style={{ animationDelay: "0.7s" }}>
-                  // GENERATING KNOWLEDGE GRAPH...
-                  <span className="animate-pulse inline-block w-2 h-3 bg-[#C48B60]" />
-                </div>
-              </div>
-
-              {/* CTAs */}
-              <div className="flex flex-col sm:flex-row justify-center lg:justify-start gap-4 animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
-                <button
-                  onClick={onGetStarted}
-                  className="inline-flex items-center justify-center px-8 py-3 text-xs uppercase tracking-wide font-medium text-white bg-[#C48B60] border border-[#C48B60] hover:bg-[#A8744F] hover:border-[#A8744F] md:py-4 md:text-sm transition-all shadow-lg hover:shadow-[#C48B60]/20"
-                >
-                  Start Researching
-                </button>
-                <button className="inline-flex items-center justify-center px-8 py-3 text-xs uppercase tracking-wide font-medium border border-gray-600 text-gray-300 bg-transparent hover:bg-[#C48B60] hover:border-[#C48B60] hover:text-white md:py-4 md:text-sm transition-all group">
-                  <Play className="w-4 h-4 mr-2 text-[#C48B60] group-hover:text-white transition-colors fill-current" />
-                  Watch Demo
-                </button>
-              </div>
+        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          {/* Badge */}
+          <div className="flex justify-center mb-4 animate-fade-in-up">
+            <div className="inline-flex items-center px-4 py-1.5 rounded-full border border-gray-700 bg-gray-900/50 backdrop-blur-sm text-xs tracking-wider" style={{ fontFamily: "'Fira Code', monospace" }}>
+              <span className="w-2 h-2 rounded-full bg-[#C48B60] mr-3 animate-pulse-slow" />
+              <span className="text-[#C48B60]">EPISTEMOLOGICAL INFRASTRUCTURE // V 3.0</span>
             </div>
+          </div>
 
-            {/* Right column - 3D Product Mockup */}
-            <div
-              className="perspective-container relative w-full animate-fade-in-up mt-12 lg:mt-0 lg:-mt-16 lg:-mr-8 xl:-mr-16"
-              style={{ animationDelay: '0.3s' }}
+          {/* Headline */}
+          <h1 className="text-5xl md:text-7xl lg:text-8xl font-medium tracking-tight mb-6 leading-tight text-white animate-fade-in-up" style={{ animationDelay: '0.1s', fontFamily: "'Inter', sans-serif" }}>
+            The{' '}
+            <span className="text-[#C48B60] italic font-bold" style={{ fontFamily: "'Cormorant Garamond', serif" }}>
+              knowledge layer
+            </span>
+            <br className="hidden md:block" />
+            {' '}for podcasts.
+          </h1>
+
+          {/* Subhead */}
+          <p className="mt-3 max-w-2xl mx-auto text-sm md:text-base text-gray-400 mb-6 leading-relaxed tracking-wide" style={{ fontFamily: "'Fira Code', monospace" }}>
+            Real-time synchronization between conversation and research.
+            <span className="block mt-2 text-gray-500">Parsing audio streams. Verifying facts. Generating knowledge graphs.</span>
+          </p>
+
+          {/* CTAs */}
+          <div className="flex flex-col sm:flex-row justify-center gap-4 mb-12 animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
+            <button
+              onClick={onGetStarted}
+              className="inline-flex items-center justify-center px-8 py-3 text-xs uppercase tracking-wide font-medium text-white bg-[#C48B60] border border-[#C48B60] hover:bg-[#A8744F] hover:border-[#A8744F] md:py-4 md:text-sm transition-all shadow-lg hover:shadow-[#C48B60]/20"
             >
-            <div className="rotate-3d relative rounded-xl border border-gray-700/50 bg-[#121212] ring-1 ring-white/5 overflow-hidden">
+              Start Researching
+            </button>
+            <button className="inline-flex items-center justify-center px-8 py-3 text-xs uppercase tracking-wide font-medium border border-gray-600 text-gray-300 bg-transparent hover:bg-[#C48B60] hover:border-[#C48B60] hover:text-white md:py-4 md:text-sm transition-all group">
+              <Play className="w-4 h-4 mr-2 text-[#C48B60] group-hover:text-white transition-colors fill-current" />
+              Watch Demo
+            </button>
+          </div>
+
+          {/* 3D Product Mockup */}
+          <div className="perspective-container relative w-full max-w-6xl mx-auto -mb-40 lg:-mb-60 animate-fade-in-up" style={{ animationDelay: '0.3s' }}>
+            <div className="rotate-3d relative rounded-xl border border-gray-700/50 bg-[#121212] shadow-2xl ring-1 ring-white/5">
               {/* Browser chrome */}
               <div className="h-8 bg-[#1a1a1a] border-b border-[#2a2a2a] flex items-center px-4 space-x-2 rounded-t-xl">
                 <div className="w-3 h-3 rounded-full bg-red-500/80" />
@@ -298,46 +221,42 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
               </div>
 
               {/* Three-panel mockup content */}
-              <div className="flex h-[500px] lg:h-[780px] bg-[#121212] text-gray-200 text-left rounded-b-xl preserve-3d overflow-hidden">
+              <div className="flex h-[500px] lg:h-[700px] bg-[#121212] text-gray-200 text-left rounded-b-xl preserve-3d">
                 {/* Left panel - Podcast Player */}
-                <div className="w-64 min-[1550px]:w-80 border-r border-[#2a2a2a] p-4 min-[1550px]:p-6 flex-col hidden md:flex rounded-bl-xl bg-[#181818]">
-                  {/* Podcast info - centered vertically */}
-                  <div className="my-auto pt-8 min-[1550px]:pt-16">
-                    <div className="aspect-square bg-black mb-3 min-[1550px]:mb-6 relative overflow-hidden group rounded-sm border border-[#333]">
-                      <div className="absolute inset-0 bg-gradient-to-br from-[#C48B60]/20 to-[#be5a38]/20" />
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <svg className="w-20 min-[1550px]:w-32 h-6 min-[1550px]:h-12 text-[#C48B60]" fill="none" stroke="currentColor" viewBox="0 0 100 20">
-                          <path d="M0 10 Q 5 0 10 10 T 20 10 T 30 10 T 40 10 T 50 10 T 60 10 T 70 10 T 80 10 T 90 10 T 100 10" strokeWidth="2" />
-                        </svg>
-                      </div>
-                    </div>
-                    <h3 className="text-base min-[1550px]:text-xl font-bold leading-tight mb-1 text-gray-200" style={{ fontFamily: "'Inter', sans-serif" }}>
-                      Biology, Life, Aliens, Evolution & Xenobots
-                    </h3>
-                    <p className="text-[10px] min-[1550px]:text-xs uppercase tracking-widest text-[#C48B60] font-bold mb-2 min-[1550px]:mb-4">Episode 325</p>
-                    <div className="text-xs min-[1550px]:text-sm text-gray-500">
-                      <p>Host: <span className="italic text-gray-400">Lex Fridman</span></p>
-                      <p>Guest: <span className="italic text-gray-400">Michael Levin</span></p>
+                <div className="w-72 lg:w-80 border-r border-[#2a2a2a] p-4 lg:p-6 flex-col hidden md:flex rounded-bl-xl bg-[#181818]">
+                  <div className="aspect-square bg-black mb-4 lg:mb-6 relative overflow-hidden group rounded-sm border border-[#333]">
+                    <div className="absolute inset-0 bg-gradient-to-br from-[#C48B60]/20 to-[#be5a38]/20" />
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <svg className="w-24 lg:w-32 h-8 lg:h-12 text-[#C48B60]" fill="none" stroke="currentColor" viewBox="0 0 100 20">
+                        <path d="M0 10 Q 5 0 10 10 T 20 10 T 30 10 T 40 10 T 50 10 T 60 10 T 70 10 T 80 10 T 90 10 T 100 10" strokeWidth="2" />
+                      </svg>
                     </div>
                   </div>
-                  {/* Player controls - pinned to bottom */}
-                  <div className="mt-auto pt-4">
-                    <div className="h-10 min-[1550px]:h-16 flex items-end justify-between w-full mb-2 opacity-60">
-                      {[4, 8, 6, 10, 12, 5, 3, 6, 4, 2, 8, 5, 7, 11, 9, 4, 6, 8, 3, 5, 7, 10, 6, 4, 8, 5, 9, 7, 4, 6, 8, 11, 5, 3, 7, 9, 6, 4, 8, 5].map((h, i) => (
-                        <div key={i} className={`w-0.5 min-[1550px]:w-1 flex-shrink-0 ${i < 13 ? 'bg-[#C48B60]' : 'bg-gray-700'}`} style={{ height: `${h * 3}px` }} />
+                  <h3 className="text-lg lg:text-xl font-bold leading-tight mb-1 text-gray-200" style={{ fontFamily: "'Inter', sans-serif" }}>
+                    Biology, Life, Aliens, Evolution & Xenobots
+                  </h3>
+                  <p className="text-xs uppercase tracking-widest text-[#C48B60] font-bold mb-3 lg:mb-4">Episode 325</p>
+                  <div className="text-sm text-gray-500 mb-4 lg:mb-6">
+                    <p>Host: <span className="italic text-gray-400">Lex Fridman</span></p>
+                    <p>Guest: <span className="italic text-gray-400">Michael Levin</span></p>
+                  </div>
+                  <div className="mt-auto">
+                    <div className="h-12 lg:h-16 flex items-end gap-0.5 mb-2 opacity-60">
+                      {[4, 8, 6, 10, 12, 5, 3, 6, 4, 2].map((h, i) => (
+                        <div key={i} className={`w-1 ${i < 6 ? 'bg-[#C48B60]' : 'bg-gray-700'}`} style={{ height: `${h * 4}px` }} />
                       ))}
                     </div>
                     <div className="w-full bg-gray-800 h-1 rounded-full overflow-hidden">
                       <div className="bg-[#C48B60] w-1/3 h-full" />
                     </div>
-                    <div className="flex justify-between text-[9px] min-[1550px]:text-[10px] text-gray-500 mt-1" style={{ fontFamily: "'Fira Code', monospace" }}>
+                    <div className="flex justify-between text-[10px] text-gray-500 mt-1" style={{ fontFamily: "'Fira Code', monospace" }}>
                       <span>31:32</span>
                       <span>180:00</span>
                     </div>
-                    <div className="flex justify-center gap-4 min-[1550px]:gap-6 mt-3 min-[1550px]:mt-4 text-[#C48B60]">
-                      <Rewind className="w-4 h-4 min-[1550px]:w-6 min-[1550px]:h-6 cursor-pointer hover:scale-110 transition-transform" />
-                      <Play className="w-6 h-6 min-[1550px]:w-10 min-[1550px]:h-10 cursor-pointer hover:scale-110 transition-transform fill-current" />
-                      <Forward className="w-4 h-4 min-[1550px]:w-6 min-[1550px]:h-6 cursor-pointer hover:scale-110 transition-transform" />
+                    <div className="flex justify-center gap-6 mt-3 lg:mt-4 text-[#C48B60]">
+                      <Rewind className="w-5 h-5 lg:w-6 lg:h-6 cursor-pointer hover:scale-110 transition-transform" />
+                      <Play className="w-8 h-8 lg:w-10 lg:h-10 cursor-pointer hover:scale-110 transition-transform fill-current" />
+                      <Forward className="w-5 h-5 lg:w-6 lg:h-6 cursor-pointer hover:scale-110 transition-transform" />
                     </div>
                   </div>
                 </div>
@@ -405,8 +324,8 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
                   </div>
                 </div>
 
-                {/* Right panel - Research Assistant (hidden below 1550px) */}
-                <div className="w-72 lg:w-80 border-l border-[#2a2a2a] bg-[#161616] flex-col hidden min-[1550px]:flex rounded-br-xl">
+                {/* Right panel - Research Assistant */}
+                <div className="w-72 lg:w-80 border-l border-[#2a2a2a] bg-[#161616] flex-col hidden lg:flex rounded-br-xl">
                   <div className="p-4 border-b border-[#2a2a2a] bg-[#1E1E1E]">
                     <div className="flex items-start gap-3">
                       <div className="p-2 border border-[#C48B60]/30 rounded text-[#C48B60] bg-[#C48B60]/10">
@@ -469,12 +388,11 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
               </div>
             </div>
           </div>
-          </div>
         </div>
       </section>
 
       {/* Section 2: Powered by Gemini 3 */}
-      <section id="gemini" className="snap-section relative min-h-screen flex flex-col justify-center items-center px-4 sm:px-6 lg:px-8 py-20 lg:py-28 bg-[#1a1a1a]">
+      <section className="snap-section relative min-h-screen flex flex-col justify-center items-center px-4 sm:px-6 lg:px-8 py-20 lg:py-28 bg-[#121212]">
         <div className="max-w-7xl mx-auto w-full">
           {/* Header */}
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12">
@@ -592,7 +510,7 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
       </section>
 
       {/* Section 3: Technical Stack */}
-      <section id="tech-stack" className="snap-section relative min-h-screen flex flex-col justify-center items-center px-4 sm:px-6 lg:px-8 py-20 lg:py-28 bg-[#0a0a0a]">
+      <section className="snap-section relative min-h-screen flex flex-col justify-center items-center px-4 sm:px-6 lg:px-8 py-20 lg:py-28 bg-[#0a0a0a]">
         <div className="max-w-7xl mx-auto w-full">
           {/* Header */}
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12">
@@ -729,36 +647,8 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
       </section>
 
       {/* Section 4: Demo Video */}
-      <section id="demo" className="snap-section relative min-h-screen flex flex-col justify-center items-center px-4 sm:px-6 lg:px-8 py-20 lg:py-28">
-        {/* Bio-texture background with grid, glow, vignette, and noise */}
-        <div
-          className="absolute inset-0"
-          style={{
-            backgroundColor: '#1a1a1a',
-            backgroundImage: `
-              radial-gradient(ellipse 100% 60% at 50% 40%, rgba(196, 139, 96, 0.15) 0%, rgba(196, 139, 96, 0.05) 35%, transparent 65%),
-              linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-              linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px)
-            `,
-            backgroundSize: '100% 100%, 50px 50px, 50px 50px'
-          }}
-        >
-          {/* Vignette overlay */}
-          <div
-            className="absolute inset-0 pointer-events-none"
-            style={{
-              background: 'radial-gradient(ellipse at center, transparent 0%, transparent 40%, rgba(0, 0, 0, 0.5) 100%)'
-            }}
-          />
-          {/* Noise texture */}
-          <div
-            className="absolute inset-0 pointer-events-none opacity-[0.04]"
-            style={{
-              backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`
-            }}
-          />
-        </div>
-        <div className="max-w-4xl mx-auto w-full text-center relative z-10">
+      <section className="snap-section relative min-h-screen flex flex-col justify-center items-center px-4 sm:px-6 lg:px-8 py-20 lg:py-28 bg-[#121212]">
+        <div className="max-w-4xl mx-auto w-full text-center">
           {/* Headline */}
           <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-4" style={{ fontFamily: "'Inter', sans-serif" }}>
             SEE IT IN ACTION

@@ -4,11 +4,11 @@ import { useState } from "react"
 import { Play, Moon, Sun, Bookmark, Info, MessageSquare, Sparkles, Forward, Rewind, ChevronRight, Database, Brain, Zap, FileJson, Github } from "lucide-react"
 import { useTheme } from "next-themes"
 
-interface LandingPageProps {
+interface LandingPageV3Props {
   onGetStarted: () => void
 }
 
-export function LandingPage({ onGetStarted }: LandingPageProps) {
+export function LandingPageV3({ onGetStarted }: LandingPageV3Props) {
   const { theme, setTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
 
