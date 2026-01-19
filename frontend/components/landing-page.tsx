@@ -1,7 +1,8 @@
 "use client"
 
 import { useState } from "react"
-import { Play, Moon, Sun, Bookmark, Info, MessageSquare, Sparkles, Forward, Rewind, ChevronRight, Database, Brain, Zap, FileJson, Github } from "lucide-react"
+import { Play, Moon, Sun, Bookmark, Info, MessageSquare, Sparkles, Forward, Rewind, ChevronRight, Database, Brain, Zap, FileJson, Github, Menu } from "lucide-react"
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { useTheme } from "next-themes"
 
 interface LandingPageProps {
@@ -11,6 +12,7 @@ interface LandingPageProps {
 export function LandingPage({ onGetStarted }: LandingPageProps) {
   const { theme, setTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   // Ensure component is mounted before rendering theme toggle
   useState(() => {
@@ -89,17 +91,25 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
           z-index: 2;
         }
 
+        /* Mobile: flat card, no 3D transform */
         .pop-out-card {
-          transform: translateZ(80px) scale(1.05) translateX(-20px) translateY(-10px);
-          box-shadow: -30px 40px 60px rgba(0,0,0,0.8), 0 0 0 1px rgba(196, 139, 96, 0.2);
+          transform: none;
+          box-shadow: 0 8px 30px rgba(0,0,0,0.5);
           z-index: 50;
           position: relative;
           transition: transform 0.3s ease, box-shadow 0.3s ease;
         }
 
-        .pop-out-card:hover {
-          transform: translateZ(90px) scale(1.06) translateX(-20px) translateY(-12px);
-          box-shadow: -35px 45px 70px rgba(0,0,0,0.9), 0 0 0 1px rgba(196, 139, 96, 0.4);
+        /* Desktop (lg+): 3D pop-out effect */
+        @media (min-width: 1024px) {
+          .pop-out-card {
+            transform: translateZ(80px) scale(1.05) translateX(-20px) translateY(-10px);
+            box-shadow: -30px 40px 60px rgba(0,0,0,0.8), 0 0 0 1px rgba(196, 139, 96, 0.2);
+          }
+          .pop-out-card:hover {
+            transform: translateZ(90px) scale(1.06) translateX(-20px) translateY(-12px);
+            box-shadow: -35px 45px 70px rgba(0,0,0,0.9), 0 0 0 1px rgba(196, 139, 96, 0.4);
+          }
         }
 
         .glow-effect {
@@ -180,6 +190,51 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
               </a>
             </div>
             <div className="flex items-center space-x-4">
+              {/* Mobile hamburger menu */}
+              <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+                <SheetTrigger asChild className="md:hidden">
+                  <button className="p-2 text-gray-400 hover:text-white transition-colors" aria-label="Open menu">
+                    <Menu className="w-5 h-5" />
+                  </button>
+                </SheetTrigger>
+                <SheetContent side="right" className="bg-[#1a1a1a] border-[#333] w-[280px]">
+                  <nav className="flex flex-col gap-6 mt-8">
+                    <a
+                      href="#gemini"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="text-lg text-gray-400 hover:text-white transition-colors"
+                      style={{ fontFamily: "'Fira Code', monospace" }}
+                    >
+                      Gemini 3
+                    </a>
+                    <a
+                      href="#tech-stack"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="text-lg text-gray-400 hover:text-white transition-colors"
+                      style={{ fontFamily: "'Fira Code', monospace" }}
+                    >
+                      Tech Stack
+                    </a>
+                    <a
+                      href="#demo"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="text-lg text-gray-400 hover:text-white transition-colors"
+                      style={{ fontFamily: "'Fira Code', monospace" }}
+                    >
+                      Demo
+                    </a>
+                    <button
+                      onClick={() => {
+                        setMobileMenuOpen(false)
+                        onGetStarted()
+                      }}
+                      className="inline-flex items-center justify-center px-4 py-3 border border-[#C48B60] text-sm uppercase tracking-wide font-medium text-white bg-[#C48B60] hover:bg-[#A8744F] hover:border-[#A8744F] transition-all mt-4"
+                    >
+                      Access Demo <ChevronRight className="w-4 h-4 ml-1" />
+                    </button>
+                  </nav>
+                </SheetContent>
+              </Sheet>
               <button
                 onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
                 className="p-2 text-gray-400 hover:text-white transition-colors"
@@ -193,7 +248,7 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
               </button>
               <button
                 onClick={onGetStarted}
-                className="inline-flex items-center justify-center px-4 py-2 border border-[#C48B60] shadow-sm text-xs uppercase tracking-wide font-medium text-white bg-[#C48B60] hover:bg-[#A8744F] hover:border-[#A8744F] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#C48B60] transition-all"
+                className="hidden sm:inline-flex items-center justify-center px-4 py-2 border border-[#C48B60] shadow-sm text-xs uppercase tracking-wide font-medium text-white bg-[#C48B60] hover:bg-[#A8744F] hover:border-[#A8744F] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#C48B60] transition-all"
               >
                 Access Demo <ChevronRight className="w-4 h-4 ml-1" />
               </button>
@@ -236,9 +291,9 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
         <div className="relative z-10 w-full px-4 sm:px-6 lg:pl-12 xl:pl-20 lg:pr-0">
           <div className="grid grid-cols-1 lg:grid-cols-[32%_68%] gap-8 lg:gap-4 items-center">
             {/* Left column - Text content */}
-            <div className="text-center lg:text-left items-center lg:items-start flex flex-col -mt-8 lg:-mt-12">
+            <div className="text-center lg:text-left items-center lg:items-start flex flex-col lg:-mt-12">
               {/* Headline */}
-              <h1 className="text-4xl md:text-5xl lg:text-5xl min-[1550px]:text-8xl tracking-tight mb-6 leading-tight text-white animate-fade-in-up" style={{ fontFamily: "'Russo One', sans-serif" }}>
+              <h1 className="text-5xl md:text-5xl lg:text-5xl min-[1550px]:text-8xl tracking-tight mb-6 leading-tight text-white animate-fade-in-up" style={{ fontFamily: "'Russo One', sans-serif" }}>
                 The{' '}
                 <span className="text-[#C48B60] inline-block" style={{ transform: 'skewX(-6deg)' }}>
                   knowledge layer
@@ -661,7 +716,7 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
             {/* Right column: Tech specs */}
             <div className="space-y-6">
               {/* Stack Cards */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {[
                   { label: "Backend", value: "Python + FastMCP", desc: "MCP protocol server with HTTP adapter" },
                   { label: "Frontend", value: "Next.js + React", desc: "Real-time sync via API proxy routes" },
@@ -679,7 +734,7 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
               </div>
 
               {/* Stats Row */}
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 {[
                   { value: "500+", label: "Papers Indexed" },
                   { value: "< 3s", label: "Query Latency" },
@@ -701,7 +756,7 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
                 <div className="text-sm tracking-[0.15em] text-[#C48B60] mb-6" style={{ fontFamily: "'Fira Code', monospace" }}>
                   EXPOSED MCP TOOLS
                 </div>
-                <div className="grid grid-cols-2 gap-x-6 gap-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
                   {[
                     { name: "rag_search", primary: true },
                     { name: "save_paper", primary: false },
