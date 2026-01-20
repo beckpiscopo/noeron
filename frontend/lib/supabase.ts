@@ -1424,6 +1424,90 @@ export async function getBookmarkClusterMappings(
 }
 
 // ============================================================================
+// Episode Paper Functions
+// ============================================================================
+
+export interface EpisodeTopPaper {
+  paper_id: string
+  title: string
+  year: number | null
+  citation_count: number | null
+  url: string | null
+  authors: string[] | null
+  reference_count: number  // How many claims in this episode cite this paper
+}
+
+/**
+ * Get the top papers referenced in an episode, ordered by citation count
+ * This finds papers linked through claims and returns the most-cited ones
+ */
+export async function getTopPapersForEpisode(
+  podcastId: string,
+  limit: number = 3
+): Promise<EpisodeTopPaper[]> {
+  if (!supabase) return []
+
+  // First get all unique paper_ids from claims for this episode
+  const { data: claims, error: claimsError } = await supabase
+    .from('claims')
+    .select('paper_id')
+    .eq('podcast_id', podcastId)
+    .not('paper_id', 'is', null)
+    .is('duplicate_of', null)
+
+  if (claimsError) {
+    console.error('Error fetching claims for papers:', claimsError)
+    return []
+  }
+
+  if (!claims || claims.length === 0) return []
+
+  // Count how many times each paper is referenced
+  const paperRefCounts = new Map<string, number>()
+  for (const claim of claims) {
+    if (claim.paper_id) {
+      paperRefCounts.set(claim.paper_id, (paperRefCounts.get(claim.paper_id) || 0) + 1)
+    }
+  }
+
+  const uniquePaperIds = Array.from(paperRefCounts.keys())
+
+  // Get paper details from the papers table
+  const { data: papers, error: papersError } = await supabase
+    .from('papers')
+    .select('paper_id, title, year, citation_count, url, authors')
+    .in('paper_id', uniquePaperIds)
+
+  if (papersError) {
+    console.error('Error fetching paper details:', papersError)
+    return []
+  }
+
+  // Sort by reference_count (how many times cited in this episode), then by citation_count as tiebreaker
+  return (papers || [])
+    .map(p => ({
+      paper_id: p.paper_id,
+      title: p.title,
+      year: p.year,
+      citation_count: p.citation_count,
+      url: p.url,
+      authors: p.authors,
+      reference_count: paperRefCounts.get(p.paper_id) || 0
+    }))
+    .sort((a, b) => {
+      // Primary: reference_count descending
+      if (b.reference_count !== a.reference_count) {
+        return b.reference_count - a.reference_count
+      }
+      // Secondary: citation_count descending (nulls last)
+      const aCitations = a.citation_count ?? -1
+      const bCitations = b.citation_count ?? -1
+      return bCitations - aCitations
+    })
+    .slice(0, limit)
+}
+
+// ============================================================================
 // Example Usage in Components
 // ============================================================================
 

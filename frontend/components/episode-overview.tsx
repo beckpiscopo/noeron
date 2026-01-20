@@ -6,7 +6,6 @@ import {
   Play,
   Grid3X3,
   Star,
-  ExternalLink,
   ChevronRight,
   ChevronDown,
   ChevronUp,
@@ -21,8 +20,8 @@ import {
 import { NoeronHeader } from "./noeron-header"
 import { AIChatSidebar } from "./ai-chat"
 import { EpisodeClusterSummary } from "./taxonomy-bubble-map"
-import type { EpisodeNotebookComparison, ClaimWithCluster } from "@/lib/supabase"
-import { compareEpisodeToNotebook, getEpisodeClaimsByCluster } from "@/lib/supabase"
+import type { EpisodeNotebookComparison, ClaimWithCluster, EpisodeTopPaper } from "@/lib/supabase"
+import { compareEpisodeToNotebook, getEpisodeClaimsByCluster, getTopPapersForEpisode } from "@/lib/supabase"
 
 // =============================================================================
 // TYPES
@@ -66,13 +65,6 @@ interface ClaimDensityPoint {
   keywords?: string[] // Top keywords from claims in this time bucket
 }
 
-interface ReferencePaper {
-  title: string
-  year: number
-  type: "KEY PROTOCOL" | "Secondary Source" | "Foundational" | "Supporting"
-  isPrimary?: boolean
-  url?: string
-}
 
 export interface EpisodeOverviewData {
   id: string
@@ -94,7 +86,6 @@ export interface EpisodeOverviewData {
   key_moments?: KeyMoment[]            // Legacy
   guest_thesis?: GuestThesis
   claim_density?: ClaimDensityPoint[]
-  reference_papers?: ReferencePaper[]
   isLoading?: boolean
 }
 
@@ -542,59 +533,98 @@ function CollapsibleEpisodeOutline({ chapters, outline, onSeek }: CollapsibleEpi
 }
 
 // =============================================================================
-// REFERENCE MANIFEST (Papers Sidebar)
+// REFERENCE LIST (Papers Sidebar)
 // =============================================================================
 
-interface ReferenceManifestProps {
-  papers: ReferencePaper[]
+interface ReferenceListProps {
+  papers: EpisodeTopPaper[]
+  isLoading: boolean
+  onViewPaper?: (paperId: string) => void
 }
 
-function ReferenceManifest({ papers }: ReferenceManifestProps) {
+function ReferenceList({ papers, isLoading, onViewPaper }: ReferenceListProps) {
+  if (isLoading) {
+    return (
+      <div className="border border-border/50 bg-card/20">
+        <div className="flex items-center gap-2 px-4 py-3 border-b border-border/50">
+          <Grid3X3 className="w-3 h-3 text-foreground/40" />
+          <span className="text-foreground/50 mono text-xs tracking-[0.2em] uppercase">
+            Reference List
+          </span>
+        </div>
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="w-4 h-4 animate-spin text-foreground/50" />
+          <span className="ml-2 text-sm text-foreground/50">Loading papers...</span>
+        </div>
+      </div>
+    )
+  }
+
+  if (papers.length === 0) {
+    return (
+      <div className="border border-border/50 bg-card/20">
+        <div className="flex items-center gap-2 px-4 py-3 border-b border-border/50">
+          <Grid3X3 className="w-3 h-3 text-foreground/40" />
+          <span className="text-foreground/50 mono text-xs tracking-[0.2em] uppercase">
+            Reference List
+          </span>
+        </div>
+        <div className="px-4 py-6 text-center text-sm text-foreground/40 mono">
+          No papers linked yet
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="border border-border/50 bg-card/20">
       {/* Header */}
       <div className="flex items-center gap-2 px-4 py-3 border-b border-border/50">
         <Grid3X3 className="w-3 h-3 text-foreground/40" />
         <span className="text-foreground/50 mono text-xs tracking-[0.2em] uppercase">
-          Reference Manifest
+          Reference List
         </span>
       </div>
 
       {/* Papers list */}
       <div className="divide-y divide-border/30">
         {papers.map((paper, idx) => (
-          <div
-            key={idx}
-            className="px-4 py-3 hover:bg-[var(--golden-chestnut)]/5 transition-colors cursor-pointer group"
+          <button
+            key={paper.paper_id}
+            onClick={() => onViewPaper?.(paper.paper_id)}
+            className="w-full text-left px-4 py-3 hover:bg-[var(--golden-chestnut)]/5 transition-colors group"
           >
             <div className="flex items-start justify-between gap-2">
               <div className="flex-1 min-w-0">
-                <h4 className="text-sm text-foreground/80 font-medium leading-tight mb-1">
+                <h4 className="text-sm text-foreground/80 font-medium leading-tight mb-1 group-hover:text-foreground transition-colors line-clamp-2">
                   {paper.title}
                 </h4>
-                <div className="flex items-center gap-2">
-                  <span className="mono text-xs text-foreground/40">{paper.year}</span>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {paper.year && (
+                    <span className="mono text-xs text-foreground/40">{paper.year}</span>
+                  )}
                   <span className="text-xs text-[var(--golden-chestnut)]/70 uppercase tracking-wider">
-                    {paper.type}
+                    {paper.reference_count} {paper.reference_count === 1 ? 'reference' : 'references'}
                   </span>
                 </div>
               </div>
-              {paper.isPrimary && (
+              {idx === 0 && (
                 <Star className="w-3 h-3 text-[var(--golden-chestnut)] fill-current shrink-0" />
               )}
             </div>
-            <p className="mt-2 text-sm text-foreground/40 leading-relaxed line-clamp-2">
-              {/* We could add paper descriptions here */}
-            </p>
-          </div>
+            <div className="mt-1.5 flex items-center gap-1 text-xs text-foreground/30 group-hover:text-[var(--golden-chestnut)] transition-colors">
+              <ChevronRight className="w-3 h-3" />
+              <span>View paper</span>
+            </div>
+          </button>
         ))}
       </div>
 
       {/* Footer */}
       <div className="px-4 py-2 border-t border-border/30 text-center">
-        <button className="text-xs mono text-foreground/30 hover:text-[var(--golden-chestnut)] transition-colors tracking-wider uppercase">
-          Access Full Bibliography
-        </button>
+        <span className="text-xs mono text-foreground/30 tracking-wider uppercase">
+          Most referenced papers
+        </span>
       </div>
     </div>
   )
@@ -1024,6 +1054,24 @@ function EpisodeClusterExplorer({ episodeId, onSeek }: EpisodeClusterExplorerPro
 export function EpisodeOverview({ episode, onStartListening, onBack, onBookmarksClick, onViewPaper }: EpisodeOverviewProps) {
   const [chatOpen, setChatOpen] = useState(true)
   const [chatWidth, setChatWidth] = useState(440)
+  const [topPapers, setTopPapers] = useState<EpisodeTopPaper[]>([])
+  const [papersLoading, setPapersLoading] = useState(true)
+
+  // Fetch top papers for this episode
+  useEffect(() => {
+    async function loadTopPapers() {
+      setPapersLoading(true)
+      try {
+        const papers = await getTopPapersForEpisode(episode.id, 3)
+        setTopPapers(papers)
+      } catch (err) {
+        console.error('Failed to load top papers:', err)
+      } finally {
+        setPapersLoading(false)
+      }
+    }
+    loadTopPapers()
+  }, [episode.id])
 
   // Header action buttons
   const iconButtonClasses =
@@ -1055,13 +1103,6 @@ export function EpisodeOverview({ episode, onStartListening, onBack, onBookmarks
       "Evolution produces problem-solving machines capable of navigating different spaces.",
     ]
   }
-
-  // Default reference papers
-  const referencePapers: ReferencePaper[] = episode.reference_papers || [
-    { title: "Endogenous Bioelectric Signals", year: 2023, type: "KEY PROTOCOL", isPrimary: true },
-    { title: "Synthetic Morphology", year: 2021, type: "Secondary Source" },
-    { title: "The Computational Boundary", year: 2019, type: "Foundational" },
-  ]
 
   const handleSeek = (timestamp: number) => {
     onStartListening(timestamp)
@@ -1100,7 +1141,7 @@ export function EpisodeOverview({ episode, onStartListening, onBack, onBookmarks
               </div>
 
               {/* Title */}
-              <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-foreground tracking-tight leading-tight mb-8" style={{ fontFamily: "'Playfair Display', serif" }}>
+              <h1 className="display text-3xl md:text-4xl lg:text-5xl font-bold text-foreground tracking-tight leading-tight mb-8">
                 {episode.title.split(" ").slice(0, 4).join(" ").toUpperCase()}
                 <br />
                 <span className="text-foreground/60">
@@ -1193,8 +1234,8 @@ export function EpisodeOverview({ episode, onStartListening, onBack, onBookmarks
             {/* Research Territory Coverage */}
             <EpisodeClusterSummary episodeId={episode.id} />
 
-            {/* Reference Manifest */}
-            <ReferenceManifest papers={referencePapers} />
+            {/* Reference List */}
+            <ReferenceList papers={topPapers} isLoading={papersLoading} onViewPaper={onViewPaper} />
 
             {/* Guest Thesis */}
             <GuestThesisCard guest={episode.guest} thesis={guestThesis} />
