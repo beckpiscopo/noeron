@@ -34,7 +34,7 @@ EPISODES_FILE = DATA_DIR / "episodes.json"
 SUMMARIES_FILE = DATA_DIR / "episode_summaries.json"
 
 # Gemini model - use flash for cost efficiency on long transcripts
-DEFAULT_MODEL = "gemini-2.0-flash"
+DEFAULT_MODEL = "gemini-3-flash-preview"
 
 
 # =============================================================================
@@ -81,11 +81,23 @@ For each theme, provide:
 - evolution: How this theme develops through the episode
 - timestamps: Approximate time ranges where this theme is discussed (e.g., "10:00-25:00, 1:45:00-2:00:00")
 
-## 4. EPISODE_OUTLINE (list of 8-12 timestamped sections)
-Create a chronological outline of the episode. For each section:
-- timestamp: Start time of this section (e.g., "0:00", "23:45", "1:15:00")
-- topic: Brief topic title (3-6 words, e.g., "Planaria regeneration introduction")
-This should read like a table of contents for the episode.
+## 4. EPISODE_CHAPTERS (list of 4-6 major sections)
+Create a hierarchical outline with 4-6 chapters. Each chapter should cover a roughly equal portion of the episode.
+IMPORTANT: Each chapter MUST have exactly 2-4 topics. No more than 4 topics per chapter.
+
+For each chapter:
+- title: A compelling chapter title summarizing the section (5-10 words, e.g., "The Biology of Regeneration")
+- timestamp_start: When this chapter begins. Use format "H:MM:SS" for episodes over 1 hour, "MM:SS" otherwise.
+- timestamp_end: When this chapter ends. Use the same format as timestamp_start.
+- topics: List of 2-4 specific topics within this chapter (STRICTLY 2-4, not more). Each topic has:
+  - timestamp: Exact start time using same format as chapter timestamps (e.g., "0:05:30" or "5:30")
+  - topic: Brief description (3-6 words, e.g., "Planaria regeneration introduction")
+
+Guidelines:
+- Chapters should be roughly balanced in duration (e.g., for a 3-hour episode, each of 6 chapters covers ~30 minutes)
+- Use consistent timestamp format throughout (H:MM:SS for long episodes)
+- Topics within a chapter should be thematically related
+- This should read like a detailed table of contents with chapters and sub-topics
 
 ## 5. GUEST_THESIS
 Summarize the guest's main arguments and worldview as expressed in this episode:
@@ -114,10 +126,15 @@ Return a valid JSON object with this exact structure:
       "timestamps": "..."
     }}
   ],
-  "episode_outline": [
+  "episode_chapters": [
     {{
-      "timestamp": "0:00",
-      "topic": "..."
+      "title": "Chapter Title Here",
+      "timestamp_start": "0:00",
+      "timestamp_end": "25:30",
+      "topics": [
+        {{"timestamp": "0:00", "topic": "Topic description"}},
+        {{"timestamp": "10:00", "topic": "Another topic"}}
+      ]
     }}
   ],
   "guest_thesis": {{
@@ -166,6 +183,22 @@ class OutlineItem:
 
 
 @dataclass
+class ChapterItem:
+    """A topic item within a chapter."""
+    timestamp: str
+    topic: str
+
+
+@dataclass
+class EpisodeChapter:
+    """A chapter in the episode containing grouped topics."""
+    title: str
+    timestamp_start: str
+    timestamp_end: str
+    topics: List[ChapterItem]
+
+
+@dataclass
 class GuestThesis:
     """The guest's main arguments and worldview."""
     core_thesis: str
@@ -192,6 +225,7 @@ class EpisodeSummary:
     episode_outline: List[OutlineItem]
     guest_thesis: GuestThesis
     conversation_dynamics: ConversationDynamics
+    episode_chapters: Optional[List[EpisodeChapter]] = None  # New hierarchical structure
     key_moments: Optional[List[KeyMoment]] = None  # Legacy field
 
     def to_dict(self) -> Dict[str, Any]:
@@ -205,6 +239,17 @@ class EpisodeSummary:
             "guest_thesis": asdict(self.guest_thesis),
             "conversation_dynamics": asdict(self.conversation_dynamics),
         }
+        # Include episode_chapters if present
+        if self.episode_chapters:
+            result["episode_chapters"] = [
+                {
+                    "title": ch.title,
+                    "timestamp_start": ch.timestamp_start,
+                    "timestamp_end": ch.timestamp_end,
+                    "topics": [asdict(t) for t in ch.topics]
+                }
+                for ch in self.episode_chapters
+            ]
         # Include legacy key_moments if present
         if self.key_moments:
             result["key_moments"] = [asdict(m) for m in self.key_moments]
@@ -385,9 +430,34 @@ class EpisodeSummaryGenerator:
             themes = [
                 Theme(**t) for t in summary_data.get("major_themes", [])
             ]
-            outline = [
-                OutlineItem(**o) for o in summary_data.get("episode_outline", [])
-            ]
+
+            # Parse episode_chapters (new format) and flatten to episode_outline for backward compatibility
+            chapters: List[EpisodeChapter] = []
+            outline: List[OutlineItem] = []
+
+            if "episode_chapters" in summary_data:
+                # Parse hierarchical chapters
+                for ch_data in summary_data["episode_chapters"]:
+                    topics = [
+                        ChapterItem(timestamp=t["timestamp"], topic=t["topic"])
+                        for t in ch_data.get("topics", [])
+                    ]
+                    chapter = EpisodeChapter(
+                        title=ch_data.get("title", ""),
+                        timestamp_start=ch_data.get("timestamp_start", "0:00"),
+                        timestamp_end=ch_data.get("timestamp_end", ""),
+                        topics=topics
+                    )
+                    chapters.append(chapter)
+                    # Flatten to outline items for backward compatibility
+                    for topic in topics:
+                        outline.append(OutlineItem(timestamp=topic.timestamp, topic=topic.topic))
+            elif "episode_outline" in summary_data:
+                # Fall back to legacy flat outline format
+                outline = [
+                    OutlineItem(**o) for o in summary_data.get("episode_outline", [])
+                ]
+
             thesis_data = summary_data.get("guest_thesis", {})
             thesis = GuestThesis(
                 core_thesis=thesis_data.get("core_thesis", ""),
@@ -408,6 +478,7 @@ class EpisodeSummaryGenerator:
                 narrative_arc=summary_data.get("narrative_arc", ""),
                 major_themes=themes,
                 episode_outline=outline,
+                episode_chapters=chapters if chapters else None,
                 guest_thesis=thesis,
                 conversation_dynamics=dynamics,
             )
@@ -487,6 +558,23 @@ def load_summary(episode_id: str) -> Optional[EpisodeSummary]:
             for m in data["key_moments"]
         ]
 
+    # Load episode_chapters if present
+    episode_chapters = None
+    if "episode_chapters" in data:
+        episode_chapters = []
+        for ch_data in data["episode_chapters"]:
+            topics = [
+                ChapterItem(timestamp=t["timestamp"], topic=t["topic"])
+                for t in ch_data.get("topics", [])
+            ]
+            chapter = EpisodeChapter(
+                title=ch_data.get("title", ""),
+                timestamp_start=ch_data.get("timestamp_start", "0:00"),
+                timestamp_end=ch_data.get("timestamp_end", ""),
+                topics=topics
+            )
+            episode_chapters.append(chapter)
+
     # Legacy key_moments support
     key_moments = None
     if "key_moments" in data:
@@ -498,6 +586,7 @@ def load_summary(episode_id: str) -> Optional[EpisodeSummary]:
         narrative_arc=data["narrative_arc"],
         major_themes=[Theme(**t) for t in data["major_themes"]],
         episode_outline=episode_outline,
+        episode_chapters=episode_chapters,
         guest_thesis=GuestThesis(**data["guest_thesis"]),
         conversation_dynamics=ConversationDynamics(**data["conversation_dynamics"]),
         key_moments=key_moments,

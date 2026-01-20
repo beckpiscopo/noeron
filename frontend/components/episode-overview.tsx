@@ -46,6 +46,13 @@ interface OutlineItem {
   topic: string
 }
 
+interface EpisodeChapter {
+  title: string              // AI-generated chapter title
+  timestamp_start: string    // "0:00"
+  timestamp_end: string      // "25:30"
+  topics: { timestamp: string; topic: string }[]
+}
+
 interface GuestThesis {
   summary: string
   key_claims: string[]
@@ -82,8 +89,9 @@ export interface EpisodeOverviewData {
   brief_summary?: string
   summary?: string  // narrative_arc (longer version)
   major_themes?: EpisodeTheme[]
-  episode_outline?: OutlineItem[]
-  key_moments?: KeyMoment[]  // Legacy
+  episode_chapters?: EpisodeChapter[]  // New hierarchical structure
+  episode_outline?: OutlineItem[]      // Flat list (legacy or flattened from chapters)
+  key_moments?: KeyMoment[]            // Legacy
   guest_thesis?: GuestThesis
   claim_density?: ClaimDensityPoint[]
   reference_papers?: ReferencePaper[]
@@ -220,7 +228,7 @@ function ConceptDensityAnalysis({ durationSeconds, claimDensity, keyMoments, onS
           </span>
         </div>
         {isHighDensity && (
-          <span className="px-2 py-1 bg-[var(--golden-chestnut)]/20 text-[var(--golden-chestnut)] mono text-[10px] tracking-wider">
+          <span className="px-2 py-1 bg-[var(--golden-chestnut)]/20 text-[var(--golden-chestnut)] mono text-xs tracking-wider">
             HIGH DENSITY DETECTED
           </span>
         )}
@@ -229,7 +237,7 @@ function ConceptDensityAnalysis({ durationSeconds, claimDensity, keyMoments, onS
       {/* Chart Container */}
       <div className="relative h-40 mt-6">
         {/* Y-axis labels */}
-        <div className="absolute left-0 top-0 bottom-8 w-10 flex flex-col justify-between text-[10px] mono text-foreground/30">
+        <div className="absolute left-0 top-0 bottom-8 w-10 flex flex-col justify-between text-xs mono text-foreground/30">
           <span>100%</span>
           <span>50%</span>
           <span>0%</span>
@@ -287,7 +295,7 @@ function ConceptDensityAnalysis({ durationSeconds, claimDensity, keyMoments, onS
               style={{ left: `${(hoveredTime / durationSeconds) * 100}%` }}
             >
               <div className="absolute -top-6 left-1/2 -translate-x-1/2 px-3 py-2 bg-card border border-[var(--golden-chestnut)]/30 min-w-[100px]">
-                <span className="mono text-[10px] text-[var(--golden-chestnut)] block text-center">
+                <span className="mono text-xs text-[var(--golden-chestnut)] block text-center">
                   {formatTimecode(hoveredTime)}
                 </span>
                 {hoveredPoint?.keywords && hoveredPoint.keywords.length > 0 && (
@@ -296,7 +304,7 @@ function ConceptDensityAnalysis({ durationSeconds, claimDensity, keyMoments, onS
                       {hoveredPoint.keywords.map((keyword, i) => (
                         <span
                           key={i}
-                          className="text-[9px] px-1.5 py-0.5 bg-[var(--golden-chestnut)]/10 text-foreground/70 rounded"
+                          className="text-xs px-1.5 py-0.5 bg-[var(--golden-chestnut)]/10 text-foreground/70 rounded"
                         >
                           {keyword}
                         </span>
@@ -310,7 +318,7 @@ function ConceptDensityAnalysis({ durationSeconds, claimDensity, keyMoments, onS
         </div>
 
         {/* X-axis labels */}
-        <div className="absolute left-12 right-0 bottom-0 flex justify-between text-[10px] mono text-foreground/30">
+        <div className="absolute left-12 right-0 bottom-0 flex justify-between text-xs mono text-foreground/30">
           <span>00:00</span>
           <span>{formatTimecode(durationSeconds / 4)}</span>
           <span>{formatTimecode(durationSeconds / 2)}</span>
@@ -360,7 +368,7 @@ function EpisodeOutlineList({ items, onSeek }: EpisodeOutlineProps) {
               </div>
 
               {/* Topic */}
-              <p className="text-sm text-foreground/70 group-hover:text-foreground transition-colors">
+              <p className="text-base text-foreground/70 group-hover:text-foreground transition-colors">
                 {item.topic}
               </p>
             </div>
@@ -387,6 +395,153 @@ function KeyMomentsList({ moments, onSeek }: KeyMomentsListProps) {
 }
 
 // =============================================================================
+// COLLAPSIBLE CHAPTER SECTION
+// =============================================================================
+
+interface ChapterSectionProps {
+  chapter: EpisodeChapter
+  index: number
+  isExpanded: boolean
+  onToggle: () => void
+  onSeek: (timestamp: number) => void
+}
+
+function ChapterSection({ chapter, index, isExpanded, onToggle, onSeek }: ChapterSectionProps) {
+  return (
+    <div className="border-b border-border/20 last:border-b-0">
+      {/* Chapter Header - Collapsible */}
+      <button
+        onClick={onToggle}
+        className="w-full text-left group"
+      >
+        <div className="flex items-center gap-4 p-3 transition-colors hover:bg-[var(--golden-chestnut)]/5">
+          {/* Expand/Collapse Chevron */}
+          <div className="shrink-0 w-5 h-5 flex items-center justify-center">
+            {isExpanded ? (
+              <ChevronDown className="w-4 h-4 text-[var(--golden-chestnut)]" />
+            ) : (
+              <ChevronRight className="w-4 h-4 text-foreground/40 group-hover:text-[var(--golden-chestnut)] transition-colors" />
+            )}
+          </div>
+
+          {/* Timestamp Badge */}
+          <span className="mono text-xs text-[var(--golden-chestnut)]/70 tabular-nums px-2 py-0.5 bg-[var(--golden-chestnut)]/10 shrink-0">
+            {chapter.timestamp_start}
+          </span>
+
+          {/* Chapter Title */}
+          <h4 className="flex-1 text-sm font-medium text-foreground group-hover:text-foreground transition-colors">
+            {chapter.title}
+          </h4>
+
+          {/* Topic Count Badge */}
+          <span className="mono text-xs text-foreground/40 shrink-0">
+            {chapter.topics.length} topics
+          </span>
+        </div>
+      </button>
+
+      {/* Nested Topics - Shown when expanded */}
+      {isExpanded && (
+        <div className="pl-9 pb-2 bg-background/30">
+          {chapter.topics.map((topic, idx) => (
+            <button
+              key={idx}
+              onClick={() => onSeek(parseTimestampToSeconds(topic.timestamp))}
+              className="w-full text-left group"
+            >
+              <div className="flex items-center gap-4 p-2 pr-4 transition-colors hover:bg-[var(--golden-chestnut)]/5">
+                {/* Play Icon + Timestamp */}
+                <div className="flex items-center gap-2 shrink-0">
+                  <Play className="w-3 h-3 text-[var(--golden-chestnut)] opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <span className="mono text-xs text-foreground/50 tabular-nums w-12">
+                    {topic.timestamp}
+                  </span>
+                </div>
+
+                {/* Topic Text */}
+                <p className="text-base text-foreground/60 group-hover:text-foreground/80 transition-colors">
+                  {topic.topic}
+                </p>
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// =============================================================================
+// COLLAPSIBLE EPISODE OUTLINE (Main Component)
+// =============================================================================
+
+interface CollapsibleEpisodeOutlineProps {
+  chapters?: EpisodeChapter[]
+  outline?: OutlineItem[]
+  onSeek: (timestamp: number) => void
+}
+
+function CollapsibleEpisodeOutline({ chapters, outline, onSeek }: CollapsibleEpisodeOutlineProps) {
+  // Track which chapters are expanded (default: first one expanded)
+  const [expandedChapters, setExpandedChapters] = useState<Set<number>>(() => new Set([0]))
+
+  const toggleChapter = (index: number) => {
+    setExpandedChapters(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(index)) {
+        newSet.delete(index)
+      } else {
+        newSet.add(index)
+      }
+      return newSet
+    })
+  }
+
+  // If we have hierarchical chapters, render collapsible UI
+  if (chapters && chapters.length > 0) {
+    return (
+      <CornerBrackets className="p-6 bg-card/30">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <span className="text-[var(--golden-chestnut)] text-xs">▷</span>
+            <span className="text-foreground/60 mono text-xs tracking-[0.2em] uppercase">
+              Episode Chapters
+            </span>
+          </div>
+          <span className="mono text-xs text-foreground/40">
+            {chapters.length} chapters • {chapters.reduce((acc, ch) => acc + ch.topics.length, 0)} topics
+          </span>
+        </div>
+
+        {/* Chapters List */}
+        <div className="border border-border/30 bg-background/20">
+          {chapters.map((chapter, idx) => (
+            <ChapterSection
+              key={idx}
+              chapter={chapter}
+              index={idx}
+              isExpanded={expandedChapters.has(idx)}
+              onToggle={() => toggleChapter(idx)}
+              onSeek={onSeek}
+            />
+          ))}
+        </div>
+      </CornerBrackets>
+    )
+  }
+
+  // Fall back to flat outline if no chapters
+  if (outline && outline.length > 0) {
+    return <EpisodeOutlineList items={outline} onSeek={onSeek} />
+  }
+
+  // No data
+  return null
+}
+
+// =============================================================================
 // REFERENCE MANIFEST (Papers Sidebar)
 // =============================================================================
 
@@ -400,7 +555,7 @@ function ReferenceManifest({ papers }: ReferenceManifestProps) {
       {/* Header */}
       <div className="flex items-center gap-2 px-4 py-3 border-b border-border/50">
         <Grid3X3 className="w-3 h-3 text-foreground/40" />
-        <span className="text-foreground/50 mono text-[10px] tracking-[0.2em] uppercase">
+        <span className="text-foreground/50 mono text-xs tracking-[0.2em] uppercase">
           Reference Manifest
         </span>
       </div>
@@ -418,8 +573,8 @@ function ReferenceManifest({ papers }: ReferenceManifestProps) {
                   {paper.title}
                 </h4>
                 <div className="flex items-center gap-2">
-                  <span className="mono text-[10px] text-foreground/40">{paper.year}</span>
-                  <span className="text-[10px] text-[var(--golden-chestnut)]/70 uppercase tracking-wider">
+                  <span className="mono text-xs text-foreground/40">{paper.year}</span>
+                  <span className="text-xs text-[var(--golden-chestnut)]/70 uppercase tracking-wider">
                     {paper.type}
                   </span>
                 </div>
@@ -428,7 +583,7 @@ function ReferenceManifest({ papers }: ReferenceManifestProps) {
                 <Star className="w-3 h-3 text-[var(--golden-chestnut)] fill-current shrink-0" />
               )}
             </div>
-            <p className="mt-2 text-xs text-foreground/40 leading-relaxed line-clamp-2">
+            <p className="mt-2 text-sm text-foreground/40 leading-relaxed line-clamp-2">
               {/* We could add paper descriptions here */}
             </p>
           </div>
@@ -437,7 +592,7 @@ function ReferenceManifest({ papers }: ReferenceManifestProps) {
 
       {/* Footer */}
       <div className="px-4 py-2 border-t border-border/30 text-center">
-        <button className="text-[10px] mono text-foreground/30 hover:text-[var(--golden-chestnut)] transition-colors tracking-wider uppercase">
+        <button className="text-xs mono text-foreground/30 hover:text-[var(--golden-chestnut)] transition-colors tracking-wider uppercase">
           Access Full Bibliography
         </button>
       </div>
@@ -460,14 +615,14 @@ function GuestThesisCard({ guest, thesis }: GuestThesisProps) {
       {/* Header */}
       <div className="flex items-center gap-2 px-4 py-3 border-b border-[var(--golden-chestnut)]/10">
         <Circle className="w-2 h-2 text-[var(--golden-chestnut)] fill-current" />
-        <span className="text-foreground/50 mono text-[10px] tracking-[0.2em] uppercase">
+        <span className="text-foreground/50 mono text-xs tracking-[0.2em] uppercase">
           {guest}'s Core Thesis
         </span>
       </div>
 
       <div className="p-4">
         {/* Main thesis */}
-        <p className="text-sm text-foreground/70 leading-relaxed mb-4">
+        <p className="text-base text-foreground/70 leading-relaxed mb-4">
           {thesis.summary}
         </p>
 
@@ -475,8 +630,8 @@ function GuestThesisCard({ guest, thesis }: GuestThesisProps) {
         <div className="space-y-2">
           {thesis.key_claims.slice(0, 3).map((claim, idx) => (
             <div key={idx} className="flex items-start gap-3">
-              <span className="mono text-[10px] text-[var(--golden-chestnut)]">[{String(idx + 1).padStart(2, "0")}]</span>
-              <p className="text-xs text-foreground/50 leading-relaxed">
+              <span className="mono text-xs text-[var(--golden-chestnut)]">[{String(idx + 1).padStart(2, "0")}]</span>
+              <p className="text-sm text-foreground/50 leading-relaxed">
                 {claim}
               </p>
             </div>
@@ -530,7 +685,7 @@ function SummaryLoadingIndicator() {
           <p className="text-sm text-foreground/50">
             Gemini is analyzing the episode transcript...
           </p>
-          <p className="text-xs text-foreground/30 mt-2">
+          <p className="text-sm text-foreground/30 mt-2">
             This may take 10-30 seconds
           </p>
         </div>
@@ -546,12 +701,12 @@ function SummaryLoadingIndicator() {
 function TerminalFooter() {
   return (
     <footer className="flex items-center justify-between px-6 py-3 border-t border-border/30 bg-background/50">
-      <div className="flex items-center gap-6 mono text-[10px] text-foreground/30 tracking-wider">
+      <div className="flex items-center gap-6 mono text-xs text-foreground/30 tracking-wider">
         <span>CALIBRATION: 0.9943</span>
         <span>NOISE FL: -92dB</span>
         <span>RENDER: GPU-04</span>
       </div>
-      <div className="mono text-[10px] text-foreground/30 tracking-wider">
+      <div className="mono text-xs text-foreground/30 tracking-wider">
         NOERON SYSTEMS INC. © 2025
       </div>
     </footer>
@@ -597,24 +752,24 @@ function ClusterCard({
           </h4>
           <div className="flex items-center gap-2 shrink-0">
             {isNew && (
-              <span className="px-1.5 py-0.5 bg-[var(--golden-chestnut)]/20 text-[var(--golden-chestnut)] text-[9px] mono uppercase tracking-wider">
+              <span className="px-1.5 py-0.5 bg-[var(--golden-chestnut)]/20 text-[var(--golden-chestnut)] text-xs mono uppercase tracking-wider">
                 NEW
               </span>
             )}
             {isExplored && (
-              <span className="px-1.5 py-0.5 bg-emerald-500/20 text-emerald-400 text-[9px] mono uppercase tracking-wider">
+              <span className="px-1.5 py-0.5 bg-emerald-500/20 text-emerald-400 text-xs mono uppercase tracking-wider">
                 EXPLORED
               </span>
             )}
           </div>
         </div>
 
-        <p className="text-xs text-foreground/50 leading-relaxed line-clamp-2 mb-2">
+        <p className="text-sm text-foreground/50 leading-relaxed line-clamp-2 mb-2">
           {cluster.description}
         </p>
 
         <div className="flex items-center gap-3">
-          <span className="text-[10px] mono text-[var(--golden-chestnut)]">
+          <span className="text-xs mono text-[var(--golden-chestnut)]">
             {cluster.episode_claim_count} claims
           </span>
           {cluster.keywords && cluster.keywords.length > 0 && (
@@ -637,10 +792,10 @@ function ClusterCard({
         {isLoadingPreview ? (
           <div className="flex items-center justify-center py-4">
             <Loader2 className="w-4 h-4 animate-spin text-foreground/50" />
-            <span className="ml-2 text-xs text-foreground/50">Loading claims...</span>
+            <span className="ml-2 text-sm text-foreground/50">Loading claims...</span>
           </div>
         ) : previewClaims.length === 0 ? (
-          <div className="py-3 px-4 text-center text-xs text-foreground/40 mono">
+          <div className="py-3 px-4 text-center text-sm text-foreground/40 mono">
             No claims found
           </div>
         ) : (
@@ -655,11 +810,11 @@ function ClusterCard({
                 <div className="flex items-start gap-3">
                   <div className="shrink-0 flex items-center gap-1.5 pt-0.5">
                     <Play className="w-3 h-3 text-[var(--golden-chestnut)] opacity-0 group-hover:opacity-100 transition-opacity" />
-                    <span className="mono text-[10px] text-[var(--golden-chestnut)] tabular-nums">
+                    <span className="mono text-xs text-[var(--golden-chestnut)] tabular-nums">
                       {claim.claim_timestamp || formatTimecode((claim.start_ms || 0) / 1000)}
                     </span>
                   </div>
-                  <p className="text-xs text-foreground/70 leading-relaxed line-clamp-2 group-hover:text-foreground transition-colors">
+                  <p className="text-sm text-foreground/70 leading-relaxed line-clamp-2 group-hover:text-foreground transition-colors">
                     {claim.distilled_claim || claim.claim_text}
                   </p>
                 </div>
@@ -675,19 +830,19 @@ function ClusterCard({
                 {isLoadingAll ? (
                   <span className="flex items-center justify-center gap-2">
                     <Loader2 className="w-3 h-3 animate-spin text-foreground/50" />
-                    <span className="text-[10px] mono text-foreground/40">Loading...</span>
+                    <span className="text-xs mono text-foreground/40">Loading...</span>
                   </span>
                 ) : isExpanded ? (
                   <span className="flex items-center justify-center gap-1.5">
                     <ChevronUp className="w-3 h-3 text-foreground/40 group-hover:text-[var(--golden-chestnut)] transition-colors" />
-                    <span className="text-[10px] mono text-foreground/40 group-hover:text-[var(--golden-chestnut)] transition-colors">
+                    <span className="text-xs mono text-foreground/40 group-hover:text-[var(--golden-chestnut)] transition-colors">
                       Show less
                     </span>
                   </span>
                 ) : (
                   <span className="flex items-center justify-center gap-1.5">
                     <ChevronDown className="w-3 h-3 text-foreground/40 group-hover:text-[var(--golden-chestnut)] transition-colors" />
-                    <span className="text-[10px] mono text-foreground/40 group-hover:text-[var(--golden-chestnut)] transition-colors">
+                    <span className="text-xs mono text-foreground/40 group-hover:text-[var(--golden-chestnut)] transition-colors">
                       Load more ({cluster.episode_claim_count - 3} more)
                     </span>
                   </span>
@@ -807,7 +962,7 @@ function EpisodeClusterExplorer({ episodeId, onSeek }: EpisodeClusterExplorerPro
       <CornerBrackets className="p-6 bg-card/30">
         <div className="flex items-center justify-center py-8">
           <Loader2 className="w-5 h-5 animate-spin text-[var(--golden-chestnut)]" />
-          <span className="ml-2 text-sm text-foreground/50">Loading research territories...</span>
+          <span className="ml-2 text-base text-foreground/50">Loading research territories...</span>
         </div>
       </CornerBrackets>
     )
@@ -827,7 +982,7 @@ function EpisodeClusterExplorer({ episodeId, onSeek }: EpisodeClusterExplorerPro
             Research Territories
           </span>
         </div>
-        <div className="flex items-center gap-4 text-[10px] mono">
+        <div className="flex items-center gap-4 text-xs mono">
           <span className="text-[var(--golden-chestnut)]">{summary.new} NEW</span>
           <span className="text-foreground/50">{summary.overlap} EXPLORED</span>
           <span className="text-foreground/30">{summary.total} TOTAL</span>
@@ -835,7 +990,7 @@ function EpisodeClusterExplorer({ episodeId, onSeek }: EpisodeClusterExplorerPro
       </div>
 
       {/* Summary Text */}
-      <p className="text-xs text-foreground/50 mb-4">
+      <p className="text-sm text-foreground/50 mb-4">
         This episode covers {summary.total} research {summary.total === 1 ? 'territory' : 'territories'}.
         {summary.new > 0 && (
           <span className="text-[var(--golden-chestnut)]"> {summary.new} {summary.new === 1 ? 'is' : 'are'} new to your notebook.</span>
@@ -923,6 +1078,11 @@ export function EpisodeOverview({ episode, onStartListening, onBack, onBookmarks
         className="flex-1 px-6 py-8 max-w-[1400px] mx-auto w-full transition-all duration-300 ease-in-out"
         style={{ marginRight: `${chatWidth}px` }}
       >
+        {/* Mobile-only Begin Listening CTA - shown at top on mobile */}
+        <div className="lg:hidden mb-6">
+          <BeginListeningCTA onStart={() => onStartListening()} />
+        </div>
+
         {/* Two Column Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-8">
           {/* Left Column - Main Content */}
@@ -931,16 +1091,16 @@ export function EpisodeOverview({ episode, onStartListening, onBack, onBookmarks
             <CornerBrackets className="p-8 bg-card/30">
               {/* Episode Badge & Ref */}
               <div className="flex items-center justify-between mb-6">
-                <span className="mono text-[10px] text-foreground/40 tracking-[0.15em] px-2 py-1 border border-foreground/20">
+                <span className="mono text-xs text-foreground/40 tracking-[0.15em] px-2 py-1 border border-foreground/20">
                   EPISODE #{episodeNumber}
                 </span>
-                <span className="mono text-[10px] text-foreground/30 tracking-wider">
+                <span className="mono text-xs text-foreground/30 tracking-wider">
                   REF: {episode.id.toUpperCase().replace("_", "-")}
                 </span>
               </div>
 
               {/* Title */}
-              <h1 className="text-3xl md:text-4xl font-bold text-foreground tracking-tight leading-tight mb-8">
+              <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-foreground tracking-tight leading-tight mb-8" style={{ fontFamily: "'Playfair Display', serif" }}>
                 {episode.title.split(" ").slice(0, 4).join(" ").toUpperCase()}
                 <br />
                 <span className="text-foreground/60">
@@ -951,21 +1111,21 @@ export function EpisodeOverview({ episode, onStartListening, onBack, onBookmarks
               {/* Metadata Row */}
               <div className="grid grid-cols-3 gap-8 pt-6 border-t border-border/30">
                 <div>
-                  <div className="mono text-[10px] text-foreground/40 tracking-[0.15em] mb-1">GUEST</div>
+                  <div className="mono text-xs text-foreground/40 tracking-[0.15em] mb-1">GUEST</div>
                   <div className="text-sm font-medium text-foreground">{episode.guest.toUpperCase()}</div>
                 </div>
                 <div>
-                  <div className="mono text-[10px] text-foreground/40 tracking-[0.15em] mb-1">HOST</div>
+                  <div className="mono text-xs text-foreground/40 tracking-[0.15em] mb-1">HOST</div>
                   <div className="text-sm font-medium text-foreground">{episode.host.toUpperCase()}</div>
                 </div>
                 <div>
-                  <div className="mono text-[10px] text-foreground/40 tracking-[0.15em] mb-1">LENGTH</div>
+                  <div className="mono text-xs text-foreground/40 tracking-[0.15em] mb-1">LENGTH</div>
                   <div className="text-sm font-medium text-foreground mono">{episode.duration.replace("h", "h ").replace("m", "m 00s")}</div>
                 </div>
               </div>
 
               {/* Summary */}
-              <p className="mt-6 text-sm text-foreground/70 leading-relaxed">
+              <p className="mt-6 text-base text-foreground/70 leading-relaxed">
                 {episode.brief_summary || episode.description || `An investigation into the software of life. ${episode.guest} discusses morphogenesis, bioelectricity, and the collective intelligence of cells. This briefing dissects the underlying code that governs biological shape and the potential for regenerative medicine.`}
               </p>
             </CornerBrackets>
@@ -999,10 +1159,12 @@ export function EpisodeOverview({ episode, onStartListening, onBack, onBookmarks
                   </CornerBrackets>
                 )}
 
-                {/* Episode Outline */}
-                {episode.episode_outline && episode.episode_outline.length > 0 ? (
-                  <EpisodeOutlineList
-                    items={episode.episode_outline}
+                {/* Episode Outline - Collapsible chapters or flat list */}
+                {(episode.episode_chapters && episode.episode_chapters.length > 0) ||
+                 (episode.episode_outline && episode.episode_outline.length > 0) ? (
+                  <CollapsibleEpisodeOutline
+                    chapters={episode.episode_chapters}
+                    outline={episode.episode_outline}
                     onSeek={handleSeek}
                   />
                 ) : episode.key_moments && episode.key_moments.length > 0 ? (
@@ -1023,19 +1185,10 @@ export function EpisodeOverview({ episode, onStartListening, onBack, onBookmarks
 
           {/* Right Column - Sidebar */}
           <div className="space-y-6">
-            {/* Begin Listening CTA */}
-            <BeginListeningCTA onStart={() => onStartListening()} />
-
-            {/* Browse Research Stream button */}
-            <button
-              onClick={() => onStartListening()}
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 border border-border hover:border-[var(--golden-chestnut)]/30 transition-colors"
-            >
-              <Grid3X3 className="w-4 h-4 text-foreground/40" />
-              <span className="mono text-xs text-foreground/60 tracking-wider">
-                BROWSE RESEARCH STREAM
-              </span>
-            </button>
+            {/* Begin Listening CTA - hidden on mobile (shown at top instead) */}
+            <div className="hidden lg:block">
+              <BeginListeningCTA onStart={() => onStartListening()} />
+            </div>
 
             {/* Research Territory Coverage */}
             <EpisodeClusterSummary episodeId={episode.id} />

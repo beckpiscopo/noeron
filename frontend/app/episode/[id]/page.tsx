@@ -443,6 +443,15 @@ export default function EpisodePage({ params }: EpisodePageProps) {
         timestamp: o.timestamp,
         topic: o.topic
       })) || []
+      const episodeChapters = summaryData?.episode_chapters?.map((ch: any) => ({
+        title: ch.title,
+        timestamp_start: ch.timestamp_start,
+        timestamp_end: ch.timestamp_end,
+        topics: ch.topics?.map((t: any) => ({
+          timestamp: t.timestamp,
+          topic: t.topic
+        })) || []
+      })) || []
       const guestThesis = summaryData?.guest_thesis ? {
         summary: summaryData.guest_thesis.core_thesis,
         key_claims: summaryData.guest_thesis.key_claims || []
@@ -464,6 +473,7 @@ export default function EpisodePage({ params }: EpisodePageProps) {
         brief_summary: summaryData?.brief_summary,
         summary: summaryData?.narrative_arc,
         major_themes: majorThemes,
+        episode_chapters: episodeChapters.length > 0 ? episodeChapters : undefined,
         episode_outline: episodeOutline.length > 0 ? episodeOutline : undefined,
         key_moments: keyMoments,
         guest_thesis: guestThesis,
