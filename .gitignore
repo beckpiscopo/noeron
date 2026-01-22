@@ -39,6 +39,9 @@ uv.lock
 .coverage
 htmlcov/
 
+# Checkpoints (episode ingestion pipeline)
+.checkpoints/
+
 # Data (but keep the directory structure)
 data/papers_collection.json
 data/cleaned_papers/*.json

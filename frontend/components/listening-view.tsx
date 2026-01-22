@@ -368,7 +368,7 @@ export function ListeningView({
   const [question, setQuestion] = useState("")
   const [selectedClaimId, setSelectedClaimId] = useState<string | number | null>(null)
   const [isAudioReady, setIsAudioReady] = useState(false)
-  const [chatOpen, setChatOpen] = useState(!isMobile) // Start closed on mobile
+  const [chatOpen, setChatOpen] = useState(false) // Start closed on all devices
   const [chatWidth, setChatWidth] = useState(440)
   // Track claim dropped into chat (overrides currentClaim for chat context)
   const [droppedClaim, setDroppedClaim] = useState<Claim | null>(null)
@@ -949,7 +949,7 @@ export function ListeningView({
             {/* Header */}
             <div className="text-center mb-12">
               <CornerBrackets className="inline-flex flex-col items-center gap-3 px-8 py-4">
-                <h1 className="display text-2xl font-semibold text-[var(--golden-chestnut)]">
+                <h1 className="display text-2xl lg:text-3xl font-bold text-[var(--golden-chestnut)]">
                   Research Stream
                 </h1>
                 <span className="text-[10px] mono text-foreground/40 tracking-[0.15em]">CLAIMS EXTRACTED AS YOU LISTEN</span>

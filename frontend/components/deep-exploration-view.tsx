@@ -229,8 +229,16 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
   const [isLoadingKG, setIsLoadingKG] = useState(false)
   const [kgError, setKgError] = useState<string | null>(null)
 
-  // AI Chat sidebar state
+  // AI Chat sidebar state - auto-open on large screens
   const [chatOpen, setChatOpen] = useState(false)
+
+  // Auto-open chat sidebar on large screens
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(min-width: 1024px)')
+    if (mediaQuery.matches) {
+      setChatOpen(true)
+    }
+  }, [])
 
   // Mini Podcast state
   const [miniPodcast, setMiniPodcast] = useState<GeneratePodcastResponse | null>(null)
@@ -456,7 +464,7 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
       {/* Header */}
       <header
         className="sticky top-14 z-40 flex items-center justify-between border-b border-border bg-background/95 backdrop-blur-sm px-6 py-3 lg:px-10 transition-all duration-300 ease-in-out"
-        style={{ marginRight: chatOpen ? '440px' : '52px' }}
+        style={{ marginRight: chatOpen ? '440px' : '0' }}
       >
         <div className="flex items-center gap-4">
           <div className="size-6 text-[var(--golden-chestnut)]">
@@ -510,8 +518,8 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
       {/* Main Content */}
       {!isLoading && !error && contextData && (
         <main
-          className="flex-1 w-full max-w-[1280px] mx-auto px-4 md:px-10 py-8 pb-8 grid grid-cols-1 lg:grid-cols-12 gap-8 transition-all duration-300 ease-in-out"
-          style={{ marginRight: chatOpen ? '440px' : '52px' }}
+          className={`flex-1 w-full max-w-[1280px] px-4 md:px-10 py-8 pb-8 grid grid-cols-1 lg:grid-cols-12 gap-8 transition-all duration-300 ease-in-out ${chatOpen ? '' : 'mx-auto'}`}
+          style={{ marginRight: chatOpen ? '440px' : '0' }}
         >
           {/* Left Column: Core Exploration */}
           <div className="lg:col-span-8 flex flex-col gap-6">

@@ -214,7 +214,7 @@ function ConceptDensityAnalysis({ durationSeconds, claimDensity, keyMoments, onS
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
           <span className="text-[var(--golden-chestnut)] text-xs">✧</span>
-          <span className="text-foreground/60 mono text-xs tracking-[0.2em] uppercase">
+          <span className="text-foreground font-semibold mono text-xs tracking-[0.2em] uppercase">
             Concept Density Analysis
           </span>
         </div>
@@ -336,7 +336,7 @@ function EpisodeOutlineList({ items, onSeek }: EpisodeOutlineProps) {
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
         <span className="text-[var(--golden-chestnut)] text-xs">▷</span>
-        <span className="text-foreground/60 mono text-xs tracking-[0.2em] uppercase">
+        <span className="text-foreground font-semibold mono text-xs tracking-[0.2em] uppercase">
           Episode Outline
         </span>
       </div>
@@ -497,7 +497,7 @@ function CollapsibleEpisodeOutline({ chapters, outline, onSeek }: CollapsibleEpi
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             <span className="text-[var(--golden-chestnut)] text-xs">▷</span>
-            <span className="text-foreground/60 mono text-xs tracking-[0.2em] uppercase">
+            <span className="text-foreground font-semibold mono text-xs tracking-[0.2em] uppercase">
               Episode Chapters
             </span>
           </div>
@@ -1008,7 +1008,7 @@ function EpisodeClusterExplorer({ episodeId, onSeek }: EpisodeClusterExplorerPro
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <Layers className="w-4 h-4 text-[var(--golden-chestnut)]" />
-          <span className="text-foreground/60 mono text-xs tracking-[0.2em] uppercase">
+          <span className="text-foreground font-semibold mono text-xs tracking-[0.2em] uppercase">
             Research Territories
           </span>
         </div>
@@ -1052,8 +1052,16 @@ function EpisodeClusterExplorer({ episodeId, onSeek }: EpisodeClusterExplorerPro
 // =============================================================================
 
 export function EpisodeOverview({ episode, onStartListening, onBack, onBookmarksClick, onViewPaper }: EpisodeOverviewProps) {
-  const [chatOpen, setChatOpen] = useState(true)
+  const [chatOpen, setChatOpen] = useState(false)
   const [chatWidth, setChatWidth] = useState(440)
+
+  // Auto-open chat sidebar on large screens only
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(min-width: 1024px)')
+    if (mediaQuery.matches) {
+      setChatOpen(true)
+    }
+  }, [])
   const [topPapers, setTopPapers] = useState<EpisodeTopPaper[]>([])
   const [papersLoading, setPapersLoading] = useState(true)
 
@@ -1189,7 +1197,7 @@ export function EpisodeOverview({ episode, onStartListening, onBack, onBookmarks
                     <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center gap-3">
                         <span className="text-[var(--golden-chestnut)] text-xs">✧</span>
-                        <span className="text-foreground/60 mono text-xs tracking-[0.2em] uppercase">
+                        <span className="text-foreground font-semibold mono text-xs tracking-[0.2em] uppercase">
                           Concept Density Analysis
                         </span>
                       </div>

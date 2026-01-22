@@ -64,7 +64,26 @@ class NoeronDB:
         """Get episode by podcast_id."""
         response = self.client.table("episodes").select("*").eq("podcast_id", podcast_id).execute()
         return response.data[0] if response.data else None
-    
+
+    def update_episode(self, podcast_id: str, updates: Dict[str, Any]) -> Dict[str, Any]:
+        """Update an episode record."""
+        response = (
+            self.client.table("episodes")
+            .update(updates)
+            .eq("podcast_id", podcast_id)
+            .execute()
+        )
+        return response.data[0] if response.data else {}
+
+    def upsert_episode(self, episode_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Create or update an episode record."""
+        response = (
+            self.client.table("episodes")
+            .upsert(episode_data, on_conflict="podcast_id")
+            .execute()
+        )
+        return response.data[0] if response.data else {}
+
     def list_episodes(self) -> List[Dict[str, Any]]:
         """List all episodes."""
         response = self.client.table("episodes").select("*").order("published_date", desc=True).execute()
@@ -728,6 +747,8 @@ if __name__ == "__main__":
             print("  (No episodes yet - run migration script)")
     else:
         print("✗ Connection failed. Check your SUPABASE_URL and keys in .env")
+
+
 
 
 

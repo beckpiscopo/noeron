@@ -23,7 +23,7 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
     <div className="bg-[#1a1a1a] text-[#E0E0E0] font-sans antialiased overflow-x-hidden scroll-smooth">
       {/* Custom styles for this page */}
       <style dangerouslySetInnerHTML={{ __html: `
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Fira+Code:wght@400;500&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600;1,700&family=Russo+One&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Fira+Code:wght@400;500&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600;1,700&family=Playfair+Display:wght@400;500;600;700&display=swap');
 
         .perspective-container {
           perspective: 2000px;
@@ -293,7 +293,7 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
             {/* Left column - Text content */}
             <div className="text-center lg:text-left items-center lg:items-start flex flex-col lg:-mt-12">
               {/* Headline */}
-              <h1 className="text-5xl md:text-5xl lg:text-5xl min-[1550px]:text-8xl tracking-tight mb-6 leading-tight text-white animate-fade-in-up" style={{ fontFamily: "'Russo One', sans-serif" }}>
+              <h1 className="text-5xl md:text-5xl lg:text-6xl xl:text-7xl min-[1550px]:text-8xl font-bold tracking-tight mb-6 leading-tight text-white animate-fade-in-up" style={{ fontFamily: "'Playfair Display', serif" }}>
                 The{' '}
                 <span className="text-[#C48B60] inline-block" style={{ transform: 'skewX(-6deg)' }}>
                   knowledge layer

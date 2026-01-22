@@ -12,14 +12,21 @@ const AUDIO_DIR = path.join(REPO_ROOT, "data", "podcasts", "raw")
 
 const AUDIO_FILES: Record<string, string> = {
   lex_325: "p3lsYlod5OU.mp3",
+  theories_of_everything: "c8iFtaltX-s.webm",
   // Add more episodes here as audio files become available
-  // theories_of_everything: "filename.mp3",
   // mlst: "filename.mp3",
   // essentia_foundation: "filename.mp3",
 }
 
 function toWebStream(stream: NodeJS.ReadableStream) {
   return Readable.toWeb(stream)
+}
+
+function getContentType(fileName: string): string {
+  if (fileName.endsWith(".webm")) return "audio/webm"
+  if (fileName.endsWith(".ogg")) return "audio/ogg"
+  if (fileName.endsWith(".wav")) return "audio/wav"
+  return "audio/mpeg"
 }
 
 function parseRange(rangeHeader: string | null, fileSize: number) {
@@ -61,12 +68,13 @@ export async function GET(_request: Request, { params }: { params: Promise<{ epi
 
   const rangeHeader = _request.headers.get("range")
   const range = parseRange(rangeHeader, fileStat.size)
+  const contentType = getContentType(fileName)
 
   if (!range) {
     const stream = createReadStream(filePath)
     return new NextResponse(toWebStream(stream), {
       headers: {
-        "Content-Type": "audio/mpeg",
+        "Content-Type": contentType,
         "Content-Length": String(fileStat.size),
         "Accept-Ranges": "bytes",
       },
@@ -79,7 +87,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ epi
   return new NextResponse(toWebStream(stream), {
     status: 206,
     headers: {
-      "Content-Type": "audio/mpeg",
+      "Content-Type": contentType,
       "Accept-Ranges": "bytes",
       "Content-Length": String(chunkSize),
       "Content-Range": `bytes ${start}-${end}/${fileStat.size}`,

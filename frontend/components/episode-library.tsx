@@ -130,7 +130,7 @@ export function EpisodeLibrary({ onSelectEpisode }: EpisodeLibraryProps) {
           {/* Page Title */}
           <div className="mb-8">
             <div className="eyebrow mb-2">Library</div>
-            <h1 className="display text-3xl md:text-4xl font-normal leading-tight tracking-[-0.02em] text-foreground mb-2">
+            <h1 className="display text-3xl md:text-4xl lg:text-5xl font-bold leading-tight tracking-tight text-foreground mb-2">
               Podcast Episode Library
             </h1>
             <p className="text-foreground/60 text-sm md:text-base font-normal">

@@ -15,6 +15,30 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 WINDOWS_PATH = REPO_ROOT / "data" / "window_segments.json"
 
 
+def _parse_timestamp_to_ms(timestamp: str) -> int:
+    """Parse timestamp string (HH:MM:SS.mmm or HH:MM:SS) to milliseconds."""
+    if not timestamp:
+        return 0
+    try:
+        parts = timestamp.split(":")
+        if len(parts) == 3:
+            h = int(parts[0])
+            m = int(parts[1])
+            sec_parts = parts[2].split(".")
+            s = int(sec_parts[0])
+            ms = int(sec_parts[1][:3].ljust(3, "0")) if len(sec_parts) > 1 else 0
+            return (h * 3600 + m * 60 + s) * 1000 + ms
+        elif len(parts) == 2:
+            m = int(parts[0])
+            sec_parts = parts[1].split(".")
+            s = int(sec_parts[0])
+            ms = int(sec_parts[1][:3].ljust(3, "0")) if len(sec_parts) > 1 else 0
+            return (m * 60 + s) * 1000 + ms
+    except (ValueError, IndexError):
+        pass
+    return 0
+
+
 def _load_windows(path: Path) -> Sequence[Mapping[str, object]]:
     if not path.exists():
         raise FileNotFoundError(f"{path} does not exist.")
@@ -123,19 +147,50 @@ def main() -> None:
         action="store_true",
         help="Stop the batch if any context_card_builder invocation fails.",
     )
+    parser.add_argument(
+        "--skip-outro-percent",
+        type=float,
+        default=5.0,
+        help="Skip the last N%% of the episode (default: 5%% to avoid promo/outro).",
+    )
 
     args = parser.parse_args()
 
     windows = _load_windows(args.window_json)
     total = len(windows)
     print(f"Loaded {total} windows from {args.window_json}")
+
+    # Calculate outro cutoff based on last window's timestamp
+    outro_cutoff_ms = None
+    if args.skip_outro_percent > 0 and windows:
+        last_window = windows[-1]
+        last_ts = last_window.get("start_ms") or _parse_timestamp_to_ms(
+            str(last_window.get("start_timestamp") or last_window.get("timestamp") or "")
+        )
+        if last_ts > 0:
+            # Estimate total duration as last timestamp + ~5 min buffer
+            estimated_duration_ms = last_ts + 5 * 60 * 1000
+            outro_cutoff_ms = estimated_duration_ms * (1 - args.skip_outro_percent / 100)
+            print(f"Skipping outro: will skip windows after {outro_cutoff_ms / 1000 / 60:.1f} min ({100 - args.skip_outro_percent:.0f}% mark)")
+
     processed = 0
+    skipped_outro = 0
 
     for idx, window in enumerate(windows):
         if idx < args.start_index:
             continue
         if args.limit is not None and processed >= args.limit:
             break
+
+        # Skip outro segments
+        if outro_cutoff_ms is not None:
+            window_ts = window.get("start_ms") or _parse_timestamp_to_ms(
+                str(window.get("start_timestamp") or window.get("timestamp") or "")
+            )
+            if window_ts > outro_cutoff_ms:
+                skipped_outro += 1
+                continue
+
         payload = _prepare_segment_payload(window, args.note or None)
         if not payload["text"]:
             print(f"[{idx+1}/{total}] Window {payload['heading']} has no text; skipping.")
@@ -156,10 +211,14 @@ def main() -> None:
         processed += 1
 
     print(f"Done. Processed {processed} window(s).")
+    if skipped_outro > 0:
+        print(f"Skipped {skipped_outro} outro window(s) (last {args.skip_outro_percent}% of episode).")
 
 
 if __name__ == "__main__":
     main()
+
+
 
 
 

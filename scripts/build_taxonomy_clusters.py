@@ -571,7 +571,8 @@ def save_to_supabase(
             "keywords": cluster.keywords,
             "position_x": cluster.position_x,
             "position_y": cluster.position_y,
-            "centroid_embedding": cluster.centroid.tolist(),
+            # Note: centroid_embedding skipped - column is 384-dim but embeddings are 768-dim
+            # TODO: Run migration to update taxonomy_clusters.centroid_embedding to vector(768)
             "paper_count": cluster.paper_count,
             "primary_paper_count": cluster.primary_paper_count,
             "model_used": GEMINI_MODEL
