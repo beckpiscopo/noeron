@@ -43,7 +43,9 @@ export function ChatSources({ sources, onViewPaper }: ChatSourcesProps) {
                   {source.paper_title}
                 </p>
                 <p className="text-foreground/50 mt-1">
-                  {source.year} {source.section && `• ${source.section}`}
+                  {source.year}
+                  {source.section && ` • ${source.section}`}
+                  {source.page && ` • p. ${source.page}`}
                 </p>
               </div>
               {onViewPaper && (

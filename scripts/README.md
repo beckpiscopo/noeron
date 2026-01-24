@@ -49,8 +49,30 @@ These scripts convert transcript windows into claims + RAG evidence.
   Adds distillation output to cached claim files.
 - `enrich_with_distillation_supabase.py`  
   Same enrichment but writing to Supabase.
-- `run_verification_on_cache.py`  
+- `run_verification_on_cache.py`
   Runs the verification agent against cached claims.
+
+## Deep exploration pre-generation
+
+These scripts pre-populate data for the deep exploration view (claim deep-dives).
+
+- `batch_generate_deep_dives.py`
+  Batch generates deep dive summaries and evidence threads for all claims.
+  Requires the HTTP server to be running (`python -m src.bioelectricity_research.http_server`).
+
+  ```bash
+  # Generate both summaries and threads for all claims
+  python scripts/batch_generate_deep_dives.py --podcast-id lex_325
+
+  # Only generate technical summaries
+  python scripts/batch_generate_deep_dives.py --podcast-id lex_325 --summaries-only --style technical
+
+  # Preview without calling API
+  python scripts/batch_generate_deep_dives.py --podcast-id lex_325 --dry-run
+
+  # Force regeneration (ignore cache)
+  python scripts/batch_generate_deep_dives.py --podcast-id lex_325 --force
+  ```
 
 ## Vector store utilities
 

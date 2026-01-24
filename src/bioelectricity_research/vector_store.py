@@ -106,6 +106,7 @@ class VectorStore:
             "section_heading": chunk.section_heading,
             "chunk_index": chunk.chunk_index,
             "token_count": chunk.token_count,
+            "page": chunk.page if hasattr(chunk, 'page') else "",
             "year": chunk.metadata.get("year", "")
             if chunk.metadata
             else "",
@@ -197,6 +198,7 @@ class SupabaseVectorStore:
                 "paper_id": r.get("paper_id", ""),
                 "paper_title": r.get("paper_title", ""),
                 "section_heading": r.get("section_heading", ""),
+                "page": r.get("page", ""),
                 "chunk_index": r.get("chunk_index", 0),
                 "year": r.get("year", ""),
             })
@@ -249,6 +251,7 @@ class SupabaseVectorStore:
                     "paper_id": c.paper_id if hasattr(c, 'paper_id') else c.get('paper_id'),
                     "chunk_index": c.chunk_index if hasattr(c, 'chunk_index') else c.get('chunk_index'),
                     "section_heading": c.section_heading if hasattr(c, 'section_heading') else c.get('section_heading'),
+                    "page": c.page if hasattr(c, 'page') else c.get('page'),
                     "token_count": c.token_count if hasattr(c, 'token_count') else c.get('token_count'),
                     "text": text,
                     "embedding": embedding,

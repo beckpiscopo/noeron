@@ -1179,6 +1179,7 @@ async def rag_search(
                             "text": doc,
                             "paper_title": meta.get("paper_title"),
                             "section": meta.get("section_heading"),
+                            "page": meta.get("page"),
                             "paper_id": meta.get("paper_id"),
                             "year": meta.get("year"),
                         }
@@ -1561,6 +1562,7 @@ async def generate_deep_dive_summary(params: GenerateDeepDiveSummaryInput) -> di
                 "paper_id": meta.get("paper_id", ""),
                 "paper_title": meta.get("paper_title", ""),
                 "section": meta.get("section_heading", ""),
+                "page": meta.get("page", ""),
                 "year": meta.get("year", ""),
             })
 
@@ -1741,6 +1743,7 @@ async def generate_evidence_threads(params: GenerateEvidenceThreadsInput) -> dic
                 "paper_id": meta.get("paper_id", ""),
                 "paper_title": meta.get("paper_title", ""),
                 "section": meta.get("section_heading", ""),
+                "page": meta.get("page", ""),
                 "year": meta.get("year", ""),
             })
 
@@ -2928,6 +2931,7 @@ async def chat_with_context(params: ChatWithContextInput) -> dict[str, Any]:
                 "paper_id": meta.get("paper_id", ""),
                 "paper_title": meta.get("paper_title", ""),
                 "section": meta.get("section_heading", ""),
+                "page": meta.get("page", ""),
                 "year": meta.get("year", ""),
             })
 
@@ -3054,6 +3058,7 @@ Provide a helpful, accurate response based on the context above. Reference speci
                     "paper_title": r.get("paper_title", ""),
                     "year": r.get("year", ""),
                     "section": r.get("section", ""),
+                    "page": r.get("page", ""),
                     "relevance_snippet": r.get("text", "")[:200] + "..." if r.get("text") else "",
                     "source_type": "rag",
                 })
@@ -3577,6 +3582,7 @@ async def _generate_mini_podcast_impl(
                 "paper_id": meta.get("paper_id", ""),
                 "paper_title": meta.get("paper_title", ""),
                 "section": meta.get("section_heading", ""),
+                "page": meta.get("page", ""),
                 "year": meta.get("year", ""),
             })
 

@@ -768,8 +768,8 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
             </div>
           </div>
 
-          {/* Knowledge Graph Relationships */}
-          <div className="pt-4">
+          {/* Knowledge Graph Relationships - hidden on mobile */}
+          <div className="hidden md:block pt-4">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <Network className="w-5 h-5 text-[var(--golden-chestnut)]" />

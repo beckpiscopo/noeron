@@ -5,6 +5,7 @@ export interface ChatSource {
   paper_title: string
   year: string
   section: string
+  page?: string
   relevance_snippet: string
 }
 
