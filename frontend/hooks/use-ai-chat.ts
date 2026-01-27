@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useCallback, useEffect, useRef } from "react"
-import { callMcpTool } from "@/lib/api"
+import { callMcpTool, getGeminiKeyHeader } from "@/lib/api"
 import {
   getOrCreateChatSession,
   getChatMessages,
@@ -243,7 +243,10 @@ export function useAIChat(context: ChatContext | null) {
           const apiUrl = process.env.NEXT_PUBLIC_MCP_API_URL || "http://localhost:8000"
           const response = await fetch(`${apiUrl}/tools/chat_with_context/stream`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: {
+              "Content-Type": "application/json",
+              ...getGeminiKeyHeader(),
+            },
             body: JSON.stringify(request),
           })
 

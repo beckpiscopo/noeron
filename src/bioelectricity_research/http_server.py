@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 import asyncio
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Depends
 from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
@@ -12,7 +12,15 @@ import uvicorn
 # Import the server module to access tool functions
 from . import server
 
-app = FastAPI()
+
+async def _set_gemini_key_from_header(request: Request):
+    """FastAPI dependency: propagate per-request Gemini key from header."""
+    gemini_key = request.headers.get("x-gemini-key")
+    if gemini_key:
+        server._request_gemini_key.set(gemini_key)
+
+
+app = FastAPI(dependencies=[Depends(_set_gemini_key_from_header)])
 
 # Add CORS middleware
 app.add_middleware(
@@ -1041,7 +1049,7 @@ Provide a helpful, accurate response based on the context above. Reference speci
                 thinking_parts = []
                 response_parts = []
 
-                response_stream = server._GENAI_CLIENT.models.generate_content_stream(
+                response_stream = server._get_genai_client().models.generate_content_stream(
                     model=GEMINI_MODEL_DEFAULT,
                     contents=prompt,
                     config=generation_config
@@ -1066,7 +1074,7 @@ Provide a helpful, accurate response based on the context above. Reference speci
         else:
             # Non-streaming mode (faster when thinking not needed)
             response = await asyncio.to_thread(
-                lambda: server._GENAI_CLIENT.models.generate_content(
+                lambda: server._get_genai_client().models.generate_content(
                     model=GEMINI_MODEL_DEFAULT,
                     contents=prompt,
                     config=generation_config
@@ -1262,7 +1270,7 @@ async def http_chat_with_context_stream(request: Request):
             def stream_gemini():
                 """Run Gemini streaming in a thread and put chunks in queue."""
                 try:
-                    response_stream = server._GENAI_CLIENT.models.generate_content_stream(
+                    response_stream = server._get_genai_client().models.generate_content_stream(
                         model=GEMINI_MODEL_DEFAULT,
                         contents=prompt,
                         config=generation_config
@@ -1574,7 +1582,7 @@ IMPORTANT: Return ONLY valid JSON. No markdown, no explanation text."""
 
         _ensure_gemini_client_ready()
         response = await asyncio.to_thread(
-            lambda: server._GENAI_CLIENT.models.generate_content(
+            lambda: server._get_genai_client().models.generate_content(
                 model="gemini-2.0-flash",  # Use flash for cost efficiency on long content
                 contents=summary_prompt,
                 config={
@@ -1736,7 +1744,7 @@ Respond ONLY with the JSON object, no markdown formatting or additional text."""
         # Call Gemini
         _ensure_gemini_client_ready()
         response = await asyncio.to_thread(
-            lambda: server._GENAI_CLIENT.models.generate_content(
+            lambda: server._get_genai_client().models.generate_content(
                 model=GEMINI_MODEL_DEFAULT,
                 contents=prompt,
                 config={

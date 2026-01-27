@@ -4,6 +4,7 @@ from pathlib import Path
 import os
 import sys
 import asyncio
+import contextvars
 
 import httpx
 import json as json_module
@@ -24,6 +25,11 @@ except ImportError:
 GEMINI_API_KEY_ENV = "GEMINI_API_KEY"
 GEMINI_MODEL_DEFAULT = os.environ.get("GEMINI_MODEL", "gemini-3-pro-preview")
 _GENAI_CLIENT = None
+
+# Per-request Gemini API key (set via X-Gemini-Key header from frontend)
+_request_gemini_key: contextvars.ContextVar[str | None] = contextvars.ContextVar(
+    "_request_gemini_key", default=None
+)
 
 scripts_dir = Path(__file__).resolve().parent.parent / "scripts"
 sys.path.insert(0, str(scripts_dir))
@@ -60,16 +66,41 @@ CLAIM_RELEVANCE_CACHE_PATH = Path(__file__).resolve().parent.parent.parent / "da
 # ============================================================================
 
 def _ensure_gemini_client_ready() -> None:
-    """Initialize the Gemini client if not already done."""
+    """Try to initialize the global Gemini client from the env var.
+
+    This is a best-effort initializer kept for backward compatibility with
+    scripts that use the env var directly.  In the BYOK web flow the real
+    guard is _get_genai_client(), so this function intentionally does NOT
+    raise when the env var is missing.
+    """
     global _GENAI_CLIENT
     if _GENAI_CLIENT is not None:
         return
+    if _request_gemini_key.get() is not None:
+        return
     if genai is None:
-        raise RuntimeError("google.genai is not installed. Run: pip install google-genai")
+        return
     api_key = os.environ.get(GEMINI_API_KEY_ENV)
     if not api_key:
-        raise RuntimeError(f"{GEMINI_API_KEY_ENV} environment variable is required.")
+        return
     _GENAI_CLIENT = genai.Client(api_key=api_key)
+
+
+def _get_genai_client():
+    """Return a Gemini client for the current request.
+
+    Requires a per-request key from the X-Gemini-Key header (BYOK).
+    No fallback — users must provide their own Gemini API key.
+    """
+    request_key = _request_gemini_key.get()
+    if not request_key:
+        raise RuntimeError(
+            "A Gemini API key is required to use AI features. "
+            "Please add your key in Settings."
+        )
+    if genai is None:
+        raise RuntimeError("google.genai is not installed. Run: pip install google-genai")
+    return genai.Client(api_key=request_key)
 
 
 DEEP_DIVE_PROMPT_TEMPLATE_TECHNICAL = """You are a scientific reviewer writing for a technically literate audience (graduate-level biology/biophysics).
@@ -306,7 +337,7 @@ def _format_rag_results_for_prompt(
 def _call_gemini_for_deep_dive(prompt: str, model_name: str) -> str:
     """Call Gemini to generate the deep dive summary."""
     _ensure_gemini_client_ready()
-    response = _GENAI_CLIENT.models.generate_content(
+    response = _get_genai_client().models.generate_content(
         model=model_name,
         contents=prompt,
     )
@@ -545,7 +576,7 @@ def _validate_threads(threads: list[dict], papers: list[dict]) -> list[dict]:
 def _call_gemini_for_threads(prompt: str, model_name: str) -> dict:
     """Call Gemini to generate evidence threads."""
     _ensure_gemini_client_ready()
-    response = _GENAI_CLIENT.models.generate_content(
+    response = _get_genai_client().models.generate_content(
         model=model_name,
         contents=prompt,
     )
@@ -1982,7 +2013,7 @@ async def _extract_entities_with_gemini(claim_text: str) -> list[str]:
         prompt = ENTITY_EXTRACTION_PROMPT.format(claim_text=claim_text)
 
         response = await asyncio.to_thread(
-            lambda: _GENAI_CLIENT.models.generate_content(
+            lambda: _get_genai_client().models.generate_content(
                 model=GEMINI_MODEL_DEFAULT,
                 contents=prompt,
             )
@@ -2302,7 +2333,7 @@ def _call_gemini_for_expansion(prompt: str, model_name: str) -> dict:
     """Call Gemini with thinking mode for grounded concept expansion."""
     _ensure_gemini_client_ready()
 
-    response = _GENAI_CLIENT.models.generate_content(
+    response = _get_genai_client().models.generate_content(
         model=model_name,
         contents=prompt,
     )
@@ -2674,7 +2705,7 @@ Content: {content[:500]}
     )
 
     try:
-        response = _GENAI_CLIENT.models.generate_content(
+        response = _get_genai_client().models.generate_content(
             model=GEMINI_MODEL_DEFAULT,
             contents=prompt,
             config={
@@ -3004,7 +3035,7 @@ Provide a helpful, accurate response based on the context above. Reference speci
                 thinking_parts = []
                 response_parts = []
 
-                response_stream = _GENAI_CLIENT.models.generate_content_stream(
+                response_stream = _get_genai_client().models.generate_content_stream(
                     model=GEMINI_MODEL_DEFAULT,
                     contents=prompt,
                     config=generation_config
@@ -3029,7 +3060,7 @@ Provide a helpful, accurate response based on the context above. Reference speci
         else:
             # Non-streaming mode (faster when thinking not needed)
             response = await asyncio.to_thread(
-                lambda: _GENAI_CLIENT.models.generate_content(
+                lambda: _get_genai_client().models.generate_content(
                     model=GEMINI_MODEL_DEFAULT,
                     contents=prompt,
                     config=generation_config
@@ -3223,7 +3254,7 @@ async def _generate_image_impl(
         _ensure_gemini_client_ready()
 
         response = await asyncio.to_thread(
-            lambda: _GENAI_CLIENT.models.generate_content(
+            lambda: _get_genai_client().models.generate_content(
                 model=GEMINI_IMAGE_MODEL,
                 contents=generation_prompt,
                 config={
@@ -3622,7 +3653,7 @@ async def _generate_mini_podcast_impl(
 
         print("[MINI PODCAST] Generating script with Gemini 3...")
         script_response = await asyncio.to_thread(
-            lambda: _GENAI_CLIENT.models.generate_content(
+            lambda: _get_genai_client().models.generate_content(
                 model=GEMINI_MODEL_DEFAULT,
                 contents=script_prompt,
                 config={
@@ -3681,7 +3712,7 @@ async def _generate_mini_podcast_impl(
             )
 
             tts_response = await asyncio.to_thread(
-                lambda: _GENAI_CLIENT.models.generate_content(
+                lambda: _get_genai_client().models.generate_content(
                     model=GEMINI_TTS_MODEL,
                     contents=script_text,
                     config=types.GenerateContentConfig(
@@ -3918,7 +3949,7 @@ async def _text_to_speech_impl(
 
         # Generate audio via Gemini TTS
         tts_response = await asyncio.to_thread(
-            lambda: _GENAI_CLIENT.models.generate_content(
+            lambda: _get_genai_client().models.generate_content(
                 model=GEMINI_TTS_MODEL,
                 contents=text,
                 config=types.GenerateContentConfig(
