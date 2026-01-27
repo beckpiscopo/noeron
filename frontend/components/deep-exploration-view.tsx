@@ -306,13 +306,14 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [contextData])
 
-  // Auto-fetch evidence threads when contextData loads
+  // Auto-fetch evidence threads after deep dive finishes (serialize to avoid concurrent Gemini calls)
   useEffect(() => {
-    if (contextData && !aiEvidenceThreads && !isLoadingThreads && !threadsError) {
+    if (contextData && !aiEvidenceThreads && !isLoadingThreads && !threadsError
+        && !isLoadingDeepDive.technical && (deepDiveSummaries.technical || deepDiveErrors.technical)) {
       fetchEvidenceThreads()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [contextData])
+  }, [contextData, isLoadingDeepDive.technical, deepDiveSummaries.technical, deepDiveErrors.technical])
 
   // Function to fetch deep dive summary on-demand (style-aware)
   const fetchDeepDiveSummary = async (style: "simplified" | "technical", forceRegenerate = false) => {
