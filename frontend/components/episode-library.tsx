@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Play, Clock, Calendar, FileText, Search, Settings, HelpCircle, Brain } from "lucide-react"
+import { Play, Clock, Calendar, FileText, Search, Settings, HelpCircle, Lock } from "lucide-react"
 import { callMcpTool } from "@/lib/api"
 import { NoeronHeader } from "./noeron-header"
 
@@ -18,6 +18,8 @@ export interface Episode {
   description?: string
   audioUrl?: string
 }
+
+const PREVIEW_EPISODE_ID = "lex_325"
 
 interface EpisodeLibraryProps {
   onSelectEpisode: (episode: Episode) => void
@@ -144,14 +146,21 @@ export function EpisodeLibrary({ onSelectEpisode }: EpisodeLibraryProps) {
             {status === "idle" && "Episode catalog synced"}
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {episodes.map((episode) => (
+          {episodes.map((episode) => {
+            const isLocked = episode.id !== PREVIEW_EPISODE_ID
+            return (
             <article
               key={episode.id}
             onClick={() => {
+              if (isLocked) return
               setHighlightedEpisodeId(episode.id)
               onSelectEpisode(episode)
             }}
-            className={`group relative flex flex-col border border-border p-6 cursor-pointer transition-all duration-300 hover:scale-[1.02] hover:bg-card hover:shadow-[0_0_25px_rgba(190,124,77,0.2)] hover:border-[var(--golden-chestnut)]/30 ${
+            className={`group relative flex flex-col border border-border p-6 transition-all duration-300 ${
+              isLocked
+                ? "opacity-60 cursor-default"
+                : "cursor-pointer hover:scale-[1.02] hover:bg-card hover:shadow-[0_0_25px_rgba(190,124,77,0.2)] hover:border-[var(--golden-chestnut)]/30"
+            } ${
               episode.id === highlightedEpisodeId ? "bg-card" : "bg-card/50"
             }`}
             >
@@ -182,27 +191,29 @@ export function EpisodeLibrary({ onSelectEpisode }: EpisodeLibraryProps) {
                 </div>
               </div>
 
-              {/* Play Button */}
-              <div className="flex justify-end mt-4">
-                <button className="flex items-center justify-center size-12 rounded-full bg-[var(--golden-chestnut)] text-[var(--carbon-black)] shadow-lg shadow-[var(--golden-chestnut)]/20 transition-all duration-300 group-hover:scale-110 group-hover:bg-[var(--parchment)] group-hover:shadow-[0_0_15px_rgba(190,124,77,0.5)]">
-                  <Play className="size-5 ml-0.5 fill-current" />
+              {/* Play / Lock Button */}
+              <div className="flex items-center justify-end mt-4 gap-3">
+                {isLocked && (
+                  <span className="text-foreground/40 text-xs font-semibold uppercase tracking-wider mono">Coming Soon</span>
+                )}
+                <button
+                  className={`flex items-center justify-center size-12 rounded-full transition-all duration-300 ${
+                    isLocked
+                      ? "bg-foreground/10 text-foreground/30"
+                      : "bg-[var(--golden-chestnut)] text-[var(--carbon-black)] shadow-lg shadow-[var(--golden-chestnut)]/20 group-hover:scale-110 group-hover:bg-[var(--parchment)] group-hover:shadow-[0_0_15px_rgba(190,124,77,0.5)]"
+                  }`}
+                  disabled={isLocked}
+                >
+                  {isLocked ? (
+                    <Lock className="size-5" />
+                  ) : (
+                    <Play className="size-5 ml-0.5 fill-current" />
+                  )}
                 </button>
               </div>
             </article>
-          ))}
-
-          {/* Explore Section */}
-          <div className="flex flex-col items-center justify-center gap-4 py-8 px-4 bg-gradient-to-b from-transparent to-card/50 text-center border border-border">
-            <div className="size-12 rounded-full bg-[var(--golden-chestnut)]/10 flex items-center justify-center">
-              <Brain className="size-6 text-[var(--golden-chestnut)]" />
-            </div>
-            <h3 className="text-lg font-bold text-foreground">Explore Research Papers</h3>
-            <p className="text-foreground/60 text-sm">Dive deeper into the cited literature and hypotheses.</p>
-            <button className="btn-noeron btn-noeron-secondary flex items-center gap-2">
-              <span>Browse Citations</span>
-              <FileText className="size-4" />
-            </button>
-          </div>
+            )
+          })}
         </div>
       </div>
       </main>
