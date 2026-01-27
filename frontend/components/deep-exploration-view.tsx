@@ -298,6 +298,22 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
     }
   }, [claim.id, episodeId])
 
+  // Auto-fetch technical deep dive summary when contextData loads
+  useEffect(() => {
+    if (contextData && !deepDiveSummaries.technical && !isLoadingDeepDive.technical && !deepDiveErrors.technical) {
+      fetchDeepDiveSummary("technical")
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contextData])
+
+  // Auto-fetch evidence threads when contextData loads
+  useEffect(() => {
+    if (contextData && !aiEvidenceThreads && !isLoadingThreads && !threadsError) {
+      fetchEvidenceThreads()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contextData])
+
   // Function to fetch deep dive summary on-demand (style-aware)
   const fetchDeepDiveSummary = async (style: "simplified" | "technical", forceRegenerate = false) => {
     if (!claim.id.includes("-")) return
@@ -728,19 +744,13 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
                   )
                 })()}
 
-                {/* Initial state - no summary yet */}
+                {/* Initial state - auto-loading */}
                 {!deepDiveSummaries[synthesisMode] && !isLoadingDeepDive[synthesisMode] && !deepDiveErrors[synthesisMode] && (
-                  <div className="text-center py-8">
-                    <Sparkles className="w-10 h-10 text-[var(--golden-chestnut)]/50 mx-auto mb-4" />
-                    <p className="text-foreground/60 mb-4">
-                      Generate {synthesisMode === "simplified" ? "a simplified" : "a technical"} AI-powered summary for this claim
-                    </p>
-                    <button
-                      onClick={() => fetchDeepDiveSummary(synthesisMode)}
-                      className="px-6 py-3 border border-[var(--golden-chestnut)] bg-[var(--golden-chestnut)]/10 hover:bg-[var(--golden-chestnut)]/20 text-[var(--golden-chestnut)] font-bold tracking-wide transition-all"
-                    >
-                      Generate {synthesisMode === "simplified" ? "Simplified" : "Technical"} Summary
-                    </button>
+                  <div className="flex items-center justify-center py-12">
+                    <div className="flex flex-col items-center gap-4">
+                      <Loader2 className="w-8 h-8 text-[var(--golden-chestnut)] animate-spin" />
+                      <p className="text-foreground/60 text-sm">Loading summary...</p>
+                    </div>
                   </div>
                 )}
               </div>
@@ -898,14 +908,8 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
                 <GitBranch className="w-5 h-5 text-[var(--golden-chestnut)]" />
                 <h3 className="font-bold text-lg">Evidence Threads</h3>
               </div>
-              {!aiEvidenceThreads && !isLoadingThreads && (
-                <button
-                  onClick={() => fetchEvidenceThreads()}
-                  className="text-xs text-[var(--golden-chestnut)] hover:underline flex items-center gap-1"
-                >
-                  <Sparkles className="w-3 h-3" />
-                  Generate
-                </button>
+              {!aiEvidenceThreads && isLoadingThreads && (
+                <Loader2 className="w-4 h-4 text-[var(--golden-chestnut)] animate-spin" />
               )}
             </div>
 
@@ -1049,67 +1053,12 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
               </>
             )}
 
-            {/* Initial state - show basic evidence if no AI threads */}
+            {/* Initial state - auto-loading */}
             {!aiEvidenceThreads && !isLoadingThreads && !threadsError && (
-              <>
-                {evidenceThreads.length > 0 ? (
-                  <>
-                    <div className="relative pl-2 border-l border-border ml-2 space-y-6">
-                      {evidenceThreads.slice(0, 3).map((thread, index) => (
-                        <div
-                          key={index}
-                          className={`relative pl-6 group cursor-pointer ${thread.highlighted ? "" : "opacity-70 hover:opacity-100"} transition-opacity`}
-                          onClick={() => {
-                            if (thread.source_link) {
-                              window.open(thread.source_link, "_blank")
-                            }
-                          }}
-                        >
-                          {thread.highlighted ? (
-                            <div className="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-[var(--golden-chestnut)] border-4 border-background shadow-[0_0_0_1px_var(--golden-chestnut)]" />
-                          ) : (
-                            <div className="absolute -left-[5px] top-1.5 w-2 h-2 rounded-full bg-[var(--warm-gray)]" />
-                          )}
-                          <p className="text-[10px] font-mono text-[var(--golden-chestnut)] mb-1 tracking-wider uppercase">
-                            {thread.type === "primary"
-                              ? "Primary Source"
-                              : thread.type === "replication"
-                                ? "Replication"
-                                : "Counter-Evidence"}
-                          </p>
-                          <h4 className="font-medium text-sm mb-1 group-hover:text-[var(--golden-chestnut)] transition-colors">
-                            {thread.title}
-                          </h4>
-                          <p className="text-foreground/60 text-xs mb-1">{thread.description}</p>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="mt-4 pt-4 border-t border-border">
-                      <button
-                        onClick={() => fetchEvidenceThreads()}
-                        className="w-full py-2 flex items-center justify-center gap-2 text-xs font-medium bg-card hover:bg-foreground/10 text-[var(--golden-chestnut)] rounded-none transition-colors"
-                      >
-                        <Sparkles className="w-3.5 h-3.5" />
-                        <span>Generate Research Narratives</span>
-                      </button>
-                    </div>
-                  </>
-                ) : (
-                  <div className="text-center py-6">
-                    <GitBranch className="w-8 h-8 text-foreground/40 mx-auto mb-3" />
-                    <p className="text-foreground/50 text-sm mb-3">
-                      No evidence threads available yet
-                    </p>
-                    <button
-                      onClick={() => fetchEvidenceThreads()}
-                      className="px-4 py-2 text-xs font-medium bg-card hover:bg-foreground/10 text-[var(--golden-chestnut)] rounded-none transition-colors inline-flex items-center gap-2"
-                    >
-                      <Sparkles className="w-3.5 h-3.5" />
-                      Generate with AI
-                    </button>
-                  </div>
-                )}
-              </>
+              <div className="flex flex-col items-center justify-center py-8">
+                <Loader2 className="w-6 h-6 text-[var(--golden-chestnut)] animate-spin mb-3" />
+                <p className="text-foreground/60 text-sm">Loading evidence threads...</p>
+              </div>
             )}
           </CornerBrackets>
 

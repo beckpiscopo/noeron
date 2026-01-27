@@ -74,3 +74,4 @@ node_modules/
 .env.*.local
 frontend/.env.local
 frontend/.env.*.local
+supabase/.temp/
