@@ -2,12 +2,14 @@
 
 import { useEffect, useRef, useState, useCallback } from "react"
 import { Drawer as DrawerPrimitive } from "vaul"
-import { MessageSquare, Trash2, Sparkles, X, ChevronLeft, ChevronRight, Loader2, GripVertical, Circle } from "lucide-react"
+import { MessageSquare, Trash2, Sparkles, X, ChevronLeft, ChevronRight, Loader2, GripVertical, Circle, Key } from "lucide-react"
 import { ChatMessage } from "./chat-message"
 import { ChatInput } from "./chat-input"
 import { useAIChat } from "@/hooks/use-ai-chat"
 import { useBookmarks } from "@/hooks/use-bookmarks"
 import { useChatAudio } from "@/hooks/use-chat-audio"
+import { useGeminiKey } from "@/contexts/gemini-key-context"
+import { ApiKeyModal } from "@/components/api-key-modal"
 import { useIsMobile } from "@/components/ui/use-mobile"
 import type { ChatContext } from "@/lib/chat-types"
 import { cn } from "@/lib/utils"
@@ -61,12 +63,24 @@ export function AIChatSidebar({
     isPlaying: isPlayingAudio,
     currentMessageId: audioMessageId,
   } = useChatAudio()
+  const { hasKey } = useGeminiKey()
+  const [apiKeyModalOpen, setApiKeyModalOpen] = useState(false)
   const isMobile = useIsMobile()
   const scrollRef = useRef<HTMLDivElement>(null)
   const [isDragOver, setIsDragOver] = useState(false)
   const [width, setWidth] = useState(DEFAULT_WIDTH)
   const [isResizing, setIsResizing] = useState(false)
   const resizeRef = useRef<{ startX: number; startWidth: number } | null>(null)
+
+  // Intercept open requests to check for API key
+  const handleOpenChange = useCallback((newOpen: boolean) => {
+    if (newOpen && !hasKey) {
+      // User is trying to open chat but doesn't have an API key
+      setApiKeyModalOpen(true)
+      return
+    }
+    onOpenChange(newOpen)
+  }, [hasKey, onOpenChange])
 
   // Handle image bookmark
   const handleBookmarkImage = useCallback(
@@ -150,7 +164,7 @@ export function AIChatSidebar({
         onClaimDrop(claimData)
         // Auto-open if closed
         if (!open) {
-          onOpenChange(true)
+          handleOpenChange(true)
         }
       }
     } catch (err) {
@@ -362,28 +376,36 @@ export function AIChatSidebar({
   // Mobile: Bottom sheet layout
   if (isMobile) {
     return (
-      <DrawerPrimitive.Root open={open} onOpenChange={onOpenChange}>
-        <DrawerPrimitive.Portal>
-          <DrawerPrimitive.Overlay
-            className="fixed inset-0 z-50 bg-black/50 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0"
-          />
-          <DrawerPrimitive.Content
-            className={cn(
-              "fixed inset-x-0 bottom-0 z-50 flex flex-col bg-background rounded-t-xl border-t border-border",
-              "data-[state=open]:animate-in data-[state=closed]:animate-out",
-              "data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom",
-              "h-[85vh]"
-            )}
-          >
-            {/* Drag handle */}
-            <div className="flex justify-center pt-3 pb-2">
-              <div className="w-12 h-1.5 rounded-full bg-muted-foreground/20" />
-            </div>
+      <>
+        <DrawerPrimitive.Root open={open} onOpenChange={handleOpenChange}>
+          <DrawerPrimitive.Portal>
+            <DrawerPrimitive.Overlay
+              className="fixed inset-0 z-50 bg-black/50 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0"
+            />
+            <DrawerPrimitive.Content
+              className={cn(
+                "fixed inset-x-0 bottom-0 z-50 flex flex-col bg-background rounded-t-xl border-t border-border",
+                "data-[state=open]:animate-in data-[state=closed]:animate-out",
+                "data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom",
+                "h-[85vh]"
+              )}
+            >
+              {/* Drag handle */}
+              <div className="flex justify-center pt-3 pb-2">
+                <div className="w-12 h-1.5 rounded-full bg-muted-foreground/20" />
+              </div>
 
-            <ChatContent isMobileSheet />
-          </DrawerPrimitive.Content>
-        </DrawerPrimitive.Portal>
-      </DrawerPrimitive.Root>
+              <ChatContent isMobileSheet />
+            </DrawerPrimitive.Content>
+          </DrawerPrimitive.Portal>
+        </DrawerPrimitive.Root>
+
+        {/* API Key Modal - shown when user tries to open chat without a key */}
+        <ApiKeyModal
+          open={apiKeyModalOpen}
+          onOpenChange={setApiKeyModalOpen}
+        />
+      </>
     )
   }
 
@@ -430,7 +452,7 @@ export function AIChatSidebar({
         {!open && (
           <div className="flex flex-col items-center py-4 gap-3 h-full bg-gradient-to-b from-card/50 to-transparent">
             <button
-              onClick={() => onOpenChange(true)}
+              onClick={() => handleOpenChange(true)}
               className={cn(
                 "p-2.5 transition-all duration-200",
                 "border border-[var(--golden-chestnut)]/30 bg-[var(--golden-chestnut)]/10",
@@ -449,7 +471,7 @@ export function AIChatSidebar({
             )}
             <div className="flex-1" />
             <button
-              onClick={() => onOpenChange(true)}
+              onClick={() => handleOpenChange(true)}
               className="p-2 text-foreground/40 hover:text-[var(--golden-chestnut)] transition-colors"
               title="Expand chat"
             >
@@ -476,6 +498,12 @@ export function AIChatSidebar({
           </>
         )}
       </div>
+
+      {/* API Key Modal - shown when user tries to open chat without a key */}
+      <ApiKeyModal
+        open={apiKeyModalOpen}
+        onOpenChange={setApiKeyModalOpen}
+      />
     </>
   )
 }
