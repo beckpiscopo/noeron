@@ -492,6 +492,22 @@ async def http_generate_deep_dive_summary(request: Request):
         return JSONResponse({"error": str(e)}, status_code=500)
 
 
+@app.post("/tools/analyze_paper_figures/execute")
+async def http_analyze_paper_figures(request: Request):
+    """Analyze figures from a paper using Agentic Vision."""
+    try:
+        body = await request.json()
+        from .server import AnalyzeFigureInput, analyze_paper_figures
+
+        params = AnalyzeFigureInput(**body)
+        result = await analyze_paper_figures(params)
+        return result
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
 @app.post("/tools/generate_evidence_threads/execute")
 async def http_generate_evidence_threads(request: Request):
     """Generate evidence threads for a scientific claim - coherent research narratives."""

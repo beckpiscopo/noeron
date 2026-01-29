@@ -59,6 +59,21 @@ DEEP_DIVE_CACHE_PATH = Path(__file__).resolve().parent.parent.parent / "cache" /
 EVIDENCE_THREADS_CACHE_PATH = Path(__file__).resolve().parent.parent.parent / "cache" / "evidence_threads.json"
 KNOWLEDGE_GRAPH_PATH = Path(__file__).resolve().parent.parent.parent / "data" / "knowledge_graph" / "knowledge_graph.json"
 CLAIM_RELEVANCE_CACHE_PATH = Path(__file__).resolve().parent.parent.parent / "data" / "knowledge_graph" / "claim_entity_relevance.json"
+FIGURES_INDEX_PATH = Path(__file__).resolve().parent.parent.parent / "data" / "figures_metadata.json"
+ROOT_DIR = Path(__file__).resolve().parent.parent.parent
+
+
+def _load_figures_index() -> dict:
+    """Load the figures metadata index."""
+    if not FIGURES_INDEX_PATH.exists():
+        return {"figures_by_paper": {}}
+    return json_module.loads(FIGURES_INDEX_PATH.read_text())
+
+
+def _get_figures_for_paper(paper_id: str) -> list[dict]:
+    """Get all figures for a specific paper."""
+    index = _load_figures_index()
+    return index.get("figures_by_paper", {}).get(paper_id, [])
 
 
 # ============================================================================
@@ -745,6 +760,13 @@ class GetClaimContextInput(BaseModel):
     episode_id: str = Field(default="lex_325", description="The episode ID")
     include_related_concepts: bool = Field(default=True, description="Whether to search for related concepts")
     related_concepts_limit: int = Field(default=5, ge=1, le=20, description="Number of related concepts to return")
+
+
+class AnalyzeFigureInput(BaseModel):
+    """Input for figure analysis using Agentic Vision."""
+    paper_id: str = Field(..., description="Paper ID to find figures for")
+    figure_id: Optional[str] = Field(None, description="Specific figure ID, or analyze first 5")
+    claim_context: Optional[str] = Field(None, description="Related claim text for context")
 
 
 # Taxonomy Cluster Input Models
@@ -1668,6 +1690,118 @@ async def generate_deep_dive_summary(params: GenerateDeepDiveSummaryInput) -> di
             "error": f"Error generating deep dive summary: {str(e)}",
             "traceback": traceback.format_exc(),
         }
+
+
+# ============================================================================
+# Figure Analysis Tool (Agentic Vision)
+# ============================================================================
+
+@mcp.tool()
+async def analyze_paper_figures(params: AnalyzeFigureInput) -> dict[str, Any]:
+    """
+    Analyze scientific figures from a paper using Gemini vision with Agentic Vision.
+
+    Uses code_execution tool to enable enhanced analysis (zoom, annotate, calculate).
+    """
+    import base64
+    from google.genai import types
+
+    figures = _get_figures_for_paper(params.paper_id)
+
+    if not figures:
+        return {"error": f"No figures found for paper {params.paper_id}", "figures": []}
+
+    if params.figure_id:
+        figures = [f for f in figures if f["figure_id"] == params.figure_id]
+
+    # Limit to first 5 figures that have images
+    figures = [f for f in figures if f.get("image_path")][:5]
+
+    if not figures:
+        return {"error": f"No figures with images found for paper {params.paper_id}", "figures": []}
+
+    results = []
+    _ensure_gemini_client_ready()
+    client = _get_genai_client()
+
+    for fig in figures:
+        image_path = ROOT_DIR / fig["image_path"]
+        if not image_path.exists():
+            continue
+
+        # Load and encode image
+        with open(image_path, "rb") as f:
+            image_data = base64.standard_b64encode(f.read()).decode("utf-8")
+
+        # Build context-aware prompt
+        context = f"Caption: {fig.get('caption', 'No caption')}\n"
+        if params.claim_context:
+            context += f"Related claim from podcast: {params.claim_context}\n"
+
+        prompt = f"""Analyze this scientific figure from bioelectricity research.
+
+{context}
+
+Provide:
+1. A clear description of what the figure shows
+2. Key scientific findings or data points
+3. How this relates to the claim (if provided)
+
+Keep the analysis concise (2-3 paragraphs) and accessible to non-experts."""
+
+        try:
+            config = types.GenerateContentConfig(
+                tools=[types.Tool(code_execution=types.ToolCodeExecution())],
+                temperature=0.3,
+            )
+
+            contents = [
+                types.Content(
+                    role="user",
+                    parts=[
+                        types.Part.from_bytes(
+                            data=base64.standard_b64decode(image_data),
+                            mime_type="image/png",
+                        ),
+                        types.Part.from_text(prompt),
+                    ],
+                )
+            ]
+
+            response = await asyncio.to_thread(
+                client.models.generate_content,
+                model="gemini-2.0-flash",
+                contents=contents,
+                config=config,
+            )
+
+            analysis_text = ""
+            code_executed = False
+            for part in response.candidates[0].content.parts:
+                if hasattr(part, "text") and part.text:
+                    analysis_text += part.text
+                if hasattr(part, "executable_code") or hasattr(part, "code_execution_result"):
+                    code_executed = True
+
+            results.append({
+                "figure_id": fig["figure_id"],
+                "paper_id": fig["paper_id"],
+                "image_path": fig["image_path"],
+                "caption": fig.get("caption"),
+                "title": fig.get("title"),
+                "analysis": analysis_text,
+                "code_executed": code_executed,
+            })
+
+        except Exception as e:
+            import logging
+            logging.warning(f"Failed to analyze figure {fig['figure_id']}: {e}")
+
+    return {
+        "paper_id": params.paper_id,
+        "figures": results,
+        "total_figures": len(results),
+    }
 
 
 # ============================================================================
