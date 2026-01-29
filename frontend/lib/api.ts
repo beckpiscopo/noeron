@@ -26,3 +26,32 @@ export async function callMcpTool<T = unknown>(tool: string, body: ToolRequestBo
   return (await response.json()) as T
 }
 
+// Figure Analysis types (Agentic Vision)
+export interface FigureAnalysis {
+  figure_id: string
+  paper_id: string
+  image_path: string
+  caption: string | null
+  title: string | null
+  analysis: string
+  code_executed: boolean
+}
+
+export interface AnalyzeFiguresResponse {
+  paper_id: string
+  figures: FigureAnalysis[]
+  total_figures: number
+  error?: string
+}
+
+export async function analyzePaperFigures(
+  paperId: string,
+  claimContext?: string,
+  figureId?: string
+): Promise<AnalyzeFiguresResponse> {
+  return callMcpTool<AnalyzeFiguresResponse>("analyze_paper_figures", {
+    paper_id: paperId,
+    claim_context: claimContext,
+    figure_id: figureId,
+  })
+}
