@@ -22,9 +22,10 @@ import {
   Settings,
   HelpCircle as HelpIcon,
   Mic,
+  Image as ImageIcon,
 } from "lucide-react"
 import { NoeronHeader } from "./noeron-header"
-import { callMcpTool } from "@/lib/api"
+import { callMcpTool, analyzePaperFigures, type FigureAnalysis, type AnalyzeFiguresResponse } from "@/lib/api"
 import { ConceptExpansionGraph, convertKGSubgraph } from "./concept-graph"
 import { BookmarkButton } from "./bookmark-button"
 import { AIChatSidebar } from "./ai-chat"
@@ -245,6 +246,12 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
   const [isLoadingPodcast, setIsLoadingPodcast] = useState(false)
   const [podcastError, setPodcastError] = useState<string | null>(null)
 
+  // Figure Analysis state (Agentic Vision)
+  const [figureAnalysis, setFigureAnalysis] = useState<AnalyzeFiguresResponse | null>(null)
+  const [isLoadingFigures, setIsLoadingFigures] = useState(false)
+  const [figuresError, setFiguresError] = useState<string | null>(null)
+  const [selectedFigure, setSelectedFigure] = useState<FigureAnalysis | null>(null)
+
   // Fetch claim context data on mount
   useEffect(() => {
     let cancelled = false
@@ -429,6 +436,33 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
       console.error("Error generating mini podcast:", err)
     } finally {
       setIsLoadingPodcast(false)
+    }
+  }
+
+  // Function to analyze figures from papers in evidence threads
+  const fetchFigureAnalysis = async (paperId: string) => {
+    setIsLoadingFigures(true)
+    setFiguresError(null)
+
+    try {
+      const data = await analyzePaperFigures(
+        paperId,
+        synthesis?.claim_text || claim.title
+      )
+
+      if (data.error) {
+        setFiguresError(data.error)
+      } else {
+        setFigureAnalysis(data)
+        if (data.figures.length > 0) {
+          setSelectedFigure(data.figures[0])
+        }
+      }
+    } catch (err) {
+      setFiguresError(err instanceof Error ? err.message : "Failed to analyze figures")
+      console.error("Error analyzing figures:", err)
+    } finally {
+      setIsLoadingFigures(false)
     }
   }
 
@@ -879,6 +913,155 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
                   <Network className="w-4 h-4" />
                   Load Knowledge Graph
                 </button>
+              </CornerBrackets>
+            )}
+          </div>
+
+          {/* Figure Analysis - Agentic Vision */}
+          <div className="hidden md:block pt-4">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <ImageIcon className="w-5 h-5 text-[var(--golden-chestnut)]" />
+                <h4 className="font-bold text-lg">Paper Figures</h4>
+                <span className="text-xs text-foreground/50 bg-[var(--golden-chestnut)]/20 px-2 py-0.5 rounded">
+                  Agentic Vision
+                </span>
+              </div>
+            </div>
+
+            {/* Paper selector from evidence threads */}
+            {contextData?.evidence_threads && contextData.evidence_threads.length > 0 && !figureAnalysis && !isLoadingFigures && (
+              <CornerBrackets className="bg-card/30 p-6">
+                <p className="text-foreground/60 text-sm mb-4">
+                  Analyze figures from supporting papers using AI vision
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {contextData.evidence_threads.slice(0, 3).map((thread, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => fetchFigureAnalysis(thread.paper_id)}
+                      className="text-xs px-3 py-2 border border-[var(--golden-chestnut)]/50 hover:bg-[var(--golden-chestnut)]/10 text-foreground/80 transition-colors truncate max-w-[200px]"
+                      title={thread.paper_title}
+                    >
+                      {thread.paper_title.length > 35
+                        ? thread.paper_title.slice(0, 35) + "..."
+                        : thread.paper_title}
+                    </button>
+                  ))}
+                </div>
+              </CornerBrackets>
+            )}
+
+            {/* Loading State */}
+            {isLoadingFigures && (
+              <CornerBrackets className="bg-card/30 p-8">
+                <div className="flex flex-col items-center justify-center">
+                  <Loader2 className="w-6 h-6 text-[var(--golden-chestnut)] animate-spin mb-3" />
+                  <p className="text-foreground/60 text-sm">Analyzing figures with AI...</p>
+                  <p className="text-foreground/50 text-xs mt-1">Using Agentic Vision to examine graphs and diagrams</p>
+                </div>
+              </CornerBrackets>
+            )}
+
+            {/* Error State */}
+            {figuresError && !isLoadingFigures && (
+              <div className="bg-red-500/10 border border-red-500/30 rounded-none p-4">
+                <p className="text-red-400 text-sm">{figuresError}</p>
+                <button
+                  onClick={() => setFiguresError(null)}
+                  className="mt-2 text-xs text-[var(--golden-chestnut)] hover:underline"
+                >
+                  Dismiss
+                </button>
+              </div>
+            )}
+
+            {/* Figure Analysis Results */}
+            {figureAnalysis && !isLoadingFigures && !figuresError && (
+              <CornerBrackets className="bg-card/30 p-6">
+                {/* Header with paper info and close button */}
+                <div className="flex items-center justify-between mb-4">
+                  <span className="text-xs text-foreground/50">
+                    {figureAnalysis.total_figures} figure{figureAnalysis.total_figures !== 1 ? 's' : ''} analyzed
+                  </span>
+                  <button
+                    onClick={() => {
+                      setFigureAnalysis(null)
+                      setSelectedFigure(null)
+                    }}
+                    className="text-xs text-foreground/50 hover:text-foreground"
+                  >
+                    Close
+                  </button>
+                </div>
+
+                {/* Figure thumbnails */}
+                {figureAnalysis.figures.length > 1 && (
+                  <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
+                    {figureAnalysis.figures.map((fig, idx) => (
+                      <button
+                        key={fig.figure_id}
+                        onClick={() => setSelectedFigure(fig)}
+                        className={`shrink-0 w-16 h-16 border-2 transition-all overflow-hidden bg-background ${
+                          selectedFigure?.figure_id === fig.figure_id
+                            ? "border-[var(--golden-chestnut)]"
+                            : "border-border hover:border-foreground/30"
+                        }`}
+                      >
+                        <img
+                          src={`/api/figures/${fig.image_path}`}
+                          alt={`Figure ${idx + 1}`}
+                          className="w-full h-full object-cover"
+                        />
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* Selected figure detail */}
+                {selectedFigure && (
+                  <div className="space-y-4">
+                    <div className="aspect-video bg-background rounded overflow-hidden border border-border">
+                      <img
+                        src={`/api/figures/${selectedFigure.image_path}`}
+                        alt="Selected figure"
+                        className="w-full h-full object-contain"
+                      />
+                    </div>
+
+                    {selectedFigure.title && (
+                      <p className="text-sm font-medium text-foreground/80">
+                        {selectedFigure.title}
+                      </p>
+                    )}
+
+                    {selectedFigure.caption && (
+                      <p className="text-xs text-foreground/50 italic line-clamp-3">
+                        {selectedFigure.caption}
+                      </p>
+                    )}
+
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Sparkles className="w-4 h-4 text-[var(--golden-chestnut)]" />
+                        <span className="text-sm font-medium">AI Analysis</span>
+                        {selectedFigure.code_executed && (
+                          <span className="text-[10px] bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded">
+                            Enhanced
+                          </span>
+                        )}
+                      </div>
+                      <MarkdownContent content={selectedFigure.analysis} />
+                    </div>
+                  </div>
+                )}
+
+                {/* No figures case */}
+                {figureAnalysis.figures.length === 0 && (
+                  <p className="text-foreground/50 text-sm text-center py-4">
+                    No figures found for this paper
+                  </p>
+                )}
               </CornerBrackets>
             )}
           </div>
