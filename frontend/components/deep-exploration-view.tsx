@@ -1357,12 +1357,17 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
                                 {milestone.finding}
                               </p>
 
-                              {/* Paper reference */}
-                              <p className="text-[10px] text-foreground/50 mt-1 truncate" title={milestone.paper_title}>
+                              {/* Paper reference - clickable for figure analysis */}
+                              <button
+                                onClick={() => milestone.paper_id && fetchFigureAnalysis(milestone.paper_id)}
+                                className="text-[10px] text-foreground/50 mt-1 truncate block text-left hover:text-[var(--golden-chestnut)] hover:underline transition-colors cursor-pointer disabled:cursor-default disabled:hover:no-underline disabled:hover:text-foreground/50"
+                                title={milestone.paper_id ? `Analyze figures from: ${milestone.paper_title}` : milestone.paper_title}
+                                disabled={!milestone.paper_id}
+                              >
                                 {milestone.paper_title.length > 50
                                   ? milestone.paper_title.slice(0, 50) + "..."
                                   : milestone.paper_title}
-                              </p>
+                              </button>
                             </div>
                           ))}
                         </div>
