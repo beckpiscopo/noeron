@@ -1009,7 +1009,7 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
                         }`}
                       >
                         <img
-                          src={`/api/figures/${fig.image_path}`}
+                          src={fig.image_url || `/api/figures/${fig.image_path}`}
                           alt={`Figure ${idx + 1}`}
                           className="w-full h-full object-cover"
                         />
@@ -1023,7 +1023,7 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
                   <div className="space-y-4">
                     <div className="aspect-video bg-background rounded overflow-hidden border border-border">
                       <img
-                        src={`/api/figures/${selectedFigure.image_path}`}
+                        src={selectedFigure.image_url || `/api/figures/${selectedFigure.image_path}`}
                         alt="Selected figure"
                         className="w-full h-full object-contain"
                       />

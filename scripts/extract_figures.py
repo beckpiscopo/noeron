@@ -4,6 +4,8 @@ Extract figure images from PDFs using GROBID coordinates.
 
 Reads GROBID JSON files, parses TEI XML to extract figure metadata,
 and uses pdf2image to crop figure regions from the source PDFs.
+
+Optionally uploads to Supabase storage for production use.
 """
 
 from __future__ import annotations
@@ -11,6 +13,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import os
 import re
 import sys
 from dataclasses import dataclass
@@ -24,6 +27,7 @@ from PIL import Image
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT_DIR / "src"))
+sys.path.insert(0, str(ROOT_DIR / "scripts"))
 
 from bioelectricity_research.storage import PDF_CACHE_DIR  # noqa: E402
 
@@ -32,8 +36,52 @@ FIGURE_OUTPUT_DIR = ROOT_DIR / "data" / "figure_images"
 METADATA_PATH = ROOT_DIR / "data" / "figures_metadata.json"
 
 TEI_NS = {"tei": "http://www.tei-c.org/ns/1.0"}
+SUPABASE_BUCKET = "paper-figures"
 
 logger = logging.getLogger("figure_extractor")
+
+
+def upload_to_supabase(local_path: Path, paper_id: str, figure_id: str) -> Optional[str]:
+    """
+    Upload a figure to Supabase storage and return the public URL.
+
+    Returns None if upload fails or Supabase is not configured.
+    """
+    try:
+        from supabase_client import get_db
+    except ImportError:
+        logger.warning("supabase_client not available, skipping upload")
+        return None
+
+    if not os.getenv("SUPABASE_URL") or not os.getenv("SUPABASE_SERVICE_KEY"):
+        logger.warning("Supabase credentials not configured, skipping upload")
+        return None
+
+    storage_path = f"{paper_id}/{figure_id}.png"
+
+    try:
+        db = get_db(use_service_key=True)
+
+        with open(local_path, "rb") as f:
+            file_bytes = f.read()
+
+        try:
+            db.client.storage.from_(SUPABASE_BUCKET).upload(
+                path=storage_path,
+                file=file_bytes,
+                file_options={"content-type": "image/png"}
+            )
+        except Exception as e:
+            if "already exists" in str(e).lower() or "duplicate" in str(e).lower():
+                pass  # File already exists, just get the URL
+            else:
+                raise
+
+        return db.client.storage.from_(SUPABASE_BUCKET).get_public_url(storage_path)
+
+    except Exception as e:
+        logger.warning(f"Failed to upload {figure_id} to Supabase: {e}")
+        return None
 
 
 @dataclass
@@ -56,6 +104,7 @@ class FigureMetadata:
     caption: Optional[str]
     coords: Optional[FigureCoords]
     image_path: Optional[str]
+    image_url: Optional[str] = None  # Supabase public URL
 
 
 def parse_coords(coords_str: str) -> Optional[FigureCoords]:
@@ -234,11 +283,13 @@ def process_paper(
     dpi: int,
     padding: int,
     force: bool,
+    upload: bool = False,
 ) -> List[FigureMetadata]:
     """
     Process a single paper's GROBID JSON to extract all figures.
 
     Returns list of figure metadata with updated image paths.
+    If upload=True, also uploads to Supabase and populates image_url.
     """
     with open(grobid_json_path) as f:
         data = json.load(f)
@@ -279,6 +330,12 @@ def process_paper(
         if output_path.exists() and not force:
             logger.debug("Skipping %s - already exists", output_path)
             fig.image_path = str(output_path.relative_to(ROOT_DIR))
+            # Upload existing file if requested
+            if upload:
+                url = upload_to_supabase(output_path, paper_id, fig.figure_id)
+                if url:
+                    fig.image_url = url
+                    logger.debug("Uploaded %s to Supabase", fig.figure_id)
             extracted_figures.append(fig)
             continue
 
@@ -292,6 +349,12 @@ def process_paper(
 
         if success:
             fig.image_path = str(output_path.relative_to(ROOT_DIR))
+            # Upload newly extracted file if requested
+            if upload:
+                url = upload_to_supabase(output_path, paper_id, fig.figure_id)
+                if url:
+                    fig.image_url = url
+                    logger.debug("Uploaded %s to Supabase", fig.figure_id)
 
         extracted_figures.append(fig)
 
@@ -337,6 +400,11 @@ def main():
         action="store_true",
         help="Enable debug logging",
     )
+    parser.add_argument(
+        "--upload",
+        action="store_true",
+        help="Upload figures to Supabase storage after extraction",
+    )
     args = parser.parse_args()
 
     logging.basicConfig(
@@ -381,6 +449,7 @@ def main():
             dpi=args.dpi,
             padding=args.padding,
             force=args.force,
+            upload=args.upload,
         )
 
         if figures:
@@ -399,6 +468,7 @@ def main():
                         "height": f.coords.height,
                     } if f.coords else None,
                     "image_path": f.image_path,
+                    "image_url": f.image_url,
                 }
                 for f in figures
             ]
@@ -413,6 +483,10 @@ def main():
         "figures_with_images": sum(
             1 for figs in all_figures.values()
             for f in figs if f.get("image_path")
+        ),
+        "figures_with_urls": sum(
+            1 for figs in all_figures.values()
+            for f in figs if f.get("image_url")
         ),
         "figures_by_paper": all_figures,
     }

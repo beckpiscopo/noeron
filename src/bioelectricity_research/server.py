@@ -1787,6 +1787,7 @@ Keep the analysis concise (2-3 paragraphs) and accessible to non-experts."""
                 "figure_id": fig["figure_id"],
                 "paper_id": fig["paper_id"],
                 "image_path": fig["image_path"],
+                "image_url": fig.get("image_url"),  # Supabase URL if available
                 "caption": fig.get("caption"),
                 "title": fig.get("title"),
                 "analysis": analysis_text,

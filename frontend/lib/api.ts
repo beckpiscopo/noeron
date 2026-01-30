@@ -31,6 +31,7 @@ export interface FigureAnalysis {
   figure_id: string
   paper_id: string
   image_path: string
+  image_url: string | null  // Supabase public URL (preferred)
   caption: string | null
   title: string | null
   analysis: string
