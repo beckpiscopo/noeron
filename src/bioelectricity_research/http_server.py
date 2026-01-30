@@ -497,10 +497,13 @@ async def http_analyze_paper_figures(request: Request):
     """Analyze figures from a paper using Agentic Vision."""
     try:
         body = await request.json()
-        from .server import AnalyzeFigureInput, analyze_paper_figures
+        from .server import _analyze_paper_figures_impl
 
-        params = AnalyzeFigureInput(**body)
-        result = await analyze_paper_figures(params)
+        result = await _analyze_paper_figures_impl(
+            paper_id=body.get("paper_id"),
+            figure_id=body.get("figure_id"),
+            claim_context=body.get("claim_context"),
+        )
         return result
     except Exception as e:
         import traceback

@@ -1696,29 +1696,30 @@ async def generate_deep_dive_summary(params: GenerateDeepDiveSummaryInput) -> di
 # Figure Analysis Tool (Agentic Vision)
 # ============================================================================
 
-@mcp.tool()
-async def analyze_paper_figures(params: AnalyzeFigureInput) -> dict[str, Any]:
+async def _analyze_paper_figures_impl(
+    paper_id: str,
+    figure_id: str | None = None,
+    claim_context: str | None = None,
+) -> dict[str, Any]:
     """
-    Analyze scientific figures from a paper using Gemini vision with Agentic Vision.
-
-    Uses code_execution tool to enable enhanced analysis (zoom, annotate, calculate).
+    Implementation for analyzing figures - called by both MCP tool and HTTP endpoint.
     """
     import base64
     from google.genai import types
 
-    figures = _get_figures_for_paper(params.paper_id)
+    figures = _get_figures_for_paper(paper_id)
 
     if not figures:
-        return {"error": f"No figures found for paper {params.paper_id}", "figures": []}
+        return {"error": f"No figures found for paper {paper_id}", "figures": []}
 
-    if params.figure_id:
-        figures = [f for f in figures if f["figure_id"] == params.figure_id]
+    if figure_id:
+        figures = [f for f in figures if f["figure_id"] == figure_id]
 
     # Limit to first 5 figures that have images
     figures = [f for f in figures if f.get("image_path")][:5]
 
     if not figures:
-        return {"error": f"No figures with images found for paper {params.paper_id}", "figures": []}
+        return {"error": f"No figures with images found for paper {paper_id}", "figures": []}
 
     results = []
     _ensure_gemini_client_ready()
@@ -1735,8 +1736,8 @@ async def analyze_paper_figures(params: AnalyzeFigureInput) -> dict[str, Any]:
 
         # Build context-aware prompt
         context = f"Caption: {fig.get('caption', 'No caption')}\n"
-        if params.claim_context:
-            context += f"Related claim from podcast: {params.claim_context}\n"
+        if claim_context:
+            context += f"Related claim from podcast: {claim_context}\n"
 
         prompt = f"""Analyze this scientific figure from bioelectricity research.
 
@@ -1799,10 +1800,24 @@ Keep the analysis concise (2-3 paragraphs) and accessible to non-experts."""
             logging.warning(f"Failed to analyze figure {fig['figure_id']}: {e}")
 
     return {
-        "paper_id": params.paper_id,
+        "paper_id": paper_id,
         "figures": results,
         "total_figures": len(results),
     }
+
+
+@mcp.tool()
+async def analyze_paper_figures(params: AnalyzeFigureInput) -> dict[str, Any]:
+    """
+    Analyze scientific figures from a paper using Gemini vision with Agentic Vision.
+
+    Uses code_execution tool to enable enhanced analysis (zoom, annotate, calculate).
+    """
+    return await _analyze_paper_figures_impl(
+        paper_id=params.paper_id,
+        figure_id=params.figure_id,
+        claim_context=params.claim_context,
+    )
 
 
 # ============================================================================
