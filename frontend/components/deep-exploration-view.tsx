@@ -968,27 +968,58 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
             </div>
 
             {/* Paper selector from evidence threads */}
-            {contextData?.evidence_threads && contextData.evidence_threads.length > 0 && !figureAnalysis && !isLoadingFigures && (
-              <CornerBrackets className="bg-card/30 p-6">
-                <p className="text-foreground/60 text-sm mb-4">
-                  Analyze figures from supporting papers using AI vision
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {contextData.evidence_threads.slice(0, 3).map((thread, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => fetchFigureAnalysis(thread.paper_id)}
-                      className="text-xs px-3 py-2 border border-[var(--golden-chestnut)]/50 hover:bg-[var(--golden-chestnut)]/10 text-foreground/80 transition-colors truncate max-w-[200px]"
-                      title={thread.paper_title}
-                    >
-                      {thread.paper_title.length > 35
-                        ? thread.paper_title.slice(0, 35) + "..."
-                        : thread.paper_title}
-                    </button>
-                  ))}
-                </div>
-              </CornerBrackets>
-            )}
+            {contextData?.evidence_threads && contextData.evidence_threads.length > 0 && !figureAnalysis && !isLoadingFigures && (() => {
+              // Extract unique papers from all thread milestones (for AI-generated threads)
+              // or use paper_id directly (for legacy threads)
+              const papers: { paper_id: string; paper_title: string }[] = []
+              const seenIds = new Set<string>()
+
+              for (const thread of contextData.evidence_threads) {
+                // Check if this is an AI thread with milestones
+                if ('milestones' in thread && Array.isArray((thread as any).milestones)) {
+                  for (const milestone of (thread as any).milestones) {
+                    if (milestone.paper_id && !seenIds.has(milestone.paper_id)) {
+                      seenIds.add(milestone.paper_id)
+                      papers.push({
+                        paper_id: milestone.paper_id,
+                        paper_title: milestone.paper_title || 'Unknown Paper'
+                      })
+                    }
+                  }
+                } else if (thread.paper_id && !seenIds.has(thread.paper_id)) {
+                  // Legacy format with direct paper_id
+                  seenIds.add(thread.paper_id)
+                  papers.push({
+                    paper_id: thread.paper_id,
+                    paper_title: thread.paper_title || 'Unknown Paper'
+                  })
+                }
+              }
+
+              if (papers.length === 0) return null
+
+              return (
+                <CornerBrackets className="bg-card/30 p-6">
+                  <p className="text-foreground/60 text-sm mb-4">
+                    Analyze figures from supporting papers using AI vision
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {papers.slice(0, 5).map((paper, idx) => (
+                      <button
+                        key={paper.paper_id}
+                        onClick={() => fetchFigureAnalysis(paper.paper_id)}
+                        className="text-xs px-3 py-2 border border-[var(--golden-chestnut)]/50 hover:bg-[var(--golden-chestnut)]/10 text-foreground/80 transition-colors truncate max-w-[200px]"
+                        title={paper.paper_title}
+                      >
+                        {paper.paper_title.length > 35
+                          ? paper.paper_title.slice(0, 35) + "..."
+                          : paper.paper_title}
+                      </button>
+                    ))}
+                  </div>
+                </CornerBrackets>
+              )
+            })()}
 
             {/* Loading State */}
             {isLoadingFigures && (
