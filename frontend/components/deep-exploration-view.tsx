@@ -31,6 +31,8 @@ import { BookmarkButton } from "./bookmark-button"
 import { AIChatSidebar } from "./ai-chat"
 import { MarkdownContent } from "@/components/ui/markdown-content"
 import { MiniPodcastPlayer } from "./mini-podcast-player"
+import { useGeminiKey } from "@/contexts/gemini-key-context"
+import { ApiKeyModal } from "./api-key-modal"
 import type { Paper } from "@/lib/supabase"
 import type { ChatContext, GeneratePodcastResponse } from "@/lib/chat-types"
 
@@ -251,6 +253,9 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
   const [isLoadingFigures, setIsLoadingFigures] = useState(false)
   const [figuresError, setFiguresError] = useState<string | null>(null)
   const [selectedFigure, setSelectedFigure] = useState<FigureAnalysis | null>(null)
+  const [pendingFigurePaperId, setPendingFigurePaperId] = useState<string | null>(null)  // For retry
+  const [apiKeyModalOpen, setApiKeyModalOpen] = useState(false)
+  const { hasKey: hasGeminiKey } = useGeminiKey()
 
   // Fetch claim context data on mount
   useEffect(() => {
@@ -441,6 +446,14 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
 
   // Function to analyze figures from papers in evidence threads
   const fetchFigureAnalysis = async (paperId: string) => {
+    // Check for Gemini API key (BYOK)
+    if (!hasGeminiKey) {
+      setPendingFigurePaperId(paperId)
+      setApiKeyModalOpen(true)
+      return
+    }
+
+    setPendingFigurePaperId(paperId)
     setIsLoadingFigures(true)
     setFiguresError(null)
 
@@ -451,7 +464,12 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
       )
 
       if (data.error) {
-        setFiguresError(data.error)
+        // Handle specific error cases
+        if (data.error.includes("No figures found") || data.error.includes("No figures with images")) {
+          setFiguresError("no_figures")
+        } else {
+          setFiguresError(data.error)
+        }
       } else {
         setFigureAnalysis(data)
         if (data.figures.length > 0) {
@@ -459,12 +477,32 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
         }
       }
     } catch (err) {
-      setFiguresError(err instanceof Error ? err.message : "Failed to analyze figures")
+      const errorMessage = err instanceof Error ? err.message : "Failed to analyze figures"
       console.error("Error analyzing figures:", err)
+
+      // Detect rate limiting or quota errors
+      if (errorMessage.includes("429") || errorMessage.includes("rate") || errorMessage.includes("quota")) {
+        setFiguresError("rate_limited")
+      } else if (errorMessage.includes("401") || errorMessage.includes("403") || errorMessage.includes("Invalid API")) {
+        setFiguresError("invalid_key")
+      } else {
+        setFiguresError(errorMessage)
+      }
     } finally {
       setIsLoadingFigures(false)
     }
   }
+
+  // Retry figure analysis after API key modal
+  useEffect(() => {
+    if (hasGeminiKey && pendingFigurePaperId && !apiKeyModalOpen && !isLoadingFigures) {
+      // Small delay to ensure modal is closed
+      const timer = setTimeout(() => {
+        fetchFigureAnalysis(pendingFigurePaperId)
+      }, 100)
+      return () => clearTimeout(timer)
+    }
+  }, [hasGeminiKey, apiKeyModalOpen])
 
   const formatTime = (seconds: number) => {
     const hrs = Math.floor(seconds / 3600)
@@ -963,17 +1001,115 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
               </CornerBrackets>
             )}
 
-            {/* Error State */}
+            {/* Error States */}
             {figuresError && !isLoadingFigures && (
-              <div className="bg-red-500/10 border border-red-500/30 rounded-none p-4">
-                <p className="text-red-400 text-sm">{figuresError}</p>
-                <button
-                  onClick={() => setFiguresError(null)}
-                  className="mt-2 text-xs text-[var(--golden-chestnut)] hover:underline"
-                >
-                  Dismiss
-                </button>
-              </div>
+              <>
+                {/* No figures found - show helpful message */}
+                {figuresError === "no_figures" && (
+                  <CornerBrackets className="bg-card/30 p-6">
+                    <div className="flex flex-col items-center justify-center text-center">
+                      <ImageIcon className="w-8 h-8 text-foreground/30 mb-3" />
+                      <p className="text-foreground/60 text-sm">No figures available for this paper</p>
+                      <p className="text-foreground/40 text-xs mt-1">
+                        The paper may not have extractable figures, or figures couldn&apos;t be parsed from the PDF.
+                      </p>
+                      <button
+                        onClick={() => {
+                          setFiguresError(null)
+                          setPendingFigurePaperId(null)
+                        }}
+                        className="mt-3 text-xs text-[var(--golden-chestnut)] hover:underline"
+                      >
+                        Try another paper
+                      </button>
+                    </div>
+                  </CornerBrackets>
+                )}
+
+                {/* Rate limited - show retry option */}
+                {figuresError === "rate_limited" && (
+                  <CornerBrackets className="bg-amber-500/10 p-6">
+                    <div className="flex flex-col items-center justify-center text-center">
+                      <Loader2 className="w-8 h-8 text-amber-500/60 mb-3" />
+                      <p className="text-amber-400 text-sm">API rate limit reached</p>
+                      <p className="text-foreground/40 text-xs mt-1">
+                        The Gemini API is temporarily rate limited. Wait a moment and try again.
+                      </p>
+                      <div className="flex gap-2 mt-3">
+                        <button
+                          onClick={() => pendingFigurePaperId && fetchFigureAnalysis(pendingFigurePaperId)}
+                          className="text-xs px-3 py-1.5 bg-[var(--golden-chestnut)]/20 text-[var(--golden-chestnut)] hover:bg-[var(--golden-chestnut)]/30 transition-colors"
+                        >
+                          Retry
+                        </button>
+                        <button
+                          onClick={() => {
+                            setFiguresError(null)
+                            setPendingFigurePaperId(null)
+                          }}
+                          className="text-xs px-3 py-1.5 text-foreground/50 hover:text-foreground/70"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  </CornerBrackets>
+                )}
+
+                {/* Invalid API key - prompt to update */}
+                {figuresError === "invalid_key" && (
+                  <CornerBrackets className="bg-red-500/10 p-6">
+                    <div className="flex flex-col items-center justify-center text-center">
+                      <Settings className="w-8 h-8 text-red-400/60 mb-3" />
+                      <p className="text-red-400 text-sm">API key issue</p>
+                      <p className="text-foreground/40 text-xs mt-1">
+                        Your Gemini API key may be invalid or expired.
+                      </p>
+                      <div className="flex gap-2 mt-3">
+                        <button
+                          onClick={() => setApiKeyModalOpen(true)}
+                          className="text-xs px-3 py-1.5 bg-[var(--golden-chestnut)]/20 text-[var(--golden-chestnut)] hover:bg-[var(--golden-chestnut)]/30 transition-colors"
+                        >
+                          Update API Key
+                        </button>
+                        <button
+                          onClick={() => {
+                            setFiguresError(null)
+                            setPendingFigurePaperId(null)
+                          }}
+                          className="text-xs px-3 py-1.5 text-foreground/50 hover:text-foreground/70"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  </CornerBrackets>
+                )}
+
+                {/* Generic error */}
+                {figuresError !== "no_figures" && figuresError !== "rate_limited" && figuresError !== "invalid_key" && (
+                  <div className="bg-red-500/10 border border-red-500/30 rounded-none p-4">
+                    <p className="text-red-400 text-sm">{figuresError}</p>
+                    <div className="flex gap-2 mt-2">
+                      <button
+                        onClick={() => pendingFigurePaperId && fetchFigureAnalysis(pendingFigurePaperId)}
+                        className="text-xs text-[var(--golden-chestnut)] hover:underline"
+                      >
+                        Retry
+                      </button>
+                      <button
+                        onClick={() => {
+                          setFiguresError(null)
+                          setPendingFigurePaperId(null)
+                        }}
+                        className="text-xs text-foreground/50 hover:underline"
+                      >
+                        Dismiss
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
 
             {/* Figure Analysis Results */}
@@ -1284,6 +1420,12 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
           claim_text: claim.title,
         }}
         onViewPaper={onViewSourcePaper}
+      />
+
+      {/* API Key Modal for Figure Analysis */}
+      <ApiKeyModal
+        open={apiKeyModalOpen}
+        onOpenChange={setApiKeyModalOpen}
       />
     </div>
   )
