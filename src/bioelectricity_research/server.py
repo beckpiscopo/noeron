@@ -76,6 +76,46 @@ def _get_figures_for_paper(paper_id: str) -> list[dict]:
     return index.get("figures_by_paper", {}).get(paper_id, [])
 
 
+async def _get_paper_figures_impl(paper_id: str) -> dict[str, Any]:
+    """Get figure metadata for a paper (no AI analysis)."""
+    figures = _get_figures_for_paper(paper_id)
+
+    if not figures:
+        return {"paper_id": paper_id, "figures": [], "total_figures": 0}
+
+    # Filter to figures with images and return metadata only
+    result_figures = []
+    for fig in figures:
+        if fig.get("image_path") or fig.get("image_url"):
+            result_figures.append({
+                "figure_id": fig["figure_id"],
+                "paper_id": fig["paper_id"],
+                "image_path": fig.get("image_path"),
+                "image_url": fig.get("image_url"),
+                "caption": fig.get("caption"),
+                "title": fig.get("title"),
+                "label": fig.get("label"),
+            })
+
+    return {
+        "paper_id": paper_id,
+        "figures": result_figures,
+        "total_figures": len(result_figures),
+    }
+
+
+def _get_papers_with_figures() -> set[str]:
+    """Return set of paper IDs that have at least one figure with an image."""
+    index = _load_figures_index()
+    papers_with_figures = set()
+
+    for paper_id, figures in index.get("figures_by_paper", {}).items():
+        if any(f.get("image_path") or f.get("image_url") for f in figures):
+            papers_with_figures.add(paper_id)
+
+    return papers_with_figures
+
+
 # ============================================================================
 # Gemini Deep Dive Summary Generation
 # ============================================================================

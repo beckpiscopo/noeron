@@ -1820,6 +1820,32 @@ Respond ONLY with the JSON object, no markdown formatting or additional text."""
         return JSONResponse({"error": str(e)}, status_code=500)
 
 
+@app.post("/tools/get_paper_figures/execute")
+async def http_get_paper_figures(request: Request):
+    """Get figures for a paper without AI analysis."""
+    try:
+        body = await request.json()
+        from .server import _get_paper_figures_impl
+
+        paper_id = body.get("paper_id")
+        if not paper_id:
+            return JSONResponse({"error": "paper_id required"}, status_code=400)
+
+        result = await _get_paper_figures_impl(paper_id)
+        return result
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.get("/tools/papers_with_figures")
+async def http_papers_with_figures():
+    """Get list of paper IDs that have figures."""
+    from .server import _get_papers_with_figures
+    return {"paper_ids": list(_get_papers_with_figures())}
+
+
 def run_server(host=None, port=None):
     """Run the HTTP server.
 
