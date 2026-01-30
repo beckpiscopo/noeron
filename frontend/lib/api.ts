@@ -56,3 +56,30 @@ export async function analyzePaperFigures(
     figure_id: figureId,
   })
 }
+
+// Figure browsing types (no AI analysis required)
+export interface FigureMetadata {
+  figure_id: string
+  paper_id: string
+  image_path: string | null
+  image_url: string | null
+  caption: string | null
+  title: string | null
+  label: string | null
+}
+
+export interface GetFiguresResponse {
+  paper_id: string
+  figures: FigureMetadata[]
+  total_figures: number
+}
+
+export async function getPaperFigures(paperId: string): Promise<GetFiguresResponse> {
+  return callMcpTool<GetFiguresResponse>("get_paper_figures", { paper_id: paperId })
+}
+
+export async function getPapersWithFigures(): Promise<string[]> {
+  const response = await fetch(`${fastmcpUrl}/tools/papers_with_figures`)
+  const data = await response.json()
+  return data.paper_ids || []
+}
