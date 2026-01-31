@@ -83,3 +83,30 @@ export async function getPapersWithFigures(): Promise<string[]> {
   const data = await response.json()
   return data.paper_ids || []
 }
+
+// Claim figures types (figures from evidence papers)
+export interface ClaimFigure extends FigureMetadata {
+  paper_title: string
+}
+
+export interface ClaimFiguresResponse {
+  claim_id: string
+  figures: ClaimFigure[]
+  total_available: number
+  papers_with_figures?: number
+  papers_checked?: number
+  message?: string
+  error?: string
+}
+
+export async function getClaimFigures(
+  claimId: string,
+  episodeId: string,
+  limit?: number
+): Promise<ClaimFiguresResponse> {
+  return callMcpTool<ClaimFiguresResponse>("get_claim_figures", {
+    claim_id: claimId,
+    episode_id: episodeId,
+    limit: limit ?? 10,
+  })
+}
