@@ -1,0 +1,5 @@
+export { OverviewTab } from "./overview-tab"
+export { EvidenceTab } from "./evidence-tab"
+export { FiguresTab } from "./figures-tab"
+export { GraphTab } from "./graph-tab"
+export { CreateTab } from "./create-tab"

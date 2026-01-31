@@ -3,58 +3,23 @@
 import { useState, useEffect } from "react"
 import {
   ArrowLeft,
-  ArrowUp,
-  Quote,
-  Sparkles,
-  HelpCircle,
-  TrendingUp,
   FlaskConical,
-  ChevronLeft,
-  ChevronRight,
-  Plus,
-  ExternalLink,
-  GitBranch,
   Loader2,
-  Network,
-  Circle,
-  ArrowRight,
   Search,
   Settings,
   HelpCircle as HelpIcon,
-  Mic,
-  Image as ImageIcon,
 } from "lucide-react"
 import { NoeronHeader } from "./noeron-header"
 import { callMcpTool, analyzePaperFigures, type FigureAnalysis, type AnalyzeFiguresResponse } from "@/lib/api"
-import { ConceptExpansionGraph, convertKGSubgraph } from "./concept-graph"
-import { BookmarkButton } from "./bookmark-button"
 import { AIChatSidebar } from "./ai-chat"
-import { MarkdownContent } from "@/components/ui/markdown-content"
-import { MiniPodcastPlayer } from "./mini-podcast-player"
 import { useGeminiKey } from "@/contexts/gemini-key-context"
 import { ApiKeyModal } from "./api-key-modal"
-import type { Paper } from "@/lib/supabase"
-import type { ChatContext, GeneratePodcastResponse } from "@/lib/chat-types"
+import type { GeneratePodcastResponse } from "@/lib/chat-types"
 
-// =============================================================================
-// CORNER BRACKET FRAME (matches episode-overview.tsx)
-// =============================================================================
-
-function CornerBrackets({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return (
-    <div className={`relative ${className}`}>
-      {/* Top-left corner */}
-      <div className="absolute -top-px -left-px w-4 h-4 border-l border-t border-[var(--golden-chestnut)]/40" />
-      {/* Top-right corner */}
-      <div className="absolute -top-px -right-px w-4 h-4 border-r border-t border-[var(--golden-chestnut)]/40" />
-      {/* Bottom-left corner */}
-      <div className="absolute -bottom-px -left-px w-4 h-4 border-l border-b border-[var(--golden-chestnut)]/40" />
-      {/* Bottom-right corner */}
-      <div className="absolute -bottom-px -right-px w-4 h-4 border-r border-b border-[var(--golden-chestnut)]/40" />
-      {children}
-    </div>
-  )
-}
+// New components
+import { ClaimCard } from "./deep-exploration/claim-card"
+import { SegmentedTabBar, type TabId } from "./deep-exploration/segmented-tab-bar"
+import { OverviewTab, EvidenceTab, FiguresTab, GraphTab, CreateTab } from "./deep-exploration/tabs"
 
 interface DeepExplorationViewProps {
   episode: {
@@ -212,6 +177,9 @@ interface EvidenceThreadsResponse {
 }
 
 export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewSourcePaper, onBookmarksClick }: DeepExplorationViewProps) {
+  // Tab state
+  const [activeTab, setActiveTab] = useState<TabId>("overview")
+
   const [synthesisMode, setSynthesisMode] = useState<"simplified" | "technical">("technical")
   const [contextData, setContextData] = useState<ClaimContextData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -253,7 +221,7 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
   const [isLoadingFigures, setIsLoadingFigures] = useState(false)
   const [figuresError, setFiguresError] = useState<string | null>(null)
   const [selectedFigure, setSelectedFigure] = useState<FigureAnalysis | null>(null)
-  const [pendingFigurePaperId, setPendingFigurePaperId] = useState<string | null>(null)  // For retry
+  const [pendingFigurePaperId, setPendingFigurePaperId] = useState<string | null>(null)
   const [apiKeyModalOpen, setApiKeyModalOpen] = useState(false)
   const { hasKey: hasGeminiKey } = useGeminiKey()
 
@@ -265,7 +233,6 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
       setIsLoading(true)
       setError(null)
 
-      // Check if claim.id is in the correct format
       if (!claim.id.includes("-")) {
         setError(
           "This claim doesn't have the required segment ID format. " +
@@ -318,7 +285,7 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [contextData])
 
-  // Auto-fetch evidence threads after deep dive finishes (serialize to avoid concurrent Gemini calls)
+  // Auto-fetch evidence threads after deep dive finishes
   useEffect(() => {
     if (contextData && !aiEvidenceThreads && !isLoadingThreads && !threadsError
         && !isLoadingDeepDive.technical && (deepDiveSummaries.technical || deepDiveErrors.technical)) {
@@ -327,7 +294,7 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [contextData, isLoadingDeepDive.technical, deepDiveSummaries.technical, deepDiveErrors.technical])
 
-  // Function to fetch deep dive summary on-demand (style-aware)
+  // Function to fetch deep dive summary on-demand
   const fetchDeepDiveSummary = async (style: "simplified" | "technical", forceRegenerate = false) => {
     if (!claim.id.includes("-")) return
 
@@ -429,7 +396,6 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
 
       if (data.error) {
         setPodcastError(data.error)
-        // Still set the podcast data if script was generated (even if audio failed)
         if (data.script) {
           setMiniPodcast(data)
         }
@@ -444,9 +410,8 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
     }
   }
 
-  // Function to analyze figures from papers in evidence threads
+  // Function to analyze figures from papers
   const fetchFigureAnalysis = async (paperId: string) => {
-    // Check for Gemini API key (BYOK)
     if (!hasGeminiKey) {
       setPendingFigurePaperId(paperId)
       setApiKeyModalOpen(true)
@@ -464,7 +429,6 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
       )
 
       if (data.error) {
-        // Handle specific error cases
         if (data.error.includes("No figures found") || data.error.includes("No figures with images")) {
           setFiguresError("no_figures")
         } else {
@@ -480,7 +444,6 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
       const errorMessage = err instanceof Error ? err.message : "Failed to analyze figures"
       console.error("Error analyzing figures:", err)
 
-      // Detect rate limiting or quota errors
       if (errorMessage.includes("429") || errorMessage.includes("rate") || errorMessage.includes("quota")) {
         setFiguresError("rate_limited")
       } else if (errorMessage.includes("401") || errorMessage.includes("403") || errorMessage.includes("Invalid API")) {
@@ -496,7 +459,6 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
   // Retry figure analysis after API key modal
   useEffect(() => {
     if (hasGeminiKey && pendingFigurePaperId && !apiKeyModalOpen && !isLoadingFigures) {
-      // Small delay to ensure modal is closed
       const timer = setTimeout(() => {
         fetchFigureAnalysis(pendingFigurePaperId)
       }, 100)
@@ -511,24 +473,17 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
     return `${hrs}:${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`
   }
 
-  // Use real data or fallback to placeholders
-  const evidenceThreads = contextData?.evidence_threads ?? []
-  const relatedConcepts = contextData?.related_concepts ?? []
+  // Use real data or fallback
   const synthesis = contextData?.synthesis
   const confidenceMetrics = contextData?.confidence_metrics
 
-  // Fallback placeholder images for related concepts
-  const conceptImages = [
-    "/chemical-reaction-cycle-diagram-abstract.jpg",
-    "/microscope-cell-view-molecular-structure.jpg",
-    "/molecular-structure-protein-complex-3d.jpg",
-  ]
-
-  const guidedPrompts = [
-    { icon: HelpCircle, text: `What is the mechanism behind ${claim.title.split(" ").slice(0, 5).join(" ")}?` },
-    { icon: TrendingUp, text: "Show me related experimental data" },
-    { icon: FlaskConical, text: "What are the implications of this finding?" },
-  ]
+  // Clear figures state
+  const handleClearFigures = () => {
+    setFigureAnalysis(null)
+    setSelectedFigure(null)
+    setFiguresError(null)
+    setPendingFigurePaperId(null)
+  }
 
   return (
     <div className="noeron-theme min-h-screen bg-background text-foreground flex flex-col">
@@ -604,844 +559,97 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
         </div>
       )}
 
-      {/* Main Content */}
+      {/* Main Content - Single Column Tabbed Layout */}
       {!isLoading && !error && contextData && (
         <main
-          className={`flex-1 w-full max-w-[1280px] px-4 md:px-10 py-8 pb-8 grid grid-cols-1 lg:grid-cols-12 gap-8 transition-all duration-300 ease-in-out ${chatOpen ? '' : 'mx-auto'}`}
+          className="flex-1 w-full transition-all duration-300 ease-in-out"
           style={{ marginRight: chatOpen ? '440px' : '0' }}
         >
-          {/* Left Column: Core Exploration */}
-          <div className="lg:col-span-8 flex flex-col gap-6">
-            {/* Anchor Claim */}
-            <CornerBrackets className="relative overflow-hidden bg-gradient-to-br from-card to-background">
-              <div className="blueprint-pattern" />
-              <div className="absolute top-0 right-0 p-4 opacity-10">
-                <Quote className="w-36 h-36" />
-              </div>
-              <div className="p-6 md:p-8 relative z-10">
-                <div className="flex items-center gap-3 mb-4">
-                  <span className="px-2 py-1 rounded-none bg-[var(--golden-chestnut)]/20 text-[var(--golden-chestnut)] text-xs font-bold uppercase tracking-wider border border-[var(--golden-chestnut)]/30 mono">
-                    {synthesis?.claim_type || "Claim"}
-                  </span>
-                  <span className="text-xs text-foreground/50 mono">
-                    @ {formatTime(claim.timestamp)}
-                  </span>
-                </div>
-
-                {/* Distilled claim as header */}
-                <h1 className="display text-2xl md:text-3xl font-normal leading-tight mb-4 text-foreground">
-                  {claim.title}
-                </h1>
-
-                {/* Full quote from transcript */}
-                {synthesis?.claim_text && synthesis.claim_text !== claim.title && (
-                  <p className="text-base text-foreground/80 leading-relaxed mb-6">
-                    "{synthesis.claim_text}"
-                  </p>
-                )}
-
-                <div className="flex items-center gap-3">
-                  <div className="h-8 w-8 rounded-full bg-[var(--golden-chestnut)]/20 flex items-center justify-center text-[var(--golden-chestnut)] text-sm font-bold">
-                    {episode.guest.split(' ').map(n => n[0]).join('')}
-                  </div>
-                  <p className="text-sm font-medium text-foreground/80">
-                    {episode.guest} • <span className="text-foreground/50">{synthesis?.speaker_stance || "assertion"}</span>
-                  </p>
-                </div>
-              </div>
-            </CornerBrackets>
-
-            {/* Synthesis Section */}
-            <CornerBrackets className="bg-card/30 p-6 md:p-8">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-                <h3 className="text-xl font-bold flex items-center gap-2">
-                  <Sparkles className="w-5 h-5 text-[var(--golden-chestnut)]" />
-                  Synthesis
-                </h3>
-
-                {/* Segmented Control */}
-                <div className="flex p-1 bg-background rounded-none">
-                  <button
-                    onClick={() => {
-                      setSynthesisMode("simplified")
-                      if (!deepDiveSummaries.simplified && !isLoadingDeepDive.simplified) {
-                        fetchDeepDiveSummary("simplified")
-                      }
-                    }}
-                    className={`px-3 py-1.5 rounded-none text-sm font-medium transition-all ${
-                      synthesisMode === "simplified"
-                        ? "bg-card text-foreground shadow-sm"
-                        : "text-foreground/50 hover:text-foreground"
-                    }`}
-                  >
-                    Simplified
-                  </button>
-                  <button
-                    onClick={() => {
-                      setSynthesisMode("technical")
-                      if (!deepDiveSummaries.technical && !isLoadingDeepDive.technical) {
-                        fetchDeepDiveSummary("technical")
-                      }
-                    }}
-                    className={`px-3 py-1.5 rounded-none text-sm font-medium transition-all ${
-                      synthesisMode === "technical"
-                        ? "bg-card text-foreground shadow-sm"
-                        : "text-foreground/50 hover:text-foreground"
-                    }`}
-                  >
-                    Technical
-                  </button>
-                </div>
-              </div>
-
-              <div className="space-y-4 text-foreground/80 leading-relaxed">
-                {/* Loading State */}
-                {isLoadingDeepDive[synthesisMode] && (
-                  <div className="flex items-center justify-center py-12">
-                    <div className="flex flex-col items-center gap-4">
-                      <Loader2 className="w-8 h-8 text-[var(--golden-chestnut)] animate-spin" />
-                      <div className="text-center">
-                        <p className="text-foreground/80 font-medium">
-                          Generating {synthesisMode === "simplified" ? "Simplified" : "Technical"} Summary...
-                        </p>
-                        <p className="text-foreground/50 text-sm mt-1">Searching papers and synthesizing evidence</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Error State */}
-                {deepDiveErrors[synthesisMode] && !isLoadingDeepDive[synthesisMode] && (
-                  <div className="bg-red-500/10 border border-red-500/30 rounded-none p-4">
-                    <p className="text-red-400 text-sm">{deepDiveErrors[synthesisMode]}</p>
-                    <button
-                      onClick={() => fetchDeepDiveSummary(synthesisMode, true)}
-                      className="mt-3 text-sm text-[var(--golden-chestnut)] hover:underline"
-                    >
-                      Try again
-                    </button>
-                  </div>
-                )}
-
-                {/* Summary Content */}
-                {deepDiveSummaries[synthesisMode] && !isLoadingDeepDive[synthesisMode] && !deepDiveErrors[synthesisMode] && (() => {
-                  const currentSummary = deepDiveSummaries[synthesisMode]!
-                  return (
-                    <>
-                      {/* Metadata bar */}
-                      <div className="flex items-center justify-between text-xs text-foreground/50 pb-3 border-b border-border">
-                        <div className="flex items-center gap-4">
-                          <span>{currentSummary.papers_retrieved} papers analyzed</span>
-                          {currentSummary.cached && (
-                            <span className="px-2 py-0.5 bg-card rounded text-foreground/60">Cached</span>
-                          )}
-                        </div>
-                        <button
-                          onClick={() => fetchDeepDiveSummary(synthesisMode, true)}
-                          className="text-[var(--golden-chestnut)] hover:underline flex items-center gap-1"
-                        >
-                          <ArrowUp className="w-3 h-3 rotate-45" />
-                          Regenerate
-                        </button>
-                      </div>
-
-                      {/* Render markdown summary */}
-                      <MarkdownContent content={currentSummary.summary} />
-
-                      {/* Papers used */}
-                      {currentSummary.papers && currentSummary.papers.length > 0 && (() => {
-                        // Dedupe papers by paper_id
-                        const uniquePapers = [...currentSummary.papers]
-                          .filter((paper, index, self) =>
-                            index === self.findIndex(p => p.paper_id === paper.paper_id)
-                          )
-                          .sort((a, b) => {
-                            const yearA = parseInt(a.year) || 0
-                            const yearB = parseInt(b.year) || 0
-                            return yearB - yearA // newest first
-                          })
-
-                        return (
-                          <div className="mt-6 pt-4 border-t border-border">
-                            <h5 className="text-xs uppercase tracking-wider text-foreground/50 font-semibold mb-4">
-                              Sources Retrieved ({uniquePapers.length} paper{uniquePapers.length !== 1 ? 's' : ''})
-                            </h5>
-                            <div className="space-y-5">
-                              {uniquePapers.map((paper, idx) => (
-                                <div key={idx} className="group">
-                                  <div className="flex items-start gap-2">
-                                    <span className="text-sm font-mono text-foreground/50 shrink-0 pt-0.5">
-                                      {paper.year || "n/a"}
-                                    </span>
-                                    <span className="text-foreground/50 shrink-0 pt-0.5">•</span>
-                                    <div className="flex-1 min-w-0">
-                                      <p className="text-sm text-foreground/80 leading-relaxed">
-                                        {paper.title}
-                                      </p>
-                                      {paper.key_finding && (
-                                        <p className="text-xs text-foreground/60 mt-2 leading-relaxed">
-                                          <span className="text-foreground/50">Key finding:</span> {paper.key_finding}
-                                        </p>
-                                      )}
-                                      <div className="flex flex-wrap items-center gap-2 mt-2">
-                                        {paper.section && (
-                                          <span className="text-[10px] text-foreground/50 px-1.5 py-0.5 bg-card rounded">
-                                            {paper.section}
-                                          </span>
-                                        )}
-                                        <button
-                                          onClick={() => onViewSourcePaper(paper.paper_id)}
-                                          className="text-[10px] text-[var(--golden-chestnut)] hover:text-[var(--golden-chestnut)]/80 transition-colors flex items-center gap-1"
-                                        >
-                                          View Paper
-                                          <ExternalLink className="w-2.5 h-2.5" />
-                                        </button>
-                                        <BookmarkButton
-                                          type="paper"
-                                          item={{ paper_id: paper.paper_id, title: paper.title } as Paper}
-                                          episodeId={episodeId}
-                                          size="icon"
-                                          variant="ghost"
-                                          className="!h-5 !w-5 !p-0"
-                                        />
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )
-                      })()}
-                    </>
-                  )
-                })()}
-
-                {/* Initial state - auto-loading */}
-                {!deepDiveSummaries[synthesisMode] && !isLoadingDeepDive[synthesisMode] && !deepDiveErrors[synthesisMode] && (
-                  <div className="flex items-center justify-center py-12">
-                    <div className="flex flex-col items-center gap-4">
-                      <Loader2 className="w-8 h-8 text-[var(--golden-chestnut)] animate-spin" />
-                      <p className="text-foreground/60 text-sm">Loading summary...</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </CornerBrackets>
-
-          {/* Guided Prompts */}
-          <div>
-            <h4 className="text-sm uppercase tracking-wider text-foreground/50 font-semibold mb-3">
-              Deepen Your Understanding
-            </h4>
-            <div className="flex flex-wrap gap-3">
-              {guidedPrompts.map((prompt, index) => {
-                const Icon = prompt.icon
-                return (
-                  <button
-                    key={index}
-                    className="flex items-center gap-2 bg-card hover:bg-foreground/10 text-[var(--golden-chestnut)] hover:text-foreground border border-border px-4 py-2.5 rounded-full text-sm font-medium transition-all group"
-                  >
-                    <Icon className="w-4 h-4" />
-                    {prompt.text}
-                    <ExternalLink className="w-4 h-4 opacity-0 group-hover:opacity-100 -ml-2 group-hover:ml-0 transition-all" />
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-
-          {/* Knowledge Graph Relationships - hidden on mobile */}
-          <div className="hidden md:block pt-4">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <Network className="w-5 h-5 text-[var(--golden-chestnut)]" />
-                <h4 className="font-bold text-lg">Knowledge Graph</h4>
-              </div>
-              {!kgSubgraph && !isLoadingKG && (
-                <button
-                  onClick={fetchKGSubgraph}
-                  className="text-xs text-[var(--golden-chestnut)] hover:underline flex items-center gap-1"
-                >
-                  <Network className="w-3 h-3" />
-                  Load Graph
-                </button>
-              )}
-            </div>
-
-            {/* Loading State */}
-            {isLoadingKG && (
-              <CornerBrackets className="bg-card/30 p-8">
-                <div className="flex flex-col items-center justify-center">
-                  <Loader2 className="w-6 h-6 text-[var(--golden-chestnut)] animate-spin mb-3" />
-                  <p className="text-foreground/60 text-sm">Loading knowledge graph...</p>
-                </div>
-              </CornerBrackets>
-            )}
-
-            {/* Error State */}
-            {kgError && !isLoadingKG && (
-              <div className="bg-red-500/10 border border-red-500/30 rounded-none p-4">
-                <p className="text-red-400 text-sm">{kgError}</p>
-                <button
-                  onClick={fetchKGSubgraph}
-                  className="mt-2 text-xs text-[var(--golden-chestnut)] hover:underline"
-                >
-                  Try again
-                </button>
-              </div>
-            )}
-
-            {/* KG Content - Interactive Concept Expansion Graph */}
-            {kgSubgraph && !isLoadingKG && !kgError && (
-              <div>
-                {/* Stats bar */}
-                <div className="flex items-center gap-4 text-xs text-foreground/50 pb-3 mb-3">
-                  <span>{kgSubgraph.stats.direct_matches} matched entities</span>
-                  <span>{kgSubgraph.stats.total_edges} relationships</span>
-                  <span className="text-[var(--golden-chestnut)]">Double-click nodes to expand with AI</span>
-                </div>
-
-                {kgSubgraph.edges.length > 0 ? (
-                  <>
-                    {/* Matched entities pills */}
-                    <div className="flex flex-wrap gap-2 mb-4">
-                      {kgSubgraph.matched_entity_names.map((name, idx) => (
-                        <span
-                          key={idx}
-                          className="px-2.5 py-1 bg-[var(--golden-chestnut)]/20 text-[var(--golden-chestnut)] text-xs font-medium rounded-full border border-[var(--golden-chestnut)]/30"
-                        >
-                          {name}
-                        </span>
-                      ))}
-                    </div>
-
-                    {/* Interactive Graph */}
-                    <ConceptExpansionGraph
-                      initialNodes={convertKGSubgraph(kgSubgraph).nodes}
-                      initialEdges={convertKGSubgraph(kgSubgraph).edges}
-                      matchedEntityIds={kgSubgraph.matched_entity_ids}
-                      initialDepth={0}
-                      sourceClaimId={claim.id}
-                      sourceClaimText={synthesis?.claim_text || claim.description}
-                    />
-                  </>
-                ) : (
-                  <CornerBrackets className="bg-card/30 p-6 text-center">
-                    <Network className="w-8 h-8 text-foreground/40 mx-auto mb-3" />
-                    <p className="text-foreground/50 text-sm">
-                      {kgSubgraph.message || "No matching entities found in knowledge graph"}
-                    </p>
-                  </CornerBrackets>
-                )}
-              </div>
-            )}
-
-            {/* Initial state - prompt to load */}
-            {!kgSubgraph && !isLoadingKG && !kgError && (
-              <CornerBrackets className="bg-card/30 p-8 text-center">
-                <Network className="w-10 h-10 text-foreground/40 mx-auto mb-4" />
-                <p className="text-foreground/60 text-sm mb-4">
-                  Explore how concepts in this claim connect to the broader research
-                </p>
-                <button
-                  onClick={fetchKGSubgraph}
-                  className="px-5 py-2.5 border border-[var(--golden-chestnut)] bg-[var(--golden-chestnut)]/10 hover:bg-[var(--golden-chestnut)]/20 text-[var(--golden-chestnut)] font-bold text-sm tracking-wide transition-all inline-flex items-center gap-2"
-                >
-                  <Network className="w-4 h-4" />
-                  Load Knowledge Graph
-                </button>
-              </CornerBrackets>
-            )}
-          </div>
-
-          {/* Figure Analysis - Agentic Vision */}
-          <div className="hidden md:block pt-4">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <ImageIcon className="w-5 h-5 text-[var(--golden-chestnut)]" />
-                <h4 className="font-bold text-lg">Paper Figures</h4>
-                <span className="text-xs text-foreground/50 bg-[var(--golden-chestnut)]/20 px-2 py-0.5 rounded">
-                  Agentic Vision
-                </span>
-              </div>
-            </div>
-
-            {/* Paper selector from evidence threads */}
-            {contextData?.evidence_threads && contextData.evidence_threads.length > 0 && !figureAnalysis && !isLoadingFigures && (() => {
-              // Extract unique papers from all thread milestones (for AI-generated threads)
-              // or use paper_id directly (for legacy threads)
-              const papers: { paper_id: string; paper_title: string }[] = []
-              const seenIds = new Set<string>()
-
-              for (const thread of contextData.evidence_threads) {
-                // Check if this is an AI thread with milestones
-                if ('milestones' in thread && Array.isArray((thread as any).milestones)) {
-                  for (const milestone of (thread as any).milestones) {
-                    if (milestone.paper_id && !seenIds.has(milestone.paper_id)) {
-                      seenIds.add(milestone.paper_id)
-                      papers.push({
-                        paper_id: milestone.paper_id,
-                        paper_title: milestone.paper_title || 'Unknown Paper'
-                      })
-                    }
-                  }
-                } else if (thread.paper_id && !seenIds.has(thread.paper_id)) {
-                  // Legacy format with direct paper_id
-                  seenIds.add(thread.paper_id)
-                  papers.push({
-                    paper_id: thread.paper_id,
-                    paper_title: thread.paper_title || 'Unknown Paper'
-                  })
-                }
-              }
-
-              if (papers.length === 0) return null
-
-              return (
-                <CornerBrackets className="bg-card/30 p-6">
-                  <p className="text-foreground/60 text-sm mb-4">
-                    Analyze figures from supporting papers using AI vision
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {papers.slice(0, 5).map((paper, idx) => (
-                      <button
-                        key={paper.paper_id}
-                        onClick={() => fetchFigureAnalysis(paper.paper_id)}
-                        className="text-xs px-3 py-2 border border-[var(--golden-chestnut)]/50 hover:bg-[var(--golden-chestnut)]/10 text-foreground/80 transition-colors truncate max-w-[200px]"
-                        title={paper.paper_title}
-                      >
-                        {paper.paper_title.length > 35
-                          ? paper.paper_title.slice(0, 35) + "..."
-                          : paper.paper_title}
-                      </button>
-                    ))}
-                  </div>
-                </CornerBrackets>
-              )
-            })()}
-
-            {/* Loading State */}
-            {isLoadingFigures && (
-              <CornerBrackets className="bg-card/30 p-8">
-                <div className="flex flex-col items-center justify-center">
-                  <Loader2 className="w-6 h-6 text-[var(--golden-chestnut)] animate-spin mb-3" />
-                  <p className="text-foreground/60 text-sm">Analyzing figures with AI...</p>
-                  <p className="text-foreground/50 text-xs mt-1">Using Agentic Vision to examine graphs and diagrams</p>
-                </div>
-              </CornerBrackets>
-            )}
-
-            {/* Error States */}
-            {figuresError && !isLoadingFigures && (
-              <>
-                {/* No figures found - show helpful message */}
-                {figuresError === "no_figures" && (
-                  <CornerBrackets className="bg-card/30 p-6">
-                    <div className="flex flex-col items-center justify-center text-center">
-                      <ImageIcon className="w-8 h-8 text-foreground/30 mb-3" />
-                      <p className="text-foreground/60 text-sm">No figures available for this paper</p>
-                      <p className="text-foreground/40 text-xs mt-1">
-                        The paper may not have extractable figures, or figures couldn&apos;t be parsed from the PDF.
-                      </p>
-                      <button
-                        onClick={() => {
-                          setFiguresError(null)
-                          setPendingFigurePaperId(null)
-                        }}
-                        className="mt-3 text-xs text-[var(--golden-chestnut)] hover:underline"
-                      >
-                        Try another paper
-                      </button>
-                    </div>
-                  </CornerBrackets>
-                )}
-
-                {/* Rate limited - show retry option */}
-                {figuresError === "rate_limited" && (
-                  <CornerBrackets className="bg-amber-500/10 p-6">
-                    <div className="flex flex-col items-center justify-center text-center">
-                      <Loader2 className="w-8 h-8 text-amber-500/60 mb-3" />
-                      <p className="text-amber-400 text-sm">API rate limit reached</p>
-                      <p className="text-foreground/40 text-xs mt-1">
-                        The Gemini API is temporarily rate limited. Wait a moment and try again.
-                      </p>
-                      <div className="flex gap-2 mt-3">
-                        <button
-                          onClick={() => pendingFigurePaperId && fetchFigureAnalysis(pendingFigurePaperId)}
-                          className="text-xs px-3 py-1.5 bg-[var(--golden-chestnut)]/20 text-[var(--golden-chestnut)] hover:bg-[var(--golden-chestnut)]/30 transition-colors"
-                        >
-                          Retry
-                        </button>
-                        <button
-                          onClick={() => {
-                            setFiguresError(null)
-                            setPendingFigurePaperId(null)
-                          }}
-                          className="text-xs px-3 py-1.5 text-foreground/50 hover:text-foreground/70"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </div>
-                  </CornerBrackets>
-                )}
-
-                {/* Invalid API key - prompt to update */}
-                {figuresError === "invalid_key" && (
-                  <CornerBrackets className="bg-red-500/10 p-6">
-                    <div className="flex flex-col items-center justify-center text-center">
-                      <Settings className="w-8 h-8 text-red-400/60 mb-3" />
-                      <p className="text-red-400 text-sm">API key issue</p>
-                      <p className="text-foreground/40 text-xs mt-1">
-                        Your Gemini API key may be invalid or expired.
-                      </p>
-                      <div className="flex gap-2 mt-3">
-                        <button
-                          onClick={() => setApiKeyModalOpen(true)}
-                          className="text-xs px-3 py-1.5 bg-[var(--golden-chestnut)]/20 text-[var(--golden-chestnut)] hover:bg-[var(--golden-chestnut)]/30 transition-colors"
-                        >
-                          Update API Key
-                        </button>
-                        <button
-                          onClick={() => {
-                            setFiguresError(null)
-                            setPendingFigurePaperId(null)
-                          }}
-                          className="text-xs px-3 py-1.5 text-foreground/50 hover:text-foreground/70"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </div>
-                  </CornerBrackets>
-                )}
-
-                {/* Generic error */}
-                {figuresError !== "no_figures" && figuresError !== "rate_limited" && figuresError !== "invalid_key" && (
-                  <div className="bg-red-500/10 border border-red-500/30 rounded-none p-4">
-                    <p className="text-red-400 text-sm">{figuresError}</p>
-                    <div className="flex gap-2 mt-2">
-                      <button
-                        onClick={() => pendingFigurePaperId && fetchFigureAnalysis(pendingFigurePaperId)}
-                        className="text-xs text-[var(--golden-chestnut)] hover:underline"
-                      >
-                        Retry
-                      </button>
-                      <button
-                        onClick={() => {
-                          setFiguresError(null)
-                          setPendingFigurePaperId(null)
-                        }}
-                        className="text-xs text-foreground/50 hover:underline"
-                      >
-                        Dismiss
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </>
-            )}
-
-            {/* Figure Analysis Results */}
-            {figureAnalysis && !isLoadingFigures && !figuresError && (
-              <CornerBrackets className="bg-card/30 p-6">
-                {/* Header with paper info and close button */}
-                <div className="flex items-center justify-between mb-4">
-                  <span className="text-xs text-foreground/50">
-                    {figureAnalysis.total_figures} figure{figureAnalysis.total_figures !== 1 ? 's' : ''} analyzed
-                  </span>
-                  <button
-                    onClick={() => {
-                      setFigureAnalysis(null)
-                      setSelectedFigure(null)
-                    }}
-                    className="text-xs text-foreground/50 hover:text-foreground"
-                  >
-                    Close
-                  </button>
-                </div>
-
-                {/* Figure thumbnails */}
-                {figureAnalysis.figures.length > 1 && (
-                  <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
-                    {figureAnalysis.figures.map((fig, idx) => (
-                      <button
-                        key={fig.figure_id}
-                        onClick={() => setSelectedFigure(fig)}
-                        className={`shrink-0 w-16 h-16 border-2 transition-all overflow-hidden bg-background ${
-                          selectedFigure?.figure_id === fig.figure_id
-                            ? "border-[var(--golden-chestnut)]"
-                            : "border-border hover:border-foreground/30"
-                        }`}
-                      >
-                        <img
-                          src={fig.image_url || `/api/figures/${fig.image_path}`}
-                          alt={`Figure ${idx + 1}`}
-                          className="w-full h-full object-cover"
-                        />
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {/* Selected figure detail */}
-                {selectedFigure && (
-                  <div className="space-y-4">
-                    <div className="aspect-video bg-background rounded overflow-hidden border border-border">
-                      <img
-                        src={selectedFigure.image_url || `/api/figures/${selectedFigure.image_path}`}
-                        alt="Selected figure"
-                        className="w-full h-full object-contain"
-                      />
-                    </div>
-
-                    {selectedFigure.title && (
-                      <p className="text-sm font-medium text-foreground/80">
-                        {selectedFigure.title}
-                      </p>
-                    )}
-
-                    {selectedFigure.caption && (
-                      <p className="text-xs text-foreground/50 italic line-clamp-3">
-                        {selectedFigure.caption}
-                      </p>
-                    )}
-
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <Sparkles className="w-4 h-4 text-[var(--golden-chestnut)]" />
-                        <span className="text-sm font-medium">AI Analysis</span>
-                        {selectedFigure.code_executed && (
-                          <span className="text-[10px] bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded">
-                            Enhanced
-                          </span>
-                        )}
-                      </div>
-                      <MarkdownContent content={selectedFigure.analysis} />
-                    </div>
-                  </div>
-                )}
-
-                {/* No figures case */}
-                {figureAnalysis.figures.length === 0 && (
-                  <p className="text-foreground/50 text-sm text-center py-4">
-                    No figures found for this paper
-                  </p>
-                )}
-              </CornerBrackets>
-            )}
-          </div>
-        </div>
-
-        {/* Right Column: Evidence & Actions */}
-        <div className="lg:col-span-4 flex flex-col gap-6">
-          {/* Mini Podcast */}
-          <CornerBrackets className="bg-card/30 p-5 h-fit">
-            <div className="flex items-center gap-2 mb-4">
-              <Mic className="w-5 h-5 text-[var(--golden-chestnut)]" />
-              <h3 className="font-bold text-lg">Mini Podcast</h3>
-            </div>
-            <MiniPodcastPlayer
-              podcast={miniPodcast}
-              isLoading={isLoadingPodcast}
-              error={podcastError}
-              onGenerate={() => fetchMiniPodcast(false)}
-              onRegenerate={() => fetchMiniPodcast(true)}
-              style={synthesisMode === "simplified" ? "casual" : "academic"}
+          <div className="max-w-4xl mx-auto px-4 md:px-8 py-8">
+            {/* Claim Card */}
+            <ClaimCard
+              claim={claim}
+              synthesis={synthesis}
+              guest={episode.guest}
+              formatTime={formatTime}
             />
-          </CornerBrackets>
 
-          {/* AI Evidence Threads */}
-          <CornerBrackets className="bg-card/30 p-5 h-fit">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <GitBranch className="w-5 h-5 text-[var(--golden-chestnut)]" />
-                <h3 className="font-bold text-lg">Evidence Threads</h3>
-              </div>
-              {!aiEvidenceThreads && isLoadingThreads && (
-                <Loader2 className="w-4 h-4 text-[var(--golden-chestnut)] animate-spin" />
-              )}
+            {/* Segmented Tab Bar - sticky below header */}
+            <div className="sticky top-[112px] z-30 bg-background/95 backdrop-blur-sm pt-6 pb-4 -mx-4 px-4 md:-mx-8 md:px-8 border-b border-transparent [&.is-stuck]:border-border transition-colors">
+              <SegmentedTabBar
+                activeTab={activeTab}
+                onTabChange={setActiveTab}
+              />
             </div>
 
-            {/* Loading State */}
-            {isLoadingThreads && (
-              <div className="flex flex-col items-center justify-center py-8">
-                <Loader2 className="w-6 h-6 text-[var(--golden-chestnut)] animate-spin mb-3" />
-                <p className="text-foreground/60 text-sm">Analyzing research patterns...</p>
-                <p className="text-foreground/50 text-xs mt-1">Identifying narrative threads</p>
-              </div>
-            )}
-
-            {/* Error State */}
-            {threadsError && !isLoadingThreads && (
-              <div className="bg-red-500/10 border border-red-500/30 rounded-none p-4">
-                <p className="text-red-400 text-xs">{threadsError}</p>
-                <button
-                  onClick={() => fetchEvidenceThreads(true)}
-                  className="mt-2 text-xs text-[var(--golden-chestnut)] hover:underline"
-                >
-                  Try again
-                </button>
-              </div>
-            )}
-
-            {/* AI Threads Content */}
-            {aiEvidenceThreads && !isLoadingThreads && !threadsError && (
-              <>
-                {/* Metadata bar */}
-                <div className="flex items-center justify-between text-[10px] text-foreground/50 pb-3 mb-4 border-b border-border">
-                  <span>{aiEvidenceThreads.papers_analyzed} papers analyzed</span>
-                  <button
-                    onClick={() => fetchEvidenceThreads(true)}
-                    className="text-[var(--golden-chestnut)] hover:underline flex items-center gap-1"
-                  >
-                    <ArrowUp className="w-2.5 h-2.5 rotate-45" />
-                    Regenerate
-                  </button>
-                </div>
-
-                {aiEvidenceThreads.threads.length > 0 ? (
-                  <div className="space-y-6">
-                    {aiEvidenceThreads.threads.map((thread, threadIndex) => (
-                      <div key={threadIndex} className="relative">
-                        {/* Thread Header */}
-                        <div className="flex items-start gap-3 mb-3">
-                          <div className={`mt-0.5 size-6 rounded flex items-center justify-center shrink-0 ${
-                            thread.type === "experimental_validation" ? "bg-green-500/20 text-green-400" :
-                            thread.type === "mechanism_discovery" ? "bg-blue-500/20 text-blue-400" :
-                            thread.type === "theoretical_framework" ? "bg-purple-500/20 text-purple-400" :
-                            "bg-orange-500/20 text-orange-400"
-                          }`}>
-                            {thread.type === "experimental_validation" ? (
-                              <FlaskConical className="w-3.5 h-3.5" />
-                            ) : thread.type === "mechanism_discovery" ? (
-                              <GitBranch className="w-3.5 h-3.5" />
-                            ) : thread.type === "theoretical_framework" ? (
-                              <Sparkles className="w-3.5 h-3.5" />
-                            ) : (
-                              <TrendingUp className="w-3.5 h-3.5" />
-                            )}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <h4 className="font-medium text-sm text-foreground leading-tight">{thread.name}</h4>
-                            <div className="flex items-center gap-2 mt-1">
-                              <span className={`text-[10px] px-1.5 py-0.5 rounded ${
-                                thread.strength === "foundational" ? "bg-green-500/20 text-green-400" :
-                                thread.strength === "developing" ? "bg-yellow-500/20 text-yellow-400" :
-                                "bg-gray-500/20 text-foreground/60"
-                              }`}>
-                                {thread.strength}
-                              </span>
-                              <span className="text-[10px] text-foreground/50 capitalize">
-                                {thread.type.replace(/_/g, " ")}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Timeline Milestones */}
-                        <div className="relative pl-4 ml-3 border-l border-border space-y-3">
-                          {thread.milestones.map((milestone, milestoneIndex) => (
-                            <div key={milestoneIndex} className="relative pl-4 group">
-                              {/* Timeline dot */}
-                              <div className="absolute -left-[7px] top-1.5 w-2.5 h-2.5 rounded-full bg-foreground/10 border-2 border-[var(--golden-chestnut)] group-hover:bg-[var(--golden-chestnut)] transition-colors" />
-
-                              {/* Year badge */}
-                              <span className="text-[10px] font-mono text-[var(--golden-chestnut)] font-bold">
-                                {milestone.year}
-                              </span>
-
-                              {/* Finding */}
-                              <p className="text-xs text-foreground/80 mt-0.5 leading-relaxed">
-                                {milestone.finding}
-                              </p>
-
-                              {/* Paper reference - clickable for figure analysis */}
-                              <button
-                                onClick={() => milestone.paper_id && fetchFigureAnalysis(milestone.paper_id)}
-                                className="text-[10px] text-foreground/50 mt-1 truncate block text-left hover:text-[var(--golden-chestnut)] hover:underline transition-colors cursor-pointer disabled:cursor-default disabled:hover:no-underline disabled:hover:text-foreground/50"
-                                title={milestone.paper_id ? `Analyze figures from: ${milestone.paper_title}` : milestone.paper_title}
-                                disabled={!milestone.paper_id}
-                              >
-                                {milestone.paper_title.length > 50
-                                  ? milestone.paper_title.slice(0, 50) + "..."
-                                  : milestone.paper_title}
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-
-                        {/* Thread Narrative */}
-                        <div className="mt-3 ml-3 pl-4 border-l border-transparent">
-                          <p className="text-xs text-foreground/60 italic leading-relaxed">
-                            {thread.narrative}
-                          </p>
-                        </div>
-
-                        {/* Divider between threads */}
-                        {threadIndex < aiEvidenceThreads.threads.length - 1 && (
-                          <div className="mt-5 mb-2 border-t border-border" />
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-6">
-                    <p className="text-foreground/50 text-sm">
-                      {!aiEvidenceThreads.eligible ? (
-                        <>
-                          <span className="block mb-1">Unable to generate threads</span>
-                          <span className="text-xs text-foreground/40">
-                            {aiEvidenceThreads.eligibility_reason.includes("insufficient_papers")
-                              ? "Need 4+ papers to identify patterns"
-                              : aiEvidenceThreads.eligibility_reason.includes("insufficient_year")
-                                ? "Need papers spanning 3+ years"
-                                : "Insufficient data for narrative analysis"}
-                          </span>
-                        </>
-                      ) : (
-                        "No distinct evidence threads identified"
-                      )}
-                    </p>
-                  </div>
-                )}
-              </>
-            )}
-
-            {/* Initial state - auto-loading */}
-            {!aiEvidenceThreads && !isLoadingThreads && !threadsError && (
-              <div className="flex flex-col items-center justify-center py-8">
-                <Loader2 className="w-6 h-6 text-[var(--golden-chestnut)] animate-spin mb-3" />
-                <p className="text-foreground/60 text-sm">Loading evidence threads...</p>
-              </div>
-            )}
-          </CornerBrackets>
-
-          {/* Stats */}
-          <div className="grid grid-cols-2 gap-3">
-            <CornerBrackets className="bg-card/30 p-3">
-              <p className="text-foreground/50 text-[10px] uppercase font-bold tracking-wider mb-1">Confidence</p>
-              <p className="text-lg font-bold flex items-center gap-1">
-                {confidenceMetrics?.confidence_level || "Unknown"}
-                <span
-                  className={`size-2 rounded-full inline-block ${
-                    confidenceMetrics?.confidence_level === "High"
-                      ? "bg-green-500"
-                      : confidenceMetrics?.confidence_level === "Medium"
-                        ? "bg-yellow-500"
-                        : "bg-red-500"
-                  }`}
+            {/* Tab Content */}
+            <div className="mt-6">
+              {activeTab === "overview" && (
+                <OverviewTab
+                  synthesisMode={synthesisMode}
+                  onSynthesisModeChange={setSynthesisMode}
+                  deepDiveSummaries={deepDiveSummaries}
+                  isLoadingDeepDive={isLoadingDeepDive}
+                  deepDiveErrors={deepDiveErrors}
+                  onFetchDeepDive={fetchDeepDiveSummary}
+                  confidenceMetrics={confidenceMetrics}
+                  episodeId={episodeId}
+                  onViewSourcePaper={onViewSourcePaper}
                 />
-              </p>
-            </CornerBrackets>
-            <CornerBrackets className="bg-card/30 p-3">
-              <p className="text-foreground/50 text-[10px] uppercase font-bold tracking-wider mb-1">Consensus</p>
-              <p className="text-lg font-bold">{confidenceMetrics?.consensus_percentage || 0}%</p>
-            </CornerBrackets>
+              )}
+
+              {activeTab === "evidence" && (
+                <EvidenceTab
+                  aiEvidenceThreads={aiEvidenceThreads}
+                  isLoadingThreads={isLoadingThreads}
+                  threadsError={threadsError}
+                  onFetchThreads={fetchEvidenceThreads}
+                  onFetchFigureAnalysis={fetchFigureAnalysis}
+                  fallbackPapers={deepDiveSummaries.technical?.papers}
+                />
+              )}
+
+              {activeTab === "figures" && (
+                <FiguresTab
+                  claimId={claim.id}
+                  episodeId={episodeId}
+                  figureAnalysis={figureAnalysis}
+                  isLoadingFigures={isLoadingFigures}
+                  figuresError={figuresError}
+                  selectedFigure={selectedFigure}
+                  onSelectFigure={setSelectedFigure}
+                  onFetchFigureAnalysis={fetchFigureAnalysis}
+                  onClearFigures={handleClearFigures}
+                  onOpenApiKeyModal={() => setApiKeyModalOpen(true)}
+                  pendingFigurePaperId={pendingFigurePaperId}
+                  onViewSourcePaper={onViewSourcePaper}
+                />
+              )}
+
+              {activeTab === "graph" && (
+                <GraphTab
+                  kgSubgraph={kgSubgraph}
+                  isLoadingKG={isLoadingKG}
+                  kgError={kgError}
+                  onFetchKG={fetchKGSubgraph}
+                  claimId={claim.id}
+                  claimText={synthesis?.claim_text || claim.description}
+                />
+              )}
+
+              {activeTab === "create" && (
+                <CreateTab
+                  miniPodcast={miniPodcast}
+                  isLoadingPodcast={isLoadingPodcast}
+                  podcastError={podcastError}
+                  onGeneratePodcast={() => fetchMiniPodcast(false)}
+                  onRegeneratePodcast={() => fetchMiniPodcast(true)}
+                  synthesisMode={synthesisMode}
+                />
+              )}
+            </div>
           </div>
-        </div>
-      </main>
+        </main>
       )}
 
       {/* AI Chat Sidebar */}

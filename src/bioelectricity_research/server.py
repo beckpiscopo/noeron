@@ -116,6 +116,110 @@ def _get_papers_with_figures() -> set[str]:
     return papers_with_figures
 
 
+async def _get_claim_figures_impl(
+    claim_id: str,
+    episode_id: str,
+    limit: int = 10
+) -> dict[str, Any]:
+    """Get figures from papers associated with a claim.
+
+    Collects figures from papers referenced in both:
+    1. Cached evidence threads (milestones)
+    2. Deep dive summaries (papers array)
+
+    This provides broader coverage since some claims may have summaries
+    but not evidence threads (due to eligibility requirements).
+    """
+    paper_ids: set[str] = set()
+    paper_titles: dict[str, str] = {}  # paper_id -> title
+
+    # Source 1: Evidence threads cache
+    threads_cache = _load_evidence_threads_cache()
+    cache_key = f"{episode_id}:{claim_id}"
+    cached_threads = threads_cache.get(cache_key)
+
+    if cached_threads:
+        threads = cached_threads.get("threads", [])
+        for thread in threads:
+            for milestone in thread.get("milestones", []):
+                pid = milestone.get("paper_id")
+                if pid:
+                    paper_ids.add(pid)
+                    if milestone.get("paper_title"):
+                        paper_titles[pid] = milestone["paper_title"]
+
+    # Source 2: Deep dive summaries cache
+    deep_dive_cache = _load_deep_dive_cache()
+    # Deep dive keys can be:
+    #   "lex_325:lex_325|00:10:00.160|6-2:technical" (with style suffix)
+    #   "lex_325:lex_325|00:30:00.160|16-4" (without style suffix)
+    for key, data in deep_dive_cache.items():
+        # Check if this summary is for the current claim
+        # Match both ":claim_id:" (middle) and ":claim_id" (end of key)
+        if f":{claim_id}:" in key or key.endswith(f":{claim_id}"):
+            papers = data.get("papers", [])
+            for paper in papers:
+                pid = paper.get("paper_id")
+                if pid:
+                    paper_ids.add(pid)
+                    if paper.get("title") and pid not in paper_titles:
+                        paper_titles[pid] = paper["title"]
+
+    if not paper_ids:
+        return {
+            "claim_id": claim_id,
+            "figures": [],
+            "total_available": 0,
+            "message": "No papers found in evidence threads or deep dive summaries."
+        }
+
+    # Get papers with figures
+    papers_with_figs = _get_papers_with_figures()
+    relevant_paper_ids = paper_ids & papers_with_figs
+
+    if not relevant_paper_ids:
+        return {
+            "claim_id": claim_id,
+            "figures": [],
+            "total_available": 0,
+            "papers_checked": len(paper_ids),
+            "message": f"None of the {len(paper_ids)} evidence papers have extractable figures."
+        }
+
+    # Collect figures from each paper
+    all_figures = []
+    for paper_id in relevant_paper_ids:
+        figures = _get_figures_for_paper(paper_id)
+        paper_title = paper_titles.get(paper_id, "Unknown Paper")
+
+        for fig in figures:
+            if fig.get("image_path") or fig.get("image_url"):
+                all_figures.append({
+                    "figure_id": fig["figure_id"],
+                    "paper_id": paper_id,
+                    "paper_title": paper_title,
+                    "image_path": fig.get("image_path"),
+                    "image_url": fig.get("image_url"),
+                    "caption": fig.get("caption"),
+                    "title": fig.get("title"),
+                    "label": fig.get("label"),
+                })
+
+    total_available = len(all_figures)
+
+    # Limit results
+    if limit and len(all_figures) > limit:
+        all_figures = all_figures[:limit]
+
+    return {
+        "claim_id": claim_id,
+        "figures": all_figures,
+        "total_available": total_available,
+        "papers_with_figures": len(relevant_paper_ids),
+        "papers_checked": len(paper_ids),
+    }
+
+
 # ============================================================================
 # Gemini Deep Dive Summary Generation
 # ============================================================================
