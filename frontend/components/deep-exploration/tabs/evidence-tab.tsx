@@ -155,13 +155,22 @@ export function EvidenceTab({
           </div>
 
           {aiEvidenceThreads.threads.length > 0 ? (
-            <div className="flex gap-8">
-              {/* Left Sidebar */}
-              <ThreadContextSidebar
-                threadCount={aiEvidenceThreads.threads.length}
-                papersAnalyzed={aiEvidenceThreads.papers_analyzed}
-                contextSummary={generateContextSummary(aiEvidenceThreads.threads)}
-              />
+            <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
+              {/* Left Sidebar - hidden on mobile, shown on lg+ */}
+              <div className="hidden lg:block">
+                <ThreadContextSidebar
+                  threadCount={aiEvidenceThreads.threads.length}
+                  papersAnalyzed={aiEvidenceThreads.papers_analyzed}
+                  contextSummary={generateContextSummary(aiEvidenceThreads.threads)}
+                />
+              </div>
+
+              {/* Mobile stats bar - shown only on mobile */}
+              <div className="lg:hidden flex items-center gap-4 text-xs text-foreground/50 pb-4 border-b border-border">
+                <span>{aiEvidenceThreads.threads.length} threads</span>
+                <span>•</span>
+                <span>{aiEvidenceThreads.papers_analyzed} papers</span>
+              </div>
 
               {/* Right Content - Evidence Cards */}
               <div className="flex-1 space-y-6">
