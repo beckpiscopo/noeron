@@ -12,6 +12,16 @@
   --font-display: var(--font-space-grotesk), 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
   --font-body-noeron: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
   --font-mono-noeron: 'IBM Plex Mono', 'Courier New', monospace;
+
+  /* Evidence Type Colors - Semantic */
+  --evidence-foundational: #6366f1; /* indigo - base layer */
+  --evidence-foundational-bg: rgba(99, 102, 241, 0.15);
+  --evidence-supporting: #0d9488; /* teal - building up */
+  --evidence-supporting-bg: rgba(13, 148, 136, 0.15);
+  --evidence-direct: #f59e0b; /* amber - the payoff */
+  --evidence-direct-bg: rgba(245, 158, 11, 0.15);
+  --evidence-speculative: #6b7280; /* gray - uncertain */
+  --evidence-speculative-bg: rgba(107, 114, 128, 0.15);
 }
 
 /* Override body font for Noeron pages */
