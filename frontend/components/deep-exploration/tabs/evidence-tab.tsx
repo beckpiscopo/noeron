@@ -11,6 +11,9 @@ import {
   FileText,
   AlertCircle,
 } from "lucide-react"
+import { ThreadContextSidebar } from "../thread-context-sidebar"
+import { EvidenceCard } from "../evidence-card"
+import { SynthesisReportCTA } from "../synthesis-report-cta"
 
 function CornerBrackets({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
@@ -65,6 +68,26 @@ interface EvidenceTabProps {
   onFetchThreads: (forceRegenerate?: boolean) => void
   onFetchFigureAnalysis: (paperId: string) => void
   fallbackPapers?: FallbackPaper[]
+}
+
+function mapStrengthToEvidenceType(strength: string): "foundational" | "supporting" | "direct" | "speculative" {
+  switch (strength) {
+    case "foundational":
+      return "foundational"
+    case "developing":
+      return "supporting"
+    case "speculative":
+      return "speculative"
+    default:
+      return "direct"
+  }
+}
+
+function generateContextSummary(threads: AIEvidenceThread[]): string {
+  if (threads.length === 0) return "No evidence threads available."
+
+  const types = [...new Set(threads.map(t => t.type.replace(/_/g, " ")))]
+  return `This thread tracks the ${types.join(" and ")} of the research. It synthesizes findings across multiple papers to show how the evidence has developed over time.`
 }
 
 export function EvidenceTab({
@@ -132,89 +155,76 @@ export function EvidenceTab({
           </div>
 
           {aiEvidenceThreads.threads.length > 0 ? (
-            <div className="space-y-8">
-              {aiEvidenceThreads.threads.map((thread, threadIndex) => (
-                <div key={threadIndex} className="relative">
-                  {/* Thread Header */}
-                  <div className="flex items-start gap-3 mb-4">
-                    <div className={`mt-0.5 size-8 rounded flex items-center justify-center shrink-0 ${
-                      thread.type === "experimental_validation" ? "bg-green-500/20 text-green-400" :
-                      thread.type === "mechanism_discovery" ? "bg-blue-500/20 text-blue-400" :
-                      thread.type === "theoretical_framework" ? "bg-purple-500/20 text-purple-400" :
-                      "bg-orange-500/20 text-orange-400"
-                    }`}>
-                      {thread.type === "experimental_validation" ? (
-                        <FlaskConical className="w-4 h-4" />
-                      ) : thread.type === "mechanism_discovery" ? (
-                        <GitBranch className="w-4 h-4" />
-                      ) : thread.type === "theoretical_framework" ? (
-                        <Sparkles className="w-4 h-4" />
-                      ) : (
-                        <TrendingUp className="w-4 h-4" />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h4 className="font-medium text-base text-foreground leading-tight">{thread.name}</h4>
-                      <div className="flex items-center gap-2 mt-1.5">
-                        <span className={`text-xs px-2 py-0.5 rounded ${
-                          thread.strength === "foundational" ? "bg-green-500/20 text-green-400" :
-                          thread.strength === "developing" ? "bg-yellow-500/20 text-yellow-400" :
-                          "bg-gray-500/20 text-foreground/60"
-                        }`}>
-                          {thread.strength}
-                        </span>
-                        <span className="text-xs text-foreground/50 capitalize">
-                          {thread.type.replace(/_/g, " ")}
-                        </span>
+            <div className="flex gap-8">
+              {/* Left Sidebar */}
+              <ThreadContextSidebar
+                threadCount={aiEvidenceThreads.threads.length}
+                papersAnalyzed={aiEvidenceThreads.papers_analyzed}
+                contextSummary={generateContextSummary(aiEvidenceThreads.threads)}
+              />
+
+              {/* Right Content - Evidence Cards */}
+              <div className="flex-1 space-y-6">
+                {aiEvidenceThreads.threads.map((thread, threadIndex) => (
+                  <div key={threadIndex} className="space-y-4">
+                    {/* Thread Header */}
+                    <div className="flex items-center gap-3 pb-2 border-b border-border/50">
+                      <div className={`size-6 rounded flex items-center justify-center shrink-0 ${
+                        thread.type === "experimental_validation" ? "bg-green-500/20 text-green-400" :
+                        thread.type === "mechanism_discovery" ? "bg-blue-500/20 text-blue-400" :
+                        thread.type === "theoretical_framework" ? "bg-purple-500/20 text-purple-400" :
+                        "bg-orange-500/20 text-orange-400"
+                      }`}>
+                        {thread.type === "experimental_validation" ? (
+                          <FlaskConical className="w-3.5 h-3.5" />
+                        ) : thread.type === "mechanism_discovery" ? (
+                          <GitBranch className="w-3.5 h-3.5" />
+                        ) : thread.type === "theoretical_framework" ? (
+                          <Sparkles className="w-3.5 h-3.5" />
+                        ) : (
+                          <TrendingUp className="w-3.5 h-3.5" />
+                        )}
                       </div>
+                      <h4 className="font-medium text-sm text-foreground">{thread.name}</h4>
+                      <span className={`text-[10px] px-2 py-0.5 rounded ${
+                        thread.strength === "foundational" ? "bg-[var(--evidence-foundational-bg)] text-[var(--evidence-foundational)]" :
+                        thread.strength === "developing" ? "bg-[var(--evidence-supporting-bg)] text-[var(--evidence-supporting)]" :
+                        "bg-[var(--evidence-speculative-bg)] text-[var(--evidence-speculative)]"
+                      }`}>
+                        {thread.strength}
+                      </span>
                     </div>
-                  </div>
 
-                  {/* Timeline Milestones */}
-                  <div className="relative pl-5 ml-4 border-l-2 border-border space-y-4">
-                    {thread.milestones.map((milestone, milestoneIndex) => (
-                      <div key={milestoneIndex} className="relative pl-5 group">
-                        {/* Timeline dot */}
-                        <div className="absolute -left-[9px] top-1.5 w-3 h-3 rounded-full bg-foreground/10 border-2 border-[var(--golden-chestnut)] group-hover:bg-[var(--golden-chestnut)] transition-colors" />
+                    {/* Milestone Cards */}
+                    <div className="space-y-3 pl-4 border-l-2 border-border/30">
+                      {thread.milestones.map((milestone, milestoneIndex) => (
+                        <EvidenceCard
+                          key={milestoneIndex}
+                          type={mapStrengthToEvidenceType(thread.strength)}
+                          year={milestone.year}
+                          title={milestone.paper_title}
+                          description={milestone.finding}
+                          paperId={milestone.paper_id}
+                          onViewPaper={(id) => onFetchFigureAnalysis(id)}
+                        />
+                      ))}
+                    </div>
 
-                        {/* Year badge */}
-                        <span className="text-xs font-mono text-[var(--golden-chestnut)] font-bold">
-                          {milestone.year}
-                        </span>
-
-                        {/* Finding */}
-                        <p className="text-sm text-foreground/80 mt-1 leading-relaxed">
-                          {milestone.finding}
-                        </p>
-
-                        {/* Paper reference - clickable for figure analysis */}
-                        <button
-                          onClick={() => milestone.paper_id && onFetchFigureAnalysis(milestone.paper_id)}
-                          className="text-xs text-foreground/50 mt-1.5 truncate block text-left hover:text-[var(--golden-chestnut)] hover:underline transition-colors cursor-pointer disabled:cursor-default disabled:hover:no-underline disabled:hover:text-foreground/50"
-                          title={milestone.paper_id ? `Analyze figures from: ${milestone.paper_title}` : milestone.paper_title}
-                          disabled={!milestone.paper_id}
-                        >
-                          {milestone.paper_title.length > 60
-                            ? milestone.paper_title.slice(0, 60) + "..."
-                            : milestone.paper_title}
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Thread Narrative */}
-                  <div className="mt-4 ml-4 pl-5 border-l-2 border-transparent">
-                    <p className="text-sm text-foreground/60 italic leading-relaxed">
+                    {/* Thread Narrative */}
+                    <p className="text-sm text-foreground/50 italic pl-4">
                       {thread.narrative}
                     </p>
                   </div>
+                ))}
 
-                  {/* Divider between threads */}
-                  {threadIndex < aiEvidenceThreads.threads.length - 1 && (
-                    <div className="mt-8 border-t border-border" />
-                  )}
-                </div>
-              ))}
+                {/* Synthesis Report CTA */}
+                <SynthesisReportCTA
+                  papersCount={aiEvidenceThreads.papers_analyzed}
+                  onGenerate={() => {
+                    console.log("Generate synthesis report")
+                  }}
+                />
+              </div>
             </div>
           ) : uniqueFallbackPapers.length > 0 ? (
             /* Fallback: Show related papers when timeline isn't available */
@@ -243,38 +253,15 @@ export function EvidenceTab({
               {/* Paper list */}
               <div className="space-y-3">
                 {uniqueFallbackPapers.map((paper, index) => (
-                  <div
+                  <EvidenceCard
                     key={paper.paper_id || index}
-                    className="group p-3 bg-card/50 hover:bg-card/80 border border-border/50 rounded-lg transition-colors"
-                  >
-                    <div className="flex items-start gap-3">
-                      <div className="size-8 rounded bg-foreground/5 flex items-center justify-center shrink-0">
-                        <FileText className="w-4 h-4 text-foreground/40" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          {paper.year && (
-                            <span className="text-xs font-mono text-[var(--golden-chestnut)] font-bold">
-                              {paper.year}
-                            </span>
-                          )}
-                        </div>
-                        <button
-                          onClick={() => paper.paper_id && onFetchFigureAnalysis(paper.paper_id)}
-                          className="text-sm text-foreground/80 text-left hover:text-[var(--golden-chestnut)] hover:underline transition-colors cursor-pointer leading-snug"
-                          title={paper.paper_id ? `Analyze figures from: ${paper.title}` : paper.title}
-                          disabled={!paper.paper_id}
-                        >
-                          {paper.title}
-                        </button>
-                        {paper.key_finding && (
-                          <p className="text-xs text-foreground/50 mt-1.5 leading-relaxed">
-                            {paper.key_finding}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
+                    type="supporting"
+                    year={parseInt(String(paper.year)) || new Date().getFullYear()}
+                    title={paper.title}
+                    description={paper.key_finding || "No key finding available."}
+                    paperId={paper.paper_id}
+                    onViewPaper={(id) => onFetchFigureAnalysis(id)}
+                  />
                 ))}
               </div>
 
