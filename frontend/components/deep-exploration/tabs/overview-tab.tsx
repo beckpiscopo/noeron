@@ -2,7 +2,6 @@
 
 import {
   Sparkles,
-  ArrowUp,
   ExternalLink,
   Loader2,
 } from "lucide-react"
@@ -39,17 +38,6 @@ interface DeepDiveSummary {
   error?: string
 }
 
-interface ConfidenceMetrics {
-  confidence_level: string
-  confidence_score: number
-  consensus_percentage: number
-  evidence_counts: {
-    primary: number
-    replication: number
-    counter: number
-  }
-}
-
 interface OverviewTabProps {
   synthesisMode: "simplified" | "technical"
   onSynthesisModeChange: (mode: "simplified" | "technical") => void
@@ -57,7 +45,6 @@ interface OverviewTabProps {
   isLoadingDeepDive: { simplified: boolean; technical: boolean }
   deepDiveErrors: { simplified: string | null; technical: string | null }
   onFetchDeepDive: (style: "simplified" | "technical", forceRegenerate?: boolean) => void
-  confidenceMetrics?: ConfidenceMetrics
   episodeId: string
   onViewSourcePaper: (paperId?: string) => void
 }
@@ -69,7 +56,6 @@ export function OverviewTab({
   isLoadingDeepDive,
   deepDiveErrors,
   onFetchDeepDive,
-  confidenceMetrics,
   episodeId,
   onViewSourcePaper,
 }: OverviewTabProps) {
@@ -153,89 +139,15 @@ export function OverviewTab({
             return (
               <>
                 {/* Metadata bar */}
-                <div className="flex items-center justify-between text-xs text-foreground/50 pb-3 border-b border-border">
-                  <div className="flex items-center gap-4">
-                    <span>{currentSummary.papers_retrieved} papers analyzed</span>
-                    {currentSummary.cached && (
-                      <span className="px-2 py-0.5 bg-card rounded text-foreground/60">Cached</span>
-                    )}
-                  </div>
-                  <button
-                    onClick={() => onFetchDeepDive(synthesisMode, true)}
-                    className="text-[var(--golden-chestnut)] hover:underline flex items-center gap-1"
-                  >
-                    <ArrowUp className="w-3 h-3 rotate-45" />
-                    Regenerate
-                  </button>
+                <div className="flex items-center gap-4 text-xs text-foreground/50 pb-3 border-b border-border">
+                  <span>{currentSummary.papers_retrieved} papers analyzed</span>
+                  {currentSummary.cached && (
+                    <span className="px-2 py-0.5 bg-card rounded text-foreground/60">Cached</span>
+                  )}
                 </div>
 
                 {/* Render markdown summary */}
-                <MarkdownContent content={currentSummary.summary} />
-
-                {/* Papers used */}
-                {currentSummary.papers && currentSummary.papers.length > 0 && (() => {
-                  const uniquePapers = [...currentSummary.papers]
-                    .filter((paper, index, self) =>
-                      index === self.findIndex(p => p.paper_id === paper.paper_id)
-                    )
-                    .sort((a, b) => {
-                      const yearA = parseInt(a.year) || 0
-                      const yearB = parseInt(b.year) || 0
-                      return yearB - yearA
-                    })
-
-                  return (
-                    <div className="mt-6 pt-4 border-t border-border">
-                      <h5 className="text-xs uppercase tracking-wider text-foreground/50 font-semibold mb-4">
-                        Sources Retrieved ({uniquePapers.length} paper{uniquePapers.length !== 1 ? 's' : ''})
-                      </h5>
-                      <div className="space-y-5">
-                        {uniquePapers.map((paper, idx) => (
-                          <div key={idx} className="group">
-                            <div className="flex items-start gap-2">
-                              <span className="text-sm font-mono text-foreground/50 shrink-0 pt-0.5">
-                                {paper.year || "n/a"}
-                              </span>
-                              <span className="text-foreground/50 shrink-0 pt-0.5">•</span>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm text-foreground/80 leading-relaxed">
-                                  {paper.title}
-                                </p>
-                                {paper.key_finding && (
-                                  <p className="text-xs text-foreground/60 mt-2 leading-relaxed">
-                                    <span className="text-foreground/50">Key finding:</span> {paper.key_finding}
-                                  </p>
-                                )}
-                                <div className="flex flex-wrap items-center gap-2 mt-2">
-                                  {paper.section && (
-                                    <span className="text-[10px] text-foreground/50 px-1.5 py-0.5 bg-card rounded">
-                                      {paper.section}
-                                    </span>
-                                  )}
-                                  <button
-                                    onClick={() => onViewSourcePaper(paper.paper_id)}
-                                    className="text-[10px] text-[var(--golden-chestnut)] hover:text-[var(--golden-chestnut)]/80 transition-colors flex items-center gap-1"
-                                  >
-                                    View Paper
-                                    <ExternalLink className="w-2.5 h-2.5" />
-                                  </button>
-                                  <BookmarkButton
-                                    type="paper"
-                                    item={{ paper_id: paper.paper_id, title: paper.title } as Paper}
-                                    episodeId={episodeId}
-                                    size="icon"
-                                    variant="ghost"
-                                    className="!h-5 !w-5 !p-0"
-                                  />
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )
-                })()}
+                <MarkdownContent content={currentSummary.summary} variant="synthesis" />
               </>
             )
           })()}
@@ -252,28 +164,82 @@ export function OverviewTab({
         </div>
       </CornerBrackets>
 
-      {/* Confidence Metrics */}
-      <div className="grid grid-cols-2 gap-4">
-        <CornerBrackets className="bg-card/30 p-4">
-          <p className="text-foreground/50 text-xs uppercase font-bold tracking-wider mb-1">Confidence</p>
-          <p className="text-xl font-bold flex items-center gap-2">
-            {confidenceMetrics?.confidence_level || "Unknown"}
-            <span
-              className={`size-2 rounded-full inline-block ${
-                confidenceMetrics?.confidence_level === "High"
-                  ? "bg-green-500"
-                  : confidenceMetrics?.confidence_level === "Medium"
-                    ? "bg-yellow-500"
-                    : "bg-red-500"
-              }`}
-            />
-          </p>
-        </CornerBrackets>
-        <CornerBrackets className="bg-card/30 p-4">
-          <p className="text-foreground/50 text-xs uppercase font-bold tracking-wider mb-1">Consensus</p>
-          <p className="text-xl font-bold">{confidenceMetrics?.consensus_percentage || 0}%</p>
-        </CornerBrackets>
-      </div>
+      {/* Sources Section - Two Column Grid */}
+      {deepDiveSummaries[synthesisMode]?.papers && deepDiveSummaries[synthesisMode]!.papers!.length > 0 && (() => {
+        const currentSummary = deepDiveSummaries[synthesisMode]!
+        const uniquePapers = [...currentSummary.papers!]
+          .filter((paper, index, self) =>
+            index === self.findIndex(p => p.paper_id === paper.paper_id)
+          )
+          .sort((a, b) => {
+            const yearA = parseInt(a.year) || 0
+            const yearB = parseInt(b.year) || 0
+            return yearB - yearA
+          })
+
+        return (
+          <div className="mt-8">
+            {/* Sources Header */}
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="text-lg font-semibold text-foreground">Sources Retrieved</h4>
+              <span className="text-sm text-foreground/50">{uniquePapers.length} papers</span>
+            </div>
+
+            {/* Two Column Grid of Source Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {uniquePapers.map((paper, idx) => (
+                <div
+                  key={idx}
+                  className="bg-card/50 border border-border p-4 hover:bg-card/70 transition-colors group"
+                >
+                  {/* Year and Journal */}
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-semibold text-[var(--golden-chestnut)] bg-[var(--golden-chestnut)]/10 px-2 py-0.5 rounded">
+                        {paper.year || "n/a"}
+                      </span>
+                      {paper.section && (
+                        <span className="text-xs text-foreground/50">
+                          {paper.section}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={() => onViewSourcePaper(paper.paper_id)}
+                        className="text-xs text-[var(--golden-chestnut)] hover:text-[var(--golden-chestnut)]/80 transition-colors flex items-center gap-1"
+                      >
+                        View
+                        <ExternalLink className="w-3 h-3" />
+                      </button>
+                      <BookmarkButton
+                        type="paper"
+                        item={{ paper_id: paper.paper_id, title: paper.title } as Paper}
+                        episodeId={episodeId}
+                        size="icon"
+                        variant="ghost"
+                        className="!h-5 !w-5 !p-0"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Title */}
+                  <h5 className="text-sm font-medium text-foreground leading-snug mb-2">
+                    {paper.title}
+                  </h5>
+
+                  {/* Key Finding */}
+                  {paper.key_finding && (
+                    <p className="text-xs text-foreground/60 leading-relaxed line-clamp-3">
+                      {paper.key_finding}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )
+      })()}
     </div>
   )
 }

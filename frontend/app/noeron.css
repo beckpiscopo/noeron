@@ -13,15 +13,15 @@
   --font-body-noeron: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
   --font-mono-noeron: 'IBM Plex Mono', 'Courier New', monospace;
 
-  /* Evidence Type Colors - Semantic */
-  --evidence-foundational: #6366f1; /* indigo - base layer */
-  --evidence-foundational-bg: rgba(99, 102, 241, 0.15);
-  --evidence-supporting: #0d9488; /* teal - building up */
-  --evidence-supporting-bg: rgba(13, 148, 136, 0.15);
-  --evidence-direct: #f59e0b; /* amber - the payoff */
-  --evidence-direct-bg: rgba(245, 158, 11, 0.15);
-  --evidence-speculative: #6b7280; /* gray - uncertain */
-  --evidence-speculative-bg: rgba(107, 114, 128, 0.15);
+  /* Evidence Type Colors - Warm Earthy Palette */
+  --evidence-foundational: #7A8B6E; /* muted sage - bedrock */
+  --evidence-foundational-bg: rgba(122, 139, 110, 0.15);
+  --evidence-supporting: #BE5A38; /* rosy copper - building up */
+  --evidence-supporting-bg: rgba(190, 90, 56, 0.15);
+  --evidence-direct: #BE7C4D; /* golden chestnut - the payoff */
+  --evidence-direct-bg: rgba(190, 124, 77, 0.15);
+  --evidence-speculative: #8B8178; /* warm stone - uncertain */
+  --evidence-speculative-bg: rgba(139, 129, 120, 0.15);
 }
 
 /* Override body font for Noeron pages */

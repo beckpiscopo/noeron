@@ -527,9 +527,260 @@ python scripts/build_taxonomy_clusters.py --k 10
 
 See `docs/TAXONOMY_CLUSTERS.md` for detailed implementation guide.
 
+## Authentication & BYOK API Keys
+
+The app uses a Bring Your Own Key (BYOK) model where users provide their own Gemini API key.
+
+### Flow
+
+```
+User visits app
+    ↓
+Check localStorage for existing API key
+    ↓
+If no key → Show ApiKeyModal
+    ↓
+User enters Gemini API key
+    ↓
+Key stored in localStorage (browser-side only)
+    ↓
+Key sent with each API request via header
+    ↓
+Backend uses user's key for Gemini calls
+```
+
+### Key Components
+
+| File | Purpose |
+|------|---------|
+| `frontend/components/api-key-modal.tsx` | Modal for entering/managing API key |
+| `frontend/components/auth-modal.tsx` | Authentication UI (if using Supabase auth) |
+| `frontend/components/user-menu.tsx` | User dropdown with key management |
+| `frontend/lib/supabase.ts` | Auth state management |
+
+### Security Notes
+- API keys are stored only in the user's browser (localStorage)
+- Keys are sent via HTTP headers, not URL parameters
+- Backend validates key format before use
+- No server-side key storage
+
+## Bookmarks & Notebooks System
+
+Users can save and organize research items in personal notebooks.
+
+### Bookmark Types
+
+| Type | Description | Source |
+|------|-------------|--------|
+| `claim` | Evidence card from podcast | Listening view, Deep dive |
+| `paper` | Academic paper reference | Evidence threads, RAG results |
+| `snippet` | Text excerpt with highlight | Chat responses, papers |
+| `ai_insight` | AI-generated analysis | Chat responses |
+| `image` | AI-generated visualization | Image generation |
+
+### Data Model
+
+```sql
+-- bookmarks table
+id, user_id, bookmark_type, item_id, episode_id,
+claim_id, content, metadata, created_at
+```
+
+### Key Components
+
+| File | Purpose |
+|------|---------|
+| `frontend/components/bookmark-button.tsx` | Bookmark toggle button |
+| `frontend/components/bookmarks-library.tsx` | Library view of all bookmarks |
+| `frontend/components/notebook-view.tsx` | Single notebook with filtering |
+| `frontend/components/notebook-synthesis-panel.tsx` | AI-generated notebook overview |
+| `frontend/components/notebook-library.tsx` | List of user's notebooks |
+
+### Notebook Synthesis
+
+The system generates AI summaries of notebook contents:
+
+```
+User opens notebook
+    ↓
+Check notebook_synthesis table for cached summary
+    ↓
+If stale/missing → Call generate_notebook_synthesis endpoint
+    ↓
+Gemini analyzes all bookmarked items
+    ↓
+Returns: themes, key insights, suggested exploration
+    ↓
+Cache in notebook_synthesis table
+```
+
+## Mobile Components
+
+The app is mobile-first with specialized components for small screens.
+
+### Mobile-Specific Components
+
+| Component | Purpose |
+|-----------|---------|
+| `mobile/claim-preview-sheet.tsx` | Bottom sheet for claim details |
+| `mobile/past-claims-strip.tsx` | Horizontal scroll of recent claims |
+| `mobile/compact-player.tsx` | Minimized audio player |
+| `ui/bottom-sheet.tsx` | Reusable bottom sheet primitive |
+
+### Responsive Behavior
+
+```
+Desktop (>1024px):
+├── listening-view.tsx with side panels
+├── Full taxonomy bubble map
+└── Sheet-based AI chat sidebar
+
+Mobile (<768px):
+├── Stacked vertical layout
+├── Bottom sheets for details
+├── Compact player with swipe gestures
+└── Past claims as horizontal strip
+```
+
+### Key Hooks
+
+| Hook | Purpose |
+|------|---------|
+| `hooks/use-mobile.ts` | Detect mobile viewport |
+| `components/ui/use-mobile.tsx` | Mobile breakpoint utilities |
+
+## Quiz Mode
+
+Interactive quizzes test understanding of podcast content.
+
+### Features
+
+- Multiple choice questions generated from claims
+- Spaced repetition for review
+- Progress tracking
+- Explanations with paper citations
+
+### Key Files
+
+| File | Purpose |
+|------|---------|
+| `frontend/components/quiz-mode.tsx` | Quiz interface and logic |
+
+### Quiz Generation Flow
+
+```
+User enters quiz mode
+    ↓
+Fetch claims from current episode
+    ↓
+Gemini generates questions from claims
+    ↓
+User answers questions
+    ↓
+Show explanation with evidence
+    ↓
+Track progress in user_interests table
+```
+
+## Knowledge Graph
+
+The system extracts and visualizes entity-relation graphs from papers.
+
+### Architecture
+
+See `docs/KNOWLEDGE_GRAPH_ARCHITECTURE.md` for full details.
+
+```
+Papers corpus
+    ↓
+scripts/knowledge_graph/extract_kg_from_papers.py
+    ↓
+Entity extraction (concepts, mechanisms, organisms)
+    ↓
+Relation extraction (causes, enables, inhibits)
+    ↓
+scripts/knowledge_graph/deduplicate_entities.py
+    ↓
+data/knowledge_graph/*.json
+    ↓
+frontend/components/concept-graph/ConceptExpansionGraph.tsx
+```
+
+### Key Scripts
+
+| Script | Purpose |
+|--------|---------|
+| `scripts/knowledge_graph/extract_kg_from_papers.py` | Extract entities/relations |
+| `scripts/knowledge_graph/deduplicate_entities.py` | Merge duplicate entities |
+| `scripts/knowledge_graph/validate_kg.py` | Validate graph consistency |
+| `scripts/knowledge_graph/generate_claim_relevance.py` | Link claims to graph |
+
+## Landing Pages
+
+Multiple landing page variants for A/B testing.
+
+### Variants
+
+| File | Description |
+|------|-------------|
+| `frontend/components/landing-page.tsx` | Current production landing |
+| `frontend/components/landing-page-v1.tsx` | Original design |
+| `frontend/components/landing-page-v2.tsx` | Feature-focused variant |
+| `frontend/components/landing-page-v3.tsx` | Minimalist variant |
+
+### Routing
+
+The main `frontend/app/page.tsx` renders the active landing page variant.
+
+## Episode Library & Overview
+
+### Episode Library
+
+`frontend/components/episode-library.tsx` displays available episodes:
+- Episode cards with thumbnails
+- Preview vs full episode badges
+- Lock icons for unreleased content
+- Progress indicators
+
+### Episode Overview
+
+`frontend/components/episode-overview.tsx` shows episode details:
+- AI-generated summary (narrative arc, themes, key moments)
+- Taxonomy cluster coverage visualization
+- Deep dive summaries and evidence threads (auto-fetched)
+- Jump-to-claim functionality
+
+## Design System
+
+The frontend uses a warm, earthy color palette defined in CSS custom properties.
+
+### Brand Colors
+
+| Name | Hex | Usage |
+|------|-----|-------|
+| Golden Chestnut | `#BE7C4D` | Primary accent, highlights, CTAs |
+| Rosy Copper | `#BE5A38` | Secondary accent, active states |
+
+### Evidence Type Colors
+
+Used for badges and borders on evidence cards to indicate research significance:
+
+| Type | Hex | CSS Variable | Meaning |
+|------|-----|--------------|---------|
+| Foundational | `#7A8B6E` | `--evidence-foundational` | Muted sage - bedrock research |
+| Supporting | `#BE5A38` | `--evidence-supporting` | Rosy copper - builds on foundation |
+| Direct Evidence | `#BE7C4D` | `--evidence-direct` | Golden chestnut - confirms claim |
+| Speculative | `#8B8178` | `--evidence-speculative` | Warm stone - uncertain/exploratory |
+
+### Color Files
+
+- `frontend/app/globals.css` - Base theme variables
+- `frontend/app/noeron.css` - Extended Noeron-specific styles including evidence colors
+
 ## Docs to read first
 
 - `docs/LLM_CONTEXT.md`
 - `docs/pipeline.md`
 - `docs/TAXONOMY_CLUSTERS.md`
-- `scripts/README.md`
+- `docs/KNOWLEDGE_GRAPH_ARCHITECTURE.md`
+- `docs/DEPLOYMENT.md`

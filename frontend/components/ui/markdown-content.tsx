@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils"
 interface MarkdownContentProps {
   content: string
   className?: string
-  variant?: "default" | "chat" | "compact"
+  variant?: "default" | "chat" | "compact" | "synthesis"
 }
 
 export function MarkdownContent({
@@ -15,6 +15,24 @@ export function MarkdownContent({
   className,
   variant = "default",
 }: MarkdownContentProps) {
+  // For synthesis variant, preprocess content to convert inline headers to actual headers
+  const processedContent = React.useMemo(() => {
+    if (variant !== "synthesis") return content
+
+    // Convert various "**Header:**" patterns to "### Header\n\n" for better rendering
+    // Handle both "**Header:**" and "**Header**:" patterns
+    let processed = content
+      // Pattern: **Header:** (colon inside bold)
+      .replace(/\*\*(Finding|Why It Matters|Evidence Strength|Key Uncertainties):\*\*\s*/gi, '\n\n### $1\n\n')
+      // Pattern: **Header**: (colon outside bold)
+      .replace(/\*\*(Finding|Why It Matters|Evidence Strength|Key Uncertainties)\*\*:\s*/gi, '\n\n### $1\n\n')
+      // Clean up excessive newlines
+      .replace(/\n{3,}/g, '\n\n')
+      .trim()
+
+    return processed
+  }, [content, variant])
+
   return (
     <div
       className={cn(
@@ -22,6 +40,7 @@ export function MarkdownContent({
         // Variant-specific styles
         variant === "chat" && "[&_p]:my-1 [&_ul]:my-2 [&_ol]:my-2 [&_h3]:my-2 [&_h4]:my-2 [&_h5]:my-2",
         variant === "compact" && "[&_p]:my-0.5 [&_ul]:my-1 [&_ol]:my-1 [&_h3]:my-1 [&_h4]:my-1 [&_h5]:my-1 text-xs",
+        variant === "synthesis" && "[&_h5]:mt-6 [&_h5]:mb-3 [&_p]:mb-4",
         className
       )}
     >
@@ -39,7 +58,7 @@ export function MarkdownContent({
           </h4>
         ),
         h3: ({ children }) => (
-          <h5 className="text-sm font-semibold text-[var(--golden-chestnut)] uppercase tracking-wider mt-3 mb-1 first:mt-0">
+          <h5 className="text-base font-semibold text-[var(--golden-chestnut)] uppercase tracking-wider mt-6 mb-2 first:mt-0">
             {children}
           </h5>
         ),
@@ -98,7 +117,7 @@ export function MarkdownContent({
         ),
       }}
       >
-        {content}
+        {processedContent}
       </ReactMarkdown>
     </div>
   )

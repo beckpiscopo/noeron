@@ -302,6 +302,7 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
     setDeepDiveErrors(prev => ({ ...prev, [style]: null }))
 
     try {
+      // TODO: Consider increasing n_results to 10-12 for richer synthesis on future episodes
       const data = await callMcpTool<DeepDiveSummary>("generate_deep_dive_summary", {
         claim_id: claim.id,
         episode_id: episodeId,
@@ -475,7 +476,6 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
 
   // Use real data or fallback
   const synthesis = contextData?.synthesis
-  const confidenceMetrics = contextData?.confidence_metrics
 
   // Clear figures state
   const handleClearFigures = () => {
@@ -565,7 +565,7 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
           className="flex-1 w-full transition-all duration-300 ease-in-out"
           style={{ marginRight: chatOpen ? '440px' : '0' }}
         >
-          <div className="max-w-4xl mx-auto px-4 md:px-8 py-8">
+          <div className="max-w-6xl mx-auto px-4 lg:px-6 py-6">
             {/* Claim Card */}
             <ClaimCard
               claim={claim}
@@ -575,7 +575,7 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
             />
 
             {/* Segmented Tab Bar - sticky below header */}
-            <div className="sticky top-[112px] z-30 bg-background/95 backdrop-blur-sm pt-6 pb-4 -mx-4 px-4 md:-mx-8 md:px-8 border-b border-transparent [&.is-stuck]:border-border transition-colors">
+            <div className="sticky top-[112px] z-30 bg-background/95 backdrop-blur-sm pt-4 pb-3 -mx-4 px-4 lg:-mx-6 lg:px-6 border-b border-transparent [&.is-stuck]:border-border transition-colors">
               <SegmentedTabBar
                 activeTab={activeTab}
                 onTabChange={setActiveTab}
@@ -583,7 +583,7 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
             </div>
 
             {/* Tab Content */}
-            <div className="mt-6">
+            <div className="mt-4">
               {activeTab === "overview" && (
                 <OverviewTab
                   synthesisMode={synthesisMode}
@@ -592,7 +592,6 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
                   isLoadingDeepDive={isLoadingDeepDive}
                   deepDiveErrors={deepDiveErrors}
                   onFetchDeepDive={fetchDeepDiveSummary}
-                  confidenceMetrics={confidenceMetrics}
                   episodeId={episodeId}
                   onViewSourcePaper={onViewSourcePaper}
                 />
