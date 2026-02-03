@@ -17,6 +17,7 @@ import {
   Image,
   FileCheck,
   Plus,
+  User,
 } from "lucide-react"
 import {
   generateSlideDeck,
@@ -26,6 +27,8 @@ import {
   type UserSlide,
 } from "@/lib/api"
 import { useAuth } from "@/contexts/auth-context"
+import { supabase } from "@/lib/supabase"
+import { toast } from "sonner"
 
 // ============================================================================
 // Types
@@ -462,8 +465,33 @@ export function SlideDeckGenerator({
   // Share update state
   const [updatingShareFor, setUpdatingShareFor] = useState<string | null>(null)
 
+  // Display name prompt state (for community sharing)
+  const [showDisplayNamePrompt, setShowDisplayNamePrompt] = useState(false)
+  const [displayNameInput, setDisplayNameInput] = useState("")
+  const [currentDisplayName, setCurrentDisplayName] = useState<string | null>(null)
+  const [pendingShareStyle, setPendingShareStyle] = useState<SlideStyle | null>(null)
+  const [isSavingDisplayName, setIsSavingDisplayName] = useState(false)
+
   // LocalStorage key for anonymous slide storage
   const localStorageKey = `slides_${claimId}`
+
+  // Fetch user's display name (to check if it's the default)
+  useEffect(() => {
+    async function fetchDisplayName() {
+      if (!user?.id || !supabase) return
+
+      const { data, error } = await supabase
+        .from("user_profiles")
+        .select("display_name")
+        .eq("id", user.id)
+        .maybeSingle()
+
+      if (!error && data?.display_name) {
+        setCurrentDisplayName(data.display_name)
+      }
+    }
+    fetchDisplayName()
+  }, [user?.id])
 
   // Fetch existing slides on mount
   useEffect(() => {
@@ -574,7 +602,50 @@ export function SlideDeckGenerator({
     }
   }
 
-  const handleToggleShare = async (style: SlideStyle) => {
+  // Check if display name is the auto-generated default (email username)
+  const isDefaultDisplayName = useCallback(() => {
+    if (!user?.email || !currentDisplayName) return true
+    const emailUsername = user.email.split("@")[0]
+    return currentDisplayName === emailUsername || currentDisplayName === user.user_metadata?.name
+  }, [user?.email, user?.user_metadata?.name, currentDisplayName])
+
+  // Save display name and continue with sharing
+  const handleSaveDisplayNameAndShare = async () => {
+    if (!user?.id || !supabase || !displayNameInput.trim() || !pendingShareStyle) return
+
+    setIsSavingDisplayName(true)
+    try {
+      const { error } = await supabase
+        .from("user_profiles")
+        .upsert({
+          id: user.id,
+          display_name: displayNameInput.trim(),
+          updated_at: new Date().toISOString(),
+        })
+
+      if (error) {
+        toast.error("Failed to save display name")
+        return
+      }
+
+      setCurrentDisplayName(displayNameInput.trim())
+      setShowDisplayNamePrompt(false)
+      setDisplayNameInput("")
+      toast.success("Display name saved")
+
+      // Continue with the share action
+      await performShare(pendingShareStyle)
+    } catch (err) {
+      console.error("Failed to save display name:", err)
+      toast.error("Failed to save display name")
+    } finally {
+      setIsSavingDisplayName(false)
+      setPendingShareStyle(null)
+    }
+  }
+
+  // Perform the actual share action
+  const performShare = async (style: SlideStyle) => {
     const slide = existingSlides[style]
     if (!user?.id || !slide) return
 
@@ -586,12 +657,37 @@ export function SlideDeckGenerator({
           ...prev,
           [style]: { ...prev[style], is_public: !prev[style].is_public },
         }))
+        if (!existingSlides[style].is_public) {
+          toast.success("Slides shared to community")
+        }
       }
     } catch (err) {
       console.error("Failed to update sharing:", err)
+      toast.error("Failed to update sharing")
     } finally {
       setUpdatingShareFor(null)
     }
+  }
+
+  const handleToggleShare = async (style: SlideStyle) => {
+    const slide = existingSlides[style]
+    if (!user?.id || !slide) return
+
+    // If unsharing, no need to check display name
+    if (slide.is_public) {
+      await performShare(style)
+      return
+    }
+
+    // If sharing and display name is default, show prompt
+    if (isDefaultDisplayName()) {
+      setPendingShareStyle(style)
+      setShowDisplayNamePrompt(true)
+      return
+    }
+
+    // Display name is set, proceed with sharing
+    await performShare(style)
   }
 
   const openLightbox = (style: SlideStyle, index: number) => {
@@ -656,6 +752,65 @@ export function SlideDeckGenerator({
               className="text-red-400/70 hover:text-red-400 transition-colors shrink-0"
             >
               <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Display Name Prompt (for community sharing) */}
+      {showDisplayNamePrompt && (
+        <div className="p-4 bg-[var(--golden-chestnut)]/10 border border-[var(--golden-chestnut)]/30 rounded-sm space-y-3">
+          <div className="flex items-start gap-3">
+            <div className="w-8 h-8 rounded-full bg-[var(--golden-chestnut)]/20 flex items-center justify-center flex-shrink-0">
+              <User className="w-4 h-4 text-[var(--golden-chestnut)]" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-medium text-sm">Set a display name to share with the community</p>
+              <p className="text-xs text-foreground/60 mt-1">
+                Your name will be shown on shared slides.
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                setShowDisplayNamePrompt(false)
+                setPendingShareStyle(null)
+                setDisplayNameInput("")
+              }}
+              className="text-foreground/40 hover:text-foreground/60 transition-colors flex-shrink-0"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={displayNameInput}
+              onChange={(e) => setDisplayNameInput(e.target.value)}
+              placeholder="Your display name"
+              className="flex-1 px-3 py-2 text-sm bg-background border border-border rounded-sm focus:outline-none focus:ring-2 focus:ring-[var(--golden-chestnut)]/30 focus:border-[var(--golden-chestnut)]"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && displayNameInput.trim()) {
+                  handleSaveDisplayNameAndShare()
+                }
+              }}
+              disabled={isSavingDisplayName}
+            />
+            <button
+              onClick={handleSaveDisplayNameAndShare}
+              disabled={!displayNameInput.trim() || isSavingDisplayName}
+              className="px-4 py-2 bg-[var(--golden-chestnut)] text-white text-sm font-medium rounded-sm hover:bg-[var(--golden-chestnut)]/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+              {isSavingDisplayName ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  Saving
+                </>
+              ) : (
+                <>
+                  <Globe className="w-3.5 h-3.5" />
+                  Save & Share
+                </>
+              )}
             </button>
           </div>
         </div>

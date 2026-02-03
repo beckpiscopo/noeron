@@ -6,6 +6,7 @@ import { ThemeProvider } from "@/contexts/theme-context"
 import { AuthProvider } from "@/contexts/auth-context"
 import { GeminiKeyProvider } from "@/contexts/gemini-key-context"
 import { BookmarkProvider } from "@/hooks/use-bookmarks"
+import { Toaster } from "@/components/ui/sonner"
 import "./globals.css"
 import "./noeron.css"
 
@@ -62,6 +63,7 @@ export default function RootLayout({
             <GeminiKeyProvider>
               <BookmarkProvider>
                 {children}
+                <Toaster />
                 <Analytics />
               </BookmarkProvider>
             </GeminiKeyProvider>
