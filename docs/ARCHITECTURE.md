@@ -459,6 +459,108 @@ The script prompt instructs Gemini to create natural dialogue that:
 3. Allow MIME types: `audio/wav`, `audio/mpeg`
 4. Run SQL migration `012_add_generated_podcasts_storage.sql`
 
+## AI Slide Deck Generation
+
+Users can generate presentation slide decks on deep dive pages. The system creates visually rich slides with AI-generated content and images, downloadable as PDF.
+
+### Architecture
+
+```
+User selects style (presenter/detailed) and clicks "Generate Slides"
+    ↓
+Frontend: callMcpTool("generate_slide_deck", {claim_id, episode_id, style, user_id})
+    ↓
+Backend (_generate_slide_deck_impl in server.py):
+  1. Check database cache for existing slides (by user_id, claim_id, style)
+  2. Load claim context from claims cache
+  3. Load deep dive summary from cache
+  4. Generate slide specifications via Gemini 3
+  5. Generate slide images via Gemini Imagen
+  6. Assemble PDF using ReportLab
+  7. Upload PDF + thumbnails to Supabase Storage
+  8. Save to generated_slides table
+  9. Return pdf_url, thumbnail_urls, slide_count
+    ↓
+Frontend: SlideDeckGenerator renders thumbnails, download button, share toggle
+```
+
+### Two Slide Styles
+
+| Style | Slides | Content Depth | Use Case |
+|-------|--------|---------------|----------|
+| **Presenter** | 5-7 | Key points only, visual focus | Live presentations |
+| **Detailed** | 8-12 | Comprehensive with citations | Share without narration |
+
+### Slide Types
+
+Each deck includes a mix of:
+- **Title slide**: Claim headline with visual
+- **Content slides**: Key concepts with supporting visuals
+- **Evidence slides**: Paper citations with findings
+- **Summary slide**: Key takeaways
+
+### Key Files
+
+| File | Purpose |
+|------|---------|
+| `src/bioelectricity_research/server.py` | `_generate_slide_deck_impl()`, `generate_slide_deck` MCP tool |
+| `src/bioelectricity_research/http_server.py` | `/tools/generate_slide_deck/execute`, `/tools/get_user_slides/execute` |
+| `frontend/components/deep-exploration/slides/slide-deck-generator.tsx` | Main component with style selector, progress, carousel |
+| `frontend/components/deep-exploration/tabs/create-tab.tsx` | Integration point in Create tab |
+| `frontend/lib/api.ts` | `generateSlideDeck()`, `getUserSlides()` API functions |
+| `supabase/migrations/019_add_generated_slides.sql` | Database schema |
+| `supabase/migrations/020_add_slides_storage.sql` | Storage bucket policies |
+
+### Database Schema
+
+```sql
+CREATE TABLE generated_slides (
+  id uuid PRIMARY KEY,
+  user_id uuid REFERENCES auth.users(id),
+  claim_id text NOT NULL,
+  episode_id text NOT NULL,
+  style text NOT NULL CHECK (style IN ('presenter', 'detailed')),
+  slide_count int NOT NULL,
+  slide_specs jsonb NOT NULL,
+  pdf_url text NOT NULL,
+  thumbnail_urls text[],
+  is_public boolean DEFAULT false,
+  created_at timestamptz DEFAULT now(),
+  generation_time_ms int,
+  CONSTRAINT unique_user_claim_style UNIQUE (user_id, claim_id, style)
+);
+```
+
+### Storage
+
+- **Bucket:** `generated-slides` (private, in Supabase Storage)
+- **Access:** Signed URLs for authenticated users
+- **Path format:** `{safe_claim_id}/{style}_{file_id}.pdf`
+- **Thumbnails:** `{safe_claim_id}/thumb_{style}_{idx}_{file_id}.png`
+
+### Frontend Features
+
+1. **Style Selector**: Visual cards showing slide count and use case
+2. **Progress Indicator**: 4-stage animation (Planning → Content → Visuals → Assembly)
+3. **Thumbnail Carousel**: Horizontal scroll with navigation arrows, click-to-expand
+4. **Lightbox**: Full-size slide preview with keyboard navigation (←→, Esc)
+5. **Share Toggle**: Inline switch to share with community
+6. **Persistence**: Fetches existing slides on mount, stores in localStorage for anonymous users
+
+### Configuration
+
+- **Content model:** `gemini-3-pro-preview` for slide planning and text
+- **Image model:** Gemini Imagen for slide visuals
+- **PDF generation:** ReportLab with custom slide layouts
+- **Requires:** `SUPABASE_SERVICE_KEY` env var for storage uploads
+
+### Setup Required
+
+1. Create `generated-slides` bucket in Supabase Dashboard
+2. Set file size limit to 100MB
+3. Allow MIME types: `application/pdf`, `image/png`
+4. Run SQL migrations `019_add_generated_slides.sql` and `020_add_slides_storage.sql`
+
 ## Taxonomy Cluster System (Knowledge Cartography)
 
 The taxonomy cluster system organizes the paper corpus into 8-12 labeled "research territories" using GMM clustering, enabling users to visualize their exploration coverage against the full research landscape.

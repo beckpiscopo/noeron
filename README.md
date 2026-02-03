@@ -21,8 +21,15 @@ Noeron creates **epistemological bridges** - connecting informal podcast explana
 
 - **Live Research Stream**: Shows relevant papers in real-time as you listen to podcasts
 - **Context Cards**: AI-generated summaries linking specific claims to supporting research
-- **Research Threads**: Traces how scientific understanding evolved through experimental validation
-- **Ask Questions**: Chat with an AI that has read both the podcast transcript and all cited papers
+- **Deep Dive Exploration**: Explore claims with evidence threads, supporting papers, and related concepts
+- **AI Chat with Thinking Traces**: Chat with an AI that shows its reasoning process in real-time
+- **AI Image Generation**: Generate scientific visualizations with `/visualize` or `/image` commands
+- **Mini Podcasts**: Generate NotebookLM-style two-host discussions about any claim
+- **Slide Deck Generation**: Create AI-generated presentations with visual slides for any claim
+- **Research Notebooks**: Save and organize claims, papers, snippets, and AI insights
+- **Knowledge Cartography**: Visualize research territories with taxonomy clusters
+- **Quiz Mode**: Test your understanding of podcast content
+- **Mobile-First Design**: Responsive UI optimized for listening on the go
 
 Think of it as having a research assistant who has already read every paper the podcast guest references.
 
@@ -55,15 +62,17 @@ Noeron showcases Gemini 3's unique capabilities for scientific reasoning:
 
 ## Demo
 
-> **[3-Minute Demo Video](#)** (Coming soon)
+> **[Demo Video](https://youtu.be/YOUR_VIDEO_ID)** - See Noeron in action
 
-**Key Demo Moments:**
+**Key Features Demonstrated:**
 - Live Research Stream showing papers as Levin speaks
-- Context card generation for "bioelectric patterns" claim
-- Research thread showing experimental progression 1993→2025
-- Cross-episode synthesis finding common themes
+- Deep dive into "bioelectric patterns" claim with evidence threads
+- AI chat with real-time thinking traces
+- Mini podcast generation explaining complex concepts
+- Knowledge cartography showing research territory coverage
+- Mobile-responsive listening experience
 
-**Try it yourself:** [AI Studio App Link](#) (Coming soon)
+**Try it yourself:** [Live Demo](https://noeron.app) (requires Gemini API key)
 
 ## Hackathon Submission
 
@@ -152,9 +161,9 @@ synthesize_episodes([
 #                     contradictions explained over time
 ```
 
-### 5. Interactive Q&A
+### 5. Interactive Q&A with Thinking Traces
 
-Chat with an AI that has read the podcast transcript and all referenced papers.
+Chat with an AI that has read the podcast transcript and all referenced papers. See Gemini 3's reasoning process in real-time via SSE streaming.
 
 ```python
 answer_question(
@@ -162,7 +171,75 @@ answer_question(
     context=["transcript", "papers", "figures"]
 )
 # Uses Gemini 3's enhanced reasoning to synthesize answer
+# Shows thinking traces: "Let me consider the bioelectric signaling..."
 ```
+
+### 6. AI Image Generation
+
+Generate scientific visualizations directly in chat.
+
+```bash
+# Explicit commands
+/visualize cell membrane voltage gradients
+/image planarian regeneration process
+
+# Natural language
+"Show me a diagram of bioelectric pattern formation"
+```
+
+### 7. Mini Podcast Generation
+
+Generate NotebookLM-style two-host discussions about any claim.
+
+```python
+generate_mini_podcast(
+    claim_id="claim_123",
+    episode_id="lex_325",
+    style="educational"
+)
+# Returns: 3-5 minute audio with ALEX and SAM discussing the claim
+# Uses Gemini 3 for script + Gemini 2.5 TTS for multi-speaker audio
+```
+
+### 8. Slide Deck Generation
+
+Create presentation slide decks with AI-generated visuals for any claim.
+
+```python
+generate_slide_deck(
+    claim_id="claim_123",
+    episode_id="lex_325",
+    style="presenter"  # or "detailed"
+)
+# Returns: PDF with 5-12 slides, thumbnail previews, shareable link
+# Uses Gemini 3 for content + Imagen for slide visuals
+```
+
+**Two Styles:**
+- **Presenter** (5-7 slides): Clean visuals with key points for live presentation
+- **Detailed** (8-12 slides): Comprehensive deck to share without narration
+
+**Features:**
+- Progress indicator with 4 stages (Planning → Content → Visuals → Assembly)
+- Thumbnail carousel with click-to-expand lightbox
+- Community sharing toggle
+- Persists across page refreshes
+
+### 9. Research Notebooks
+
+Save and organize your research journey with bookmarks for:
+- Claims with evidence threads
+- Paper snippets with highlights
+- AI-generated insights and images
+- Episode moments
+
+### 10. Knowledge Cartography
+
+Visualize the research landscape with taxonomy clusters:
+- 8-12 "research territories" from GMM clustering
+- See which territories each episode covers
+- Track your exploration progress
+- Discover new areas to explore
 
 ## Architecture
 
@@ -245,9 +322,12 @@ Papers (150+ on bioelectricity)
 
 ### Prerequisites
 - Python 3.10+
+- [uv](https://github.com/astral-sh/uv) (Python package manager)
+- Node.js 18+ with pnpm
 - Google Gemini API key ([get one free](https://ai.google.dev))
-- AssemblyAI API key (for transcript generation)
-- ffmpeg (for audio processing)
+- Supabase project (for production) or local mode for development
+- AssemblyAI API key (for transcript generation, optional)
+- ffmpeg (for audio processing, optional)
 
 ### Quick Start
 
@@ -256,17 +336,20 @@ Papers (150+ on bioelectricity)
 git clone https://github.com/beckpiscopo/bioelectricity_researcher
 cd bioelectricity_researcher
 
-# Create virtual environment
-python -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+# Install Python dependencies with uv
+uv sync
 
-# Install dependencies
-pip install -r requirements.txt
-
-# Set up API keys
-export GEMINI_API_KEY="your_gemini_key"
-export ASSEMBLYAI_API_KEY="your_assemblyai_key"
+# Set up environment variables
+cp .env.example .env
+# Edit .env with your API keys:
+# - GEMINI_API_KEY (required for all AI features)
+# - SUPABASE_URL and SUPABASE_SERVICE_KEY (for production)
+# - ASSEMBLYAI_API_KEY (for transcript generation)
 ```
+
+### BYOK (Bring Your Own Key)
+
+Users must provide their own Gemini API key to use AI features. The app prompts for this on first use and stores it securely in the browser.
 
 ### Build Vector Store
 
@@ -298,34 +381,45 @@ python scripts/run_context_card_builder_batch.py \
 ### Run the Application
 
 ```bash
-# Start the Next.js frontend
-cd frontend
-npm install
-npm run dev
+# Start the backend HTTP server
+uv run python -m src.bioelectricity_research.http_server
 
-# In another terminal, start the backend
-cd ..
-python -m uvicorn src.api:app --reload
+# In another terminal, start the Next.js frontend
+cd frontend
+pnpm install
+pnpm dev
 ```
 
 Visit `http://localhost:3000`
+
+### Environment Variables
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `GEMINI_API_KEY` | Yes | Google Gemini API key for AI features |
+| `SUPABASE_URL` | Production | Supabase project URL |
+| `SUPABASE_SERVICE_KEY` | Production | Supabase service role key |
+| `USE_SUPABASE` | No | Set to `false` for local development (default: `true`) |
+| `ASSEMBLYAI_API_KEY` | Optional | For generating new transcripts |
 
 ## Current Corpus
 
 ### Papers
 - **150+ papers** on bioelectricity, morphogenesis, regeneration
 - **Date range:** 1993-2025 (Michael Levin's complete work)
-- **Topics:** Gap junctions, ion channels, pattern formation, xenobots
+- **Topics:** Gap junctions, ion channels, pattern formation, xenobots, collective intelligence
 
 ### Podcasts/Interviews
-- Lex Fridman #325 (Michael Levin)
-- *More coming soon*
+- Lex Fridman #325 (Michael Levin) - Full episode with claims
+- Theories of Everything (Michael Levin) - Preview episode
+- Additional episodes in pipeline
 
 ### Processing Stats
 - **Total chunks:** ~15,000
 - **Average chunk size:** 400 tokens
 - **Embedding model:** Gemini text-embedding-004 (768 dimensions)
-- **RAG accuracy:** 75% (validated on test queries)
+- **Taxonomy clusters:** 8-12 research territories via GMM clustering
+- **Storage:** Supabase pgvector (production) / ChromaDB (local)
 
 ## UI/UX Design
 
@@ -356,38 +450,69 @@ Visit `http://localhost:3000`
 ## Project Structure
 
 ```
-bioelectricity_researcher/
-├── agents/                     # Gemini-powered reasoning agents
-│   ├── claim_detector.py
-│   └── hypothesis_generator.py
+bioelectricity-research-mcp-v2/
+├── agents/                         # Gemini-powered reasoning agents
+│   └── verification_agent.py       # Claim verification logic
 ├── data/
-│   ├── papers_collection.json  # Metadata for all papers
-│   ├── cleaned_papers/         # Processed, chunkable JSON
-│   ├── grobid_fulltext/        # Raw GROBID extraction
-│   ├── vectorstore/            # ChromaDB persistence
-│   └── context_card_registry.json  # Generated context cards
+│   ├── papers_collection.json      # Metadata for all papers
+│   ├── cleaned_papers/             # Processed, chunkable JSON
+│   ├── grobid_fulltext/            # Raw GROBID extraction
+│   ├── vectorstore/                # ChromaDB persistence (local mode)
+│   ├── context_card_registry.json  # Generated context cards
+│   ├── episodes.json               # Episode metadata
+│   ├── episode_summaries.json      # AI-generated summaries
+│   ├── window_segments.json        # Transcript temporal windows
+│   └── knowledge_graph/            # Entity-relation extractions
 ├── scripts/
-│   ├── build_vector_store.py   # Chunk and embed papers
+│   ├── build_vector_store.py       # Chunk and embed papers
+│   ├── build_taxonomy_clusters.py  # GMM clustering for knowledge cartography
 │   ├── fetch_assemblyai_transcript.py
-│   ├── context_card_builder.py # Gemini claim → RAG → card
-│   └── run_context_card_builder_batch.py
+│   ├── context_card_builder.py     # Gemini claim → RAG → card
+│   ├── generate_episode_summaries.py
+│   ├── supabase_client.py          # Database client
+│   └── migrate_to_supabase_full.py # Data migration
 ├── src/
 │   ├── bioelectricity_research/
-│   │   ├── server.py           # FastMCP server
-│   │   ├── storage.py          # Paper CRUD operations
-│   │   └── rag.py              # Vector search
-│   ├── chunking_papers.py      # Tiktoken-based chunking
-│   └── api.py                  # REST API (optional)
-├── frontend/                   # Next.js application
-│   ├── src/
-│   │   ├── components/
-│   │   │   ├── LiveResearchStream.tsx
-│   │   │   ├── ContextCardViewer.tsx
-│   │   │   └── ChatInterface.tsx
-│   │   └── app/
+│   │   ├── server.py               # FastMCP server + MCP tools
+│   │   ├── http_server.py          # REST API adapter
+│   │   ├── context_builder.py      # Layered chat context system
+│   │   ├── vector_store.py         # ChromaDB/Supabase pgvector
+│   │   └── storage.py              # Paper CRUD operations
+│   ├── chunking_papers.py          # Tiktoken-based chunking
+│   └── embeddings.py               # Gemini embedding utilities
+├── frontend/                       # Next.js application
+│   ├── app/
+│   │   ├── page.tsx                # Landing page
+│   │   ├── library/page.tsx        # Episode library
+│   │   ├── episode/[id]/page.tsx   # Episode player
+│   │   ├── notebook/[id]/page.tsx  # Notebook view
+│   │   └── api/                    # API proxy routes
+│   ├── components/
+│   │   ├── listening-view.tsx      # Podcast player with live research
+│   │   ├── deep-exploration-view.tsx # Claim deep dive
+│   │   ├── episode-overview.tsx    # Episode summary + clusters
+│   │   ├── notebook-view.tsx       # Research notebook
+│   │   ├── mini-podcast-player.tsx # AI podcast player
+│   │   ├── taxonomy-bubble-map.tsx # Knowledge cartography
+│   │   ├── quiz-mode.tsx           # Interactive quizzes
+│   │   ├── ai-chat/                # AI chat components
+│   │   └── mobile/                 # Mobile-optimized components
+│   ├── hooks/
+│   │   └── use-ai-chat.ts          # Chat state management
+│   └── lib/
+│       ├── supabase.ts             # Supabase client + types
+│       └── chat-types.ts           # TypeScript interfaces
+├── supabase/
+│   ├── migrations/                 # Database schema migrations
+│   └── schema.sql                  # Full schema reference
+├── cache/                          # Runtime caches
+│   └── generated_podcasts.json     # Mini podcast cache
 ├── tests/
 └── docs/
-    └── pipeline.md             # Full data flow documentation
+    ├── ARCHITECTURE.md             # System architecture
+    ├── pipeline.md                 # Data flow documentation
+    ├── TAXONOMY_CLUSTERS.md        # Clustering system guide
+    └── DEPLOYMENT.md               # Deployment instructions
 ```
 
 ## Testing
@@ -451,9 +576,11 @@ This project demonstrates Gemini 3's superiority for scientific reasoning:
 
 ## Documentation
 
+- **[Architecture Overview](docs/ARCHITECTURE.md)** - System design and component details
 - **[Pipeline Documentation](docs/pipeline.md)** - Complete data flow
-- **[API Reference](#)** - Tool descriptions and parameters
-- **[Architecture Diagram](#)** - System design overview
+- **[Taxonomy Clusters](docs/TAXONOMY_CLUSTERS.md)** - Knowledge cartography implementation
+- **[Deployment Guide](docs/DEPLOYMENT.md)** - Production deployment instructions
+- **[LLM Context](docs/LLM_CONTEXT.md)** - Context for AI development assistance
 
 ## Contributing
 
@@ -472,10 +599,10 @@ MIT License - See [LICENSE](LICENSE) for details
 
 ## Contact
 
-**Beck Piscopo**  
-- Website: [www.beckpiscopo.xyd]
-- X: [@beckpiscopo]
-- Project Link: https://github.com/beckpiscopo/bioelectricity_researcher
+**Beck Piscopo**
+- Website: [beckpiscopo.xyz](https://beckpiscopo.xyz)
+- X: [@beckpiscopo](https://x.com/beckpiscopo)
+- Project Link: [github.com/beckpiscopo/bioelectricity_researcher](https://github.com/beckpiscopo/bioelectricity_researcher)
 
 ---
 
