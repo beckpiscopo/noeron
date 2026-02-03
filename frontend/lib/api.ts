@@ -110,3 +110,99 @@ export async function getClaimFigures(
     limit: limit ?? 10,
   })
 }
+
+// Slide Deck Generation types
+export interface SlideSpec {
+  type: "title" | "content" | "evidence" | "summary"
+  title?: string
+  headline?: string
+  subtitle?: string
+  bullets?: string[]
+  key_takeaways?: string[]
+  visual_prompt?: string
+  paper_citation?: string
+}
+
+export interface GeneratedSlides {
+  pdf_url: string
+  thumbnail_urls: string[]
+  slide_count: number
+  slide_specs: SlideSpec[]
+  cached: boolean
+  generated_at: string
+  generation_time_ms?: number
+  error?: string
+  error_code?: string
+}
+
+export interface CommunitySlide {
+  id: string
+  style: "presenter" | "detailed"
+  slide_count: number
+  pdf_url: string
+  thumbnail_urls: string[]
+  created_at: string
+  creator_name: string
+}
+
+export async function generateSlideDeck(
+  claimId: string,
+  episodeId: string,
+  style: "presenter" | "detailed",
+  userId?: string,
+  forceRegenerate = false
+): Promise<GeneratedSlides> {
+  return callMcpTool<GeneratedSlides>("generate_slide_deck", {
+    claim_id: claimId,
+    episode_id: episodeId,
+    style,
+    user_id: userId,
+    force_regenerate: forceRegenerate,
+  })
+}
+
+export async function getCommunitySlides(claimId: string): Promise<{ slides: CommunitySlide[]; count: number }> {
+  return callMcpTool<{ slides: CommunitySlide[]; count: number }>("get_community_slides", {
+    claim_id: claimId,
+  })
+}
+
+export async function updateSlideSharing(
+  slideId: string,
+  isPublic: boolean,
+  userId: string
+): Promise<{ success: boolean; error?: string }> {
+  return callMcpTool<{ success: boolean; error?: string }>("update_slide_sharing", {
+    slide_id: slideId,
+    is_public: isPublic,
+    user_id: userId,
+  })
+}
+
+// User's own slides for a claim
+export interface UserSlide {
+  id: string
+  style: "presenter" | "detailed"
+  slide_count: number
+  pdf_url: string
+  thumbnail_urls: string[]
+  slide_specs: SlideSpec[]
+  is_public: boolean
+  created_at: string
+}
+
+export interface UserSlidesResponse {
+  slides: Record<string, UserSlide>
+  styles_created: ("presenter" | "detailed")[]
+  error?: string
+}
+
+export async function getUserSlides(
+  claimId: string,
+  userId: string
+): Promise<UserSlidesResponse> {
+  return callMcpTool<UserSlidesResponse>("get_user_slides", {
+    claim_id: claimId,
+    user_id: userId,
+  })
+}

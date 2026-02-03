@@ -1,8 +1,11 @@
 "use client"
 
+import { useState } from "react"
 import { Mic } from "lucide-react"
 import { MiniPodcastPlayer } from "@/components/mini-podcast-player"
+import { SlideDeckGenerator, ShareSlideModal } from "../slides"
 import type { GeneratePodcastResponse } from "@/lib/chat-types"
+import type { GeneratedSlides } from "@/lib/api"
 
 function CornerBrackets({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
@@ -17,6 +20,8 @@ function CornerBrackets({ children, className = "" }: { children: React.ReactNod
 }
 
 interface CreateTabProps {
+  claimId: string
+  episodeId: string
   miniPodcast: GeneratePodcastResponse | null
   isLoadingPodcast: boolean
   podcastError: string | null
@@ -26,6 +31,8 @@ interface CreateTabProps {
 }
 
 export function CreateTab({
+  claimId,
+  episodeId,
   miniPodcast,
   isLoadingPodcast,
   podcastError,
@@ -33,6 +40,20 @@ export function CreateTab({
   onRegeneratePodcast,
   synthesisMode,
 }: CreateTabProps) {
+  const [generatedSlides, setGeneratedSlides] = useState<GeneratedSlides | null>(null)
+  const [showShareModal, setShowShareModal] = useState(false)
+  const [currentSlideId, setCurrentSlideId] = useState<string | null>(null)
+
+  const handleSlideGenerated = (slides: GeneratedSlides) => {
+    setGeneratedSlides(slides)
+  }
+
+  const handleShareSlides = (slides: GeneratedSlides) => {
+    // Use pdf_url as a temporary ID - in production this would be the DB id
+    setCurrentSlideId(slides.pdf_url)
+    setShowShareModal(true)
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -78,12 +99,13 @@ export function CreateTab({
           <p className="text-foreground/40 text-sm">Coming soon</p>
         </CornerBrackets>
 
-        <CornerBrackets className="bg-card/20 p-6 opacity-50">
-          <div className="flex items-center gap-2 mb-2">
-            <span className="text-lg">📊</span>
-            <h4 className="font-medium">Slides</h4>
-          </div>
-          <p className="text-foreground/40 text-sm">Coming soon</p>
+        <CornerBrackets className="bg-card/30 p-6">
+          <SlideDeckGenerator
+            claimId={claimId}
+            episodeId={episodeId}
+            onGenerated={handleSlideGenerated}
+            onShare={handleShareSlides}
+          />
         </CornerBrackets>
 
         <CornerBrackets className="bg-card/20 p-6 opacity-50">
@@ -94,6 +116,16 @@ export function CreateTab({
           <p className="text-foreground/40 text-sm">Coming soon</p>
         </CornerBrackets>
       </div>
+
+      <ShareSlideModal
+        open={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        slideId={currentSlideId || ""}
+        isCurrentlyPublic={false}
+        onShareUpdated={(isPublic) => {
+          console.log("Share updated:", isPublic)
+        }}
+      />
     </div>
   )
 }

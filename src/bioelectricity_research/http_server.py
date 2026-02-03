@@ -1846,6 +1846,212 @@ async def http_papers_with_figures():
     return {"paper_ids": list(_get_papers_with_figures())}
 
 
+@app.post("/tools/get_claim_figures/execute")
+async def http_get_claim_figures(request: Request):
+    """Get figures from papers in a claim's evidence threads."""
+    try:
+        body = await request.json()
+        from .server import _get_claim_figures_impl
+
+        claim_id = body.get("claim_id")
+        episode_id = body.get("episode_id")
+        limit = body.get("limit", 10)
+
+        if not claim_id:
+            return JSONResponse({"error": "claim_id required"}, status_code=400)
+        if not episode_id:
+            return JSONResponse({"error": "episode_id required"}, status_code=400)
+
+        result = await _get_claim_figures_impl(claim_id, episode_id, limit)
+        return result
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.post("/tools/generate_slide_deck/execute")
+async def http_generate_slide_deck(request: Request):
+    """Generate a presentation slide deck for a claim."""
+    try:
+        body = await request.json()
+        await _set_gemini_key_from_header(request)
+
+        from .server import _generate_slide_deck_impl
+
+        claim_id = body.get("claim_id")
+        episode_id = body.get("episode_id")
+        style = body.get("style", "presenter")
+        force_regenerate = body.get("force_regenerate", False)
+        user_id = body.get("user_id")
+
+        if not claim_id:
+            return JSONResponse({"error": "claim_id required"}, status_code=400)
+        if not episode_id:
+            return JSONResponse({"error": "episode_id required"}, status_code=400)
+
+        result = await _generate_slide_deck_impl(
+            claim_id=claim_id,
+            episode_id=episode_id,
+            style=style,
+            force_regenerate=force_regenerate,
+            user_id=user_id,
+        )
+        return result
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.post("/tools/get_community_slides/execute")
+async def http_get_community_slides(request: Request):
+    """Get publicly shared slides for a claim."""
+    try:
+        body = await request.json()
+
+        from .server import _get_supabase_client
+
+        claim_id = body.get("claim_id")
+        if not claim_id:
+            return JSONResponse({"error": "claim_id required"}, status_code=400)
+
+        db = _get_supabase_client()
+
+        result = (
+            db.client.table("generated_slides")
+            .select("id, style, slide_count, pdf_url, thumbnail_urls, created_at, user_id")
+            .eq("claim_id", claim_id)
+            .eq("is_public", True)
+            .order("created_at", desc=True)
+            .execute()
+        )
+
+        slides = result.data or []
+
+        # Fetch creator profiles
+        if slides:
+            user_ids = list(set(s["user_id"] for s in slides if s.get("user_id")))
+            if user_ids:
+                profiles_result = (
+                    db.client.table("user_profiles")
+                    .select("id, display_name")
+                    .in_("id", user_ids)
+                    .execute()
+                )
+                profiles = {p["id"]: p for p in (profiles_result.data or [])}
+
+                for slide in slides:
+                    profile = profiles.get(slide.get("user_id"), {})
+                    slide["creator_name"] = profile.get("display_name", "Anonymous")
+                    del slide["user_id"]
+
+        return {"slides": slides, "count": len(slides)}
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JSONResponse({"error": str(e), "slides": [], "count": 0}, status_code=500)
+
+
+@app.post("/tools/update_slide_sharing/execute")
+async def http_update_slide_sharing(request: Request):
+    """Update the sharing status of a slide deck."""
+    try:
+        body = await request.json()
+
+        from .server import _get_supabase_client
+
+        slide_id = body.get("slide_id")
+        is_public = body.get("is_public")
+        user_id = body.get("user_id")
+
+        if not slide_id:
+            return JSONResponse({"error": "slide_id required"}, status_code=400)
+        if is_public is None:
+            return JSONResponse({"error": "is_public required"}, status_code=400)
+        if not user_id:
+            return JSONResponse({"error": "user_id required"}, status_code=400)
+
+        db = _get_supabase_client()
+
+        result = (
+            db.client.table("generated_slides")
+            .update({"is_public": is_public})
+            .eq("id", slide_id)
+            .eq("user_id", user_id)
+            .execute()
+        )
+
+        if not result.data:
+            return {"error": "Slide not found or you don't have permission", "success": False}
+
+        return {
+            "success": True,
+            "is_public": is_public,
+            "message": "Slide is now shared with the community" if is_public else "Slide is now private",
+        }
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JSONResponse({"error": str(e), "success": False}, status_code=500)
+
+
+@app.post("/tools/get_user_slides/execute")
+async def http_get_user_slides(request: Request):
+    """Get a user's own slides for a claim (both styles if they exist)."""
+    try:
+        body = await request.json()
+
+        from .server import _get_supabase_client
+
+        claim_id = body.get("claim_id")
+        user_id = body.get("user_id")
+
+        if not claim_id:
+            return JSONResponse({"error": "claim_id required"}, status_code=400)
+        if not user_id:
+            return JSONResponse({"error": "user_id required"}, status_code=400)
+
+        db = _get_supabase_client()
+
+        result = (
+            db.client.table("generated_slides")
+            .select("id, style, slide_count, pdf_url, thumbnail_urls, slide_specs, is_public, created_at")
+            .eq("claim_id", claim_id)
+            .eq("user_id", user_id)
+            .order("created_at", desc=True)
+            .execute()
+        )
+
+        slides = result.data or []
+
+        # Group by style for easy access
+        slides_by_style = {}
+        for slide in slides:
+            style = slide.get("style")
+            if style and style not in slides_by_style:
+                slides_by_style[style] = {
+                    "id": slide["id"],
+                    "style": style,
+                    "slide_count": slide["slide_count"],
+                    "pdf_url": slide["pdf_url"],
+                    "thumbnail_urls": slide.get("thumbnail_urls", []),
+                    "slide_specs": slide.get("slide_specs", []),
+                    "is_public": slide.get("is_public", False),
+                    "created_at": slide["created_at"],
+                }
+
+        return {
+            "slides": slides_by_style,
+            "styles_created": list(slides_by_style.keys()),
+        }
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JSONResponse({"error": str(e), "slides": {}, "styles_created": []}, status_code=500)
+
+
 def run_server(host=None, port=None):
     """Run the HTTP server.
 
