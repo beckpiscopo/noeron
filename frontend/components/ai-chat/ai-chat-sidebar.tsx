@@ -66,6 +66,14 @@ export function AIChatSidebar({
   const { hasKey } = useGeminiKey()
   const [apiKeyModalOpen, setApiKeyModalOpen] = useState(false)
   const isMobile = useIsMobile()
+
+  // Check for API key when the sidebar is opened externally (e.g., via FAB button)
+  // This handles the case where open is set to true directly without going through handleOpenChange
+  useEffect(() => {
+    if (open && !hasKey) {
+      setApiKeyModalOpen(true)
+    }
+  }, [open, hasKey])
   const scrollRef = useRef<HTMLDivElement>(null)
   const [isDragOver, setIsDragOver] = useState(false)
   const [width, setWidth] = useState(DEFAULT_WIDTH)

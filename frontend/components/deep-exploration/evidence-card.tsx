@@ -60,7 +60,7 @@ export function EvidenceCard({
 
   return (
     <div
-      className={`group bg-[#1a1a1a] border-l-4 ${typeStyle.borderColor} p-5 transition-all hover:bg-[#222]`}
+      className={`group bg-card border-l-4 ${typeStyle.borderColor} p-5 transition-all hover:bg-card/80`}
       onClick={() => paperId && onViewPaper?.(paperId)}
       style={{ cursor: paperId && onViewPaper ? 'pointer' : 'default' }}
     >

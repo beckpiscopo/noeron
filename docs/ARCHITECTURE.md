@@ -59,6 +59,7 @@ The system supports two storage backends, controlled by `USE_SUPABASE` environme
 - `claim_cluster_assignments` - Inherited cluster assignments for claims
 - `bookmarks` - User-saved items (claims, papers, snippets, AI insights, images)
 - `notebook_synthesis` - Cached AI-generated notebook overviews
+- `user_profiles` - User display names and profile metadata
 
 **Key Supabase Functions:**
 - `match_papers(query_embedding, threshold, count)` - Vector similarity search via pgvector
@@ -640,24 +641,38 @@ User visits app
     ↓
 Check localStorage for existing API key
     ↓
-If no key → Show ApiKeyModal
+If no key → Redirect to /settings
     ↓
-User enters Gemini API key
+User enters Gemini API key in Settings page
     ↓
 Key stored in localStorage (browser-side only)
     ↓
 Key sent with each API request via header
     ↓
 Backend uses user's key for Gemini calls
+
+Magic Link Auth Flow:
+    ↓
+User clicks magic link in email
+    ↓
+Redirects to /auth/callback
+    ↓
+If first login → prompts for display name
+    ↓
+Saves to user_profiles table
+    ↓
+Redirects to original destination
 ```
 
 ### Key Components
 
 | File | Purpose |
 |------|---------|
-| `frontend/components/api-key-modal.tsx` | Modal for entering/managing API key |
-| `frontend/components/auth-modal.tsx` | Authentication UI (if using Supabase auth) |
-| `frontend/components/user-menu.tsx` | User dropdown with key management |
+| `frontend/app/settings/page.tsx` | Settings page with profile, API key, and account sections |
+| `frontend/app/auth/callback/route.ts` | Magic link callback with welcome flow for new users |
+| `frontend/components/api-key-modal.tsx` | Legacy modal (API key management moved to settings page) |
+| `frontend/components/auth-modal.tsx` | Authentication UI (Supabase magic link auth) |
+| `frontend/components/user-menu.tsx` | User dropdown linking to settings |
 | `frontend/lib/supabase.ts` | Auth state management |
 
 ### Security Notes

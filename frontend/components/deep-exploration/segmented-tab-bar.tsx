@@ -1,6 +1,6 @@
 "use client"
 
-export type TabId = "overview" | "evidence" | "figures" | "graph" | "create"
+export type TabId = "overview" | "evidence" | "figures" | "graph" | "create" | "community"
 
 interface Tab {
   id: TabId
@@ -13,6 +13,7 @@ const TABS: Tab[] = [
   { id: "figures", label: "Figures" },
   { id: "graph", label: "Graph" },
   { id: "create", label: "Create" },
+  { id: "community", label: "Community" },
 ]
 
 interface SegmentedTabBarProps {
@@ -24,25 +25,27 @@ interface SegmentedTabBarProps {
 export function SegmentedTabBar({ activeTab, onTabChange, className = "" }: SegmentedTabBarProps) {
   return (
     <div
-      className={`flex border border-border overflow-hidden bg-background ${className}`}
+      className={`flex gap-1 border-b border-border/30 ${className}`}
       role="tablist"
     >
-      {TABS.map((tab, index) => (
+      {TABS.map((tab) => (
         <button
           key={tab.id}
           role="tab"
           aria-selected={activeTab === tab.id}
           onClick={() => onTabChange(tab.id)}
           className={`
-            flex-1 px-4 py-3 text-center text-sm font-medium transition-colors
-            ${index < TABS.length - 1 ? "border-r border-border" : ""}
+            px-4 py-2.5 text-sm font-medium transition-colors relative
             ${activeTab === tab.id
-              ? "bg-[var(--golden-chestnut)]/10 text-[var(--golden-chestnut)]"
-              : "bg-transparent text-foreground/60 hover:text-foreground hover:bg-foreground/5"
+              ? "text-foreground"
+              : "text-foreground/50 hover:text-foreground/80"
             }
           `}
         >
           {tab.label}
+          {activeTab === tab.id && (
+            <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[var(--golden-chestnut)]" />
+          )}
         </button>
       ))}
     </div>

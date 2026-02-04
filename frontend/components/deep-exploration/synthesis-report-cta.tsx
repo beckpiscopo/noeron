@@ -14,18 +14,18 @@ export function SynthesisReportCTA({
   isLoading = false,
 }: SynthesisReportCTAProps) {
   return (
-    <div className="mt-8 pt-6 border-t border-border">
+    <div className="mt-12 py-8">
       <div className="text-center">
-        <h4 className="text-sm font-medium text-foreground/80 mb-1">
+        <h4 className="text-base font-medium text-foreground mb-2">
           Want more structured evidence?
         </h4>
-        <p className="text-xs text-foreground/50 mb-4">
+        <p className="text-sm text-foreground/50 mb-6">
           Generate a comprehensive summary of all {papersCount} papers in this thread.
         </p>
         <button
           onClick={onGenerate}
           disabled={isLoading}
-          className="inline-flex items-center gap-2 px-4 py-2.5 bg-[var(--golden-chestnut)] hover:bg-[var(--golden-chestnut)]/90 text-[var(--carbon-black)] font-medium text-sm rounded transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          className="inline-flex items-center gap-2 px-6 py-3 bg-[var(--golden-chestnut)] hover:bg-[var(--golden-chestnut)]/90 text-[var(--carbon-black)] font-semibold text-sm rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isLoading ? (
             <>

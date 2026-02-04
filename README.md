@@ -349,7 +349,9 @@ cp .env.example .env
 
 ### BYOK (Bring Your Own Key)
 
-Users must provide their own Gemini API key to use AI features. The app prompts for this on first use and stores it securely in the browser.
+Users must provide their own Gemini API key to use AI features. The app redirects to the settings page (`/settings`) on first use where users can enter their API key. Keys are stored securely in the browser's localStorage.
+
+First-time users who sign in via magic link are prompted to set a display name before continuing.
 
 ### Build Vector Store
 

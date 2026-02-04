@@ -1,7 +1,6 @@
 "use client"
 
 import { useState } from "react"
-import { Info, Filter } from "lucide-react"
 
 interface RelevanceFactor {
   id: string
@@ -17,14 +16,12 @@ interface ThreadContextSidebarProps {
 }
 
 const DEFAULT_FACTORS: RelevanceFactor[] = [
-  { id: "experimental", label: "Experimental", active: true },
-  { id: "morphogenesis", label: "Morphogenesis", active: true },
-  { id: "theoretical", label: "Theoretical", active: true },
+  { id: "experimental", label: "EXPERIMENTAL", active: true },
+  { id: "morphogenesis", label: "MORPHOGENESIS", active: true },
+  { id: "levin", label: "LEVIN ET AL.", active: false },
 ]
 
 export function ThreadContextSidebar({
-  threadCount,
-  papersAnalyzed,
   contextSummary,
   onFilterChange,
 }: ThreadContextSidebarProps) {
@@ -39,30 +36,20 @@ export function ThreadContextSidebar({
   }
 
   return (
-    <div className="w-64 shrink-0 space-y-6">
+    <div className="w-56 shrink-0 space-y-6">
       {/* Thread Context Header */}
       <div>
-        <div className="flex items-center gap-2 mb-3">
-          <Info className="w-4 h-4 text-foreground/50" />
-          <h4 className="text-sm font-semibold text-foreground/80">Thread Context</h4>
-        </div>
-        <p className="text-xs text-foreground/60 leading-relaxed">
+        <h4 className="text-sm font-semibold text-foreground mb-3">Thread Context</h4>
+        <p className="text-sm text-foreground/50 leading-relaxed">
           {contextSummary}
         </p>
-      </div>
-
-      {/* Stats */}
-      <div className="flex gap-4 text-xs text-foreground/50">
-        <span>{threadCount} threads</span>
-        <span>•</span>
-        <span>{papersAnalyzed} papers</span>
       </div>
 
       {/* Relevance Factors */}
       <div>
         <div className="flex items-center gap-2 mb-3">
-          <Filter className="w-4 h-4 text-foreground/50" />
-          <h4 className="text-xs font-semibold uppercase tracking-wider text-foreground/50">
+          <span className="text-[var(--golden-chestnut)]">◆</span>
+          <h4 className="text-xs font-medium uppercase tracking-wider text-foreground/50">
             Relevance Factors
           </h4>
         </div>
@@ -71,10 +58,10 @@ export function ThreadContextSidebar({
             <button
               key={factor.id}
               onClick={() => toggleFactor(factor.id)}
-              className={`px-2.5 py-1 text-xs rounded-full border transition-all ${
+              className={`px-3 py-1.5 text-[10px] font-medium rounded border transition-all ${
                 factor.active
-                  ? "border-[var(--golden-chestnut)] bg-[var(--golden-chestnut)]/10 text-[var(--golden-chestnut)]"
-                  : "border-border bg-transparent text-foreground/40 hover:border-foreground/30"
+                  ? "border-[var(--golden-chestnut)] bg-[var(--golden-chestnut)]/20 text-[var(--golden-chestnut)]"
+                  : "border-foreground/20 bg-transparent text-foreground/40 hover:border-foreground/40"
               }`}
             >
               {factor.label}

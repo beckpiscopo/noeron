@@ -19,7 +19,7 @@ import type { GeneratePodcastResponse } from "@/lib/chat-types"
 // New components
 import { ClaimCard } from "./deep-exploration/claim-card"
 import { SegmentedTabBar, type TabId } from "./deep-exploration/segmented-tab-bar"
-import { OverviewTab, EvidenceTab, FiguresTab, GraphTab, CreateTab } from "./deep-exploration/tabs"
+import { OverviewTab, EvidenceTab, FiguresTab, GraphTab, CreateTab, CommunityTab } from "./deep-exploration/tabs"
 
 interface DeepExplorationViewProps {
   episode: {
@@ -638,6 +638,8 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
 
               {activeTab === "create" && (
                 <CreateTab
+                  claimId={claim.id}
+                  episodeId={episodeId}
                   miniPodcast={miniPodcast}
                   isLoadingPodcast={isLoadingPodcast}
                   podcastError={podcastError}
@@ -645,6 +647,10 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
                   onRegeneratePodcast={() => fetchMiniPodcast(true)}
                   synthesisMode={synthesisMode}
                 />
+              )}
+
+              {activeTab === "community" && (
+                <CommunityTab claimId={claim.id} />
               )}
             </div>
           </div>

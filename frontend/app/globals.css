@@ -24,7 +24,7 @@
   --secondary: #d4c5b0;
   --secondary-foreground: #3d2817;
   --muted: #d4c5b0;
-  --muted-foreground: #6b5842;
+  --muted-foreground: #4d3d2f;
   --accent: #BE7C4D;
   --accent-foreground: #3d2817;
   --destructive: oklch(0.577 0.245 27.325);
@@ -69,7 +69,7 @@
   --secondary: #6B5D52;
   --secondary-foreground: #F2E9E4;
   --muted: #2A2B2D;
-  --muted-foreground: rgba(242, 233, 228, 0.7);
+  --muted-foreground: rgba(242, 233, 228, 0.85);
   --accent: #BE7C4D;
   --accent-foreground: #1D1E20;
   --destructive: #BE5A38;
@@ -227,6 +227,23 @@
   
   .hover\:border-white\/20:hover {
     border-color: rgba(235, 226, 210, 0.2) !important;
+  }
+}
+
+/* Enhanced text contrast for readability */
+@layer utilities {
+  /* Light mode: boost opacity values for better contrast on cream background */
+  :root .text-foreground\/40 {
+    color: color-mix(in srgb, var(--foreground) 55%, transparent);
+  }
+  :root .text-foreground\/50 {
+    color: color-mix(in srgb, var(--foreground) 65%, transparent);
+  }
+  :root .text-foreground\/60 {
+    color: color-mix(in srgb, var(--foreground) 75%, transparent);
+  }
+  :root .text-foreground\/70 {
+    color: color-mix(in srgb, var(--foreground) 85%, transparent);
   }
 }
 
