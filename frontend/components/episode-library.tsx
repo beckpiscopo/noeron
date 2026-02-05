@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import { Play, Clock, Calendar, FileText, Search, HelpCircle, Lock } from "lucide-react"
 import { callMcpTool } from "@/lib/api"
 import { NoeronHeader } from "./noeron-header"
@@ -65,10 +66,15 @@ const fallbackEpisodes: Episode[] = [
 ]
 
 export function EpisodeLibrary({ onSelectEpisode }: EpisodeLibraryProps) {
+  const router = useRouter()
   const [episodes, setEpisodes] = useState<Episode[]>(fallbackEpisodes)
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle")
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [highlightedEpisodeId, setHighlightedEpisodeId] = useState<string | null>(fallbackEpisodes[0]?.id ?? null)
+
+  const handleBookmarksClick = () => {
+    router.push("/notebooks")
+  }
 
   const iconButtonClasses =
     "flex h-9 w-9 items-center justify-center rounded-full text-foreground/70 transition hover:text-foreground"
@@ -121,7 +127,7 @@ export function EpisodeLibrary({ onSelectEpisode }: EpisodeLibraryProps) {
 
   return (
     <div className="noeron-theme relative flex min-h-screen w-full flex-col bg-background text-foreground">
-      <NoeronHeader actions={headerActions} />
+      <NoeronHeader actions={headerActions} onBookmarksClick={handleBookmarksClick} />
 
       {/* Main Content */}
       <main className="flex-1 w-full px-4 md:px-10 py-8">

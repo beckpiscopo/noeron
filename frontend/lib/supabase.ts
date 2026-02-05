@@ -473,7 +473,29 @@ export function subscribeToClaimsForEpisode(
 // Bookmark Query Functions
 // ============================================================================
 
-const DEFAULT_USER_ID = 'default_user'
+/**
+ * Get the current user ID from Supabase auth
+ * Throws an error if not authenticated (required for user-specific data)
+ */
+async function getCurrentUserId(): Promise<string> {
+  if (!supabase) {
+    throw new Error('Supabase client not configured')
+  }
+
+  const { data: { user }, error } = await supabase.auth.getUser()
+
+  if (error) {
+    console.error('Error getting user:', error)
+    throw new Error(`Authentication error: ${error.message}`)
+  }
+
+  if (!user?.id) {
+    throw new Error('Not authenticated. Please sign in to use this feature.')
+  }
+
+  console.log('[getCurrentUserId] User ID:', user.id)
+  return user.id
+}
 
 /**
  * Get all bookmarks for the current user
@@ -481,10 +503,11 @@ const DEFAULT_USER_ID = 'default_user'
 export async function getBookmarks(type?: BookmarkType): Promise<Bookmark[]> {
   if (!supabase) return []
 
+  const userId = await getCurrentUserId()
   let query = supabase
     .from('bookmarks')
     .select('*')
-    .eq('user_id', DEFAULT_USER_ID)
+    .eq('user_id', userId)
     .order('created_at', { ascending: false })
 
   if (type) {
@@ -502,10 +525,11 @@ export async function getBookmarks(type?: BookmarkType): Promise<Bookmark[]> {
 export async function getBookmarksWithDetails(): Promise<BookmarkWithDetails[]> {
   if (!supabase) return []
 
+  const userId = await getCurrentUserId()
   const { data: bookmarks, error } = await supabase
     .from('bookmarks')
     .select('*')
-    .eq('user_id', DEFAULT_USER_ID)
+    .eq('user_id', userId)
     .order('created_at', { ascending: false })
 
   if (error) throw error
@@ -547,11 +571,12 @@ export async function isBookmarked(
 ): Promise<boolean> {
   if (!supabase) return false
 
+  const userId = await getCurrentUserId()
   const column = type === 'claim' ? 'claim_id' : 'paper_id'
   const { count, error } = await supabase
     .from('bookmarks')
     .select('*', { count: 'exact', head: true })
-    .eq('user_id', DEFAULT_USER_ID)
+    .eq('user_id', userId)
     .eq('bookmark_type', type)
     .eq(column, itemId)
 
@@ -565,16 +590,25 @@ export async function isBookmarked(
 export async function createBookmark(bookmark: Partial<Bookmark>): Promise<Bookmark | null> {
   if (!supabase) return null
 
+  const userId = await getCurrentUserId()
+
+  const insertData = {
+    ...bookmark,
+    user_id: userId,
+  }
+
+  console.log('[createBookmark] Inserting:', JSON.stringify(insertData, null, 2))
+
   const { data, error } = await supabase
     .from('bookmarks')
-    .insert({
-      ...bookmark,
-      user_id: DEFAULT_USER_ID,
-    })
+    .insert(insertData)
     .select()
     .single()
 
-  if (error) throw error
+  if (error) {
+    console.error('[createBookmark] Full error:', JSON.stringify(error, null, 2))
+    throw error
+  }
   return data
 }
 
@@ -587,11 +621,12 @@ export async function updateBookmark(
 ): Promise<Bookmark | null> {
   if (!supabase) return null
 
+  const userId = await getCurrentUserId()
   const { data, error } = await supabase
     .from('bookmarks')
     .update(updates)
     .eq('id', bookmarkId)
-    .eq('user_id', DEFAULT_USER_ID)
+    .eq('user_id', userId)
     .select()
     .single()
 
@@ -605,11 +640,12 @@ export async function updateBookmark(
 export async function deleteBookmark(bookmarkId: string): Promise<void> {
   if (!supabase) return
 
+  const userId = await getCurrentUserId()
   const { error } = await supabase
     .from('bookmarks')
     .delete()
     .eq('id', bookmarkId)
-    .eq('user_id', DEFAULT_USER_ID)
+    .eq('user_id', userId)
 
   if (error) throw error
 }
@@ -620,10 +656,11 @@ export async function deleteBookmark(bookmarkId: string): Promise<void> {
 export async function getQuizEnabledBookmarks(): Promise<Bookmark[]> {
   if (!supabase) return []
 
+  const userId = await getCurrentUserId()
   const { data, error } = await supabase
     .from('bookmarks')
     .select('*')
-    .eq('user_id', DEFAULT_USER_ID)
+    .eq('user_id', userId)
     .eq('quiz_enabled', true)
     .order('last_quizzed_at', { ascending: true, nullsFirst: true })
 
@@ -664,6 +701,8 @@ export async function updateBookmarkQuizStats(
 
 /**
  * Subscribe to bookmark changes (real-time)
+ * Note: This subscribes to ALL bookmark changes for the table and filters client-side
+ * because the user ID is determined asynchronously
  */
 export function subscribeToBookmarks(
   callback: (payload: { eventType: string; bookmark: Bookmark }) => void
@@ -673,6 +712,10 @@ export function subscribeToBookmarks(
     return () => {}
   }
 
+  // Get current user ID asynchronously and set up filtered callback
+  let currentUserId: string | null = null
+  getCurrentUserId().then(id => { currentUserId = id })
+
   const channel = supabase
     .channel('bookmarks_changes')
     .on(
@@ -681,13 +724,16 @@ export function subscribeToBookmarks(
         event: '*',
         schema: 'public',
         table: 'bookmarks',
-        filter: `user_id=eq.${DEFAULT_USER_ID}`,
       },
       (payload) => {
-        callback({
-          eventType: payload.eventType,
-          bookmark: payload.new as Bookmark,
-        })
+        // Filter client-side to only process bookmarks for current user
+        const bookmark = payload.new as Bookmark
+        if (currentUserId && bookmark.user_id === currentUserId) {
+          callback({
+            eventType: payload.eventType,
+            bookmark,
+          })
+        }
       }
     )
     .subscribe()
@@ -749,11 +795,13 @@ export async function getOrCreateChatSession(
 ): Promise<ChatSession | null> {
   if (!supabase) return null
 
+  const userId = await getCurrentUserId()
+
   // Try to find an existing active session for this context
   const { data: existingSession, error: findError } = await supabase
     .from('chat_sessions')
     .select('*')
-    .eq('user_id', DEFAULT_USER_ID)
+    .eq('user_id', userId)
     .eq('podcast_id', podcastId)
     .eq('is_active', true)
     .order('last_activity_at', { ascending: false })
@@ -779,7 +827,7 @@ export async function getOrCreateChatSession(
   const { data: newSession, error: createError } = await supabase
     .from('chat_sessions')
     .insert({
-      user_id: DEFAULT_USER_ID,
+      user_id: userId,
       podcast_id: podcastId,
       claim_id: claimId || null,
       is_active: true,
@@ -801,10 +849,11 @@ export async function getOrCreateChatSession(
 export async function getChatSessions(podcastId?: string): Promise<ChatSession[]> {
   if (!supabase) return []
 
+  const userId = await getCurrentUserId()
   let query = supabase
     .from('chat_sessions')
     .select('*')
-    .eq('user_id', DEFAULT_USER_ID)
+    .eq('user_id', userId)
     .order('last_activity_at', { ascending: false })
 
   if (podcastId) {
@@ -896,11 +945,12 @@ export async function closeChatSession(sessionId: string): Promise<void> {
 export async function deleteChatSession(sessionId: string): Promise<void> {
   if (!supabase) return
 
+  const userId = await getCurrentUserId()
   const { error } = await supabase
     .from('chat_sessions')
     .delete()
     .eq('id', sessionId)
-    .eq('user_id', DEFAULT_USER_ID)
+    .eq('user_id', userId)
 
   if (error) {
     console.error('Error deleting chat session:', error)
@@ -917,10 +967,11 @@ export async function deleteChatSession(sessionId: string): Promise<void> {
 export async function getBookmarksForEpisode(episodeId: string): Promise<BookmarkWithDetails[]> {
   if (!supabase) return []
 
+  const userId = await getCurrentUserId()
   const { data: bookmarks, error } = await supabase
     .from('bookmarks')
     .select('*')
-    .eq('user_id', DEFAULT_USER_ID)
+    .eq('user_id', userId)
     .eq('episode_id', episodeId)
     .order('created_at', { ascending: false })
 
@@ -963,11 +1014,13 @@ export async function getBookmarksForEpisode(episodeId: string): Promise<Bookmar
 export async function getEpisodesWithBookmarks(): Promise<EpisodeNotebookStats[]> {
   if (!supabase) return []
 
+  const userId = await getCurrentUserId()
+
   // Use the view we created in the migration
   const { data, error } = await supabase
     .from('episode_notebook_stats')
     .select('*')
-    .eq('user_id', DEFAULT_USER_ID)
+    .eq('user_id', userId)
     .order('last_updated', { ascending: false })
 
   if (error) {
@@ -976,7 +1029,7 @@ export async function getEpisodesWithBookmarks(): Promise<EpisodeNotebookStats[]
     const { data: bookmarks } = await supabase
       .from('bookmarks')
       .select('episode_id, bookmark_type, created_at')
-      .eq('user_id', DEFAULT_USER_ID)
+      .eq('user_id', userId)
       .not('episode_id', 'is', null)
       .neq('episode_id', '')  // Also filter out empty strings
 
@@ -1019,10 +1072,11 @@ export async function getEpisodesWithBookmarks(): Promise<EpisodeNotebookStats[]
 export async function getNotebookSynthesis(episodeId: string): Promise<NotebookSynthesis | null> {
   if (!supabase) return null
 
+  const userId = await getCurrentUserId()
   const { data, error } = await supabase
     .from('notebook_synthesis')
     .select('*')
-    .eq('user_id', DEFAULT_USER_ID)
+    .eq('user_id', userId)
     .eq('episode_id', episodeId)
     .maybeSingle()
 
@@ -1049,10 +1103,11 @@ export async function saveNotebookSynthesis(
 ): Promise<NotebookSynthesis | null> {
   if (!supabase) return null
 
+  const userId = await getCurrentUserId()
   const { data, error } = await supabase
     .from('notebook_synthesis')
     .upsert({
-      user_id: DEFAULT_USER_ID,
+      user_id: userId,
       episode_id: episodeId,
       synthesis_text: synthesis.synthesis_text,
       themes: synthesis.themes,
@@ -1081,10 +1136,11 @@ export async function saveNotebookSynthesis(
 export async function deleteNotebookSynthesis(episodeId: string): Promise<void> {
   if (!supabase) return
 
+  const userId = await getCurrentUserId()
   const { error } = await supabase
     .from('notebook_synthesis')
     .delete()
-    .eq('user_id', DEFAULT_USER_ID)
+    .eq('user_id', userId)
     .eq('episode_id', episodeId)
 
   if (error) {
@@ -1168,8 +1224,9 @@ export async function getNotebookClusterDistribution(
 ): Promise<NotebookClusterDistribution[]> {
   if (!supabase) return []
 
+  const userId = await getCurrentUserId()
   const params: { p_user_id: string; p_episode_id?: string } = {
-    p_user_id: DEFAULT_USER_ID
+    p_user_id: userId
   }
   if (episodeId) {
     params.p_episode_id = episodeId
@@ -1216,10 +1273,11 @@ export async function compareEpisodeToNotebook(
     }
   }
 
+  const userId = await getCurrentUserId()
   const { data, error } = await supabase
     .rpc('compare_episode_to_notebook', {
       p_podcast_id: podcastId,
-      p_user_id: DEFAULT_USER_ID
+      p_user_id: userId
     })
 
   if (error) {
@@ -1378,9 +1436,10 @@ export async function getBookmarksByCluster(
 ): Promise<BookmarkWithCluster[]> {
   if (!supabase) return []
 
+  const userId = await getCurrentUserId()
   const { data, error } = await supabase
     .rpc('get_bookmarks_by_cluster', {
-      p_user_id: DEFAULT_USER_ID,
+      p_user_id: userId,
       p_cluster_id: clusterId,
       p_episode_id: episodeId || null
     })
