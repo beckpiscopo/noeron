@@ -81,7 +81,7 @@ function SettingsContent() {
   // Redirect if not authenticated
   useEffect(() => {
     if (authState === "unauthenticated") {
-      router.push("/")
+      router.push("/login?redirect=/settings")
     }
   }, [authState, router])
 

@@ -12,7 +12,6 @@ import {
   Circle,
   Loader2,
   Search,
-  Settings,
   HelpCircle,
   Layers,
   Sparkles
@@ -1088,9 +1087,6 @@ export function EpisodeOverview({ episode, onStartListening, onBack, onBookmarks
     <>
       <button className={iconButtonClasses}>
         <Search className="h-4 w-4" />
-      </button>
-      <button className={iconButtonClasses}>
-        <Settings className="h-4 w-4" />
       </button>
       <button className={iconButtonClasses}>
         <HelpCircle className="h-4 w-4" />

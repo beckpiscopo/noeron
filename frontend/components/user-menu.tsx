@@ -1,6 +1,5 @@
 "use client"
 
-import { useState } from "react"
 import Link from "next/link"
 import { User, LogOut, Settings, ChevronDown } from "lucide-react"
 import {
@@ -14,21 +13,16 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/contexts/auth-context"
-import { AuthModal } from "@/components/auth-modal"
 
 export function UserMenu() {
   const { user, authState, signOut } = useAuth()
-  const [authModalOpen, setAuthModalOpen] = useState(false)
 
   // Show sign in button if not authenticated
   if (authState === "unauthenticated") {
     return (
-      <>
-        <Button variant="outline" size="sm" onClick={() => setAuthModalOpen(true)}>
-          Sign In
-        </Button>
-        <AuthModal open={authModalOpen} onOpenChange={setAuthModalOpen} />
-      </>
+      <Button variant="outline" size="sm" asChild>
+        <Link href="/login">Sign In</Link>
+      </Button>
     )
   }
 
@@ -90,16 +84,14 @@ export function UserMenu() {
  */
 export function UserMenuCompact() {
   const { user, authState, signOut } = useAuth()
-  const [authModalOpen, setAuthModalOpen] = useState(false)
 
   if (authState === "unauthenticated") {
     return (
-      <>
-        <Button variant="ghost" size="icon-sm" onClick={() => setAuthModalOpen(true)}>
+      <Button variant="ghost" size="icon-sm" asChild>
+        <Link href="/login">
           <User className="h-4 w-4" />
-        </Button>
-        <AuthModal open={authModalOpen} onOpenChange={setAuthModalOpen} />
-      </>
+        </Link>
+      </Button>
     )
   }
 

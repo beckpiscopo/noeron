@@ -6,7 +6,6 @@ import {
   FileText,
   Quote,
   Search,
-  Settings,
   HelpCircle,
   Trash2,
   Edit3,
@@ -85,9 +84,6 @@ export function NotebookView({
     <>
       <button onClick={onBack} className={iconButtonClasses} title="Back to Notebooks">
         <ArrowLeft className="h-4 w-4" />
-      </button>
-      <button className={iconButtonClasses}>
-        <Settings className="h-4 w-4" />
       </button>
       <button className={iconButtonClasses}>
         <HelpCircle className="h-4 w-4" />

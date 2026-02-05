@@ -1,9 +1,19 @@
 "use client"
 
 import { useState } from "react"
-import { Play, Moon, Sun, Bookmark, Info, MessageSquare, Sparkles, Forward, Rewind, ChevronRight, Database, Brain, Zap, FileJson, Github, Menu } from "lucide-react"
+import Link from "next/link"
+import { Play, Moon, Sun, Bookmark, Info, MessageSquare, Sparkles, Forward, Rewind, ChevronRight, Database, Brain, Zap, FileJson, Github, Menu, User, LogOut, Settings } from "lucide-react"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { useTheme } from "next-themes"
+import { useAuth } from "@/contexts/auth-context"
 
 interface LandingPageProps {
   onGetStarted: () => void
@@ -11,6 +21,7 @@ interface LandingPageProps {
 
 export function LandingPage({ onGetStarted }: LandingPageProps) {
   const { theme, setTheme } = useTheme()
+  const { user, authState, signOut } = useAuth()
   const [mounted, setMounted] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
@@ -223,6 +234,37 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
                     >
                       Demo
                     </a>
+                    {authState === "authenticated" ? (
+                      <>
+                        <Link
+                          href="/settings"
+                          onClick={() => setMobileMenuOpen(false)}
+                          className="text-lg text-gray-400 hover:text-white transition-colors"
+                          style={{ fontFamily: "'Fira Code', monospace" }}
+                        >
+                          Settings
+                        </Link>
+                        <button
+                          onClick={() => {
+                            setMobileMenuOpen(false)
+                            signOut()
+                          }}
+                          className="text-lg text-red-400 hover:text-red-300 transition-colors text-left"
+                          style={{ fontFamily: "'Fira Code', monospace" }}
+                        >
+                          Sign out
+                        </button>
+                      </>
+                    ) : (
+                      <Link
+                        href="/login"
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="text-lg text-gray-400 hover:text-white transition-colors"
+                        style={{ fontFamily: "'Fira Code', monospace" }}
+                      >
+                        Sign in
+                      </Link>
+                    )}
                     <button
                       onClick={() => {
                         setMobileMenuOpen(false)
@@ -246,6 +288,40 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
                   <Moon className="w-5 h-5" />
                 )}
               </button>
+              {/* Auth button/menu */}
+              {authState === "authenticated" ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button className="p-2 text-gray-400 hover:text-white transition-colors">
+                      <User className="w-5 h-5" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56 bg-[#1E1E1E] border-[#333]">
+                    <DropdownMenuLabel className="font-normal">
+                      <p className="text-xs text-gray-400 truncate">{user?.email}</p>
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator className="bg-[#333]" />
+                    <DropdownMenuItem asChild className="text-gray-300 focus:bg-[#333] focus:text-white">
+                      <Link href="/settings">
+                        <Settings className="h-4 w-4" />
+                        Settings
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator className="bg-[#333]" />
+                    <DropdownMenuItem onClick={() => signOut()} className="text-red-400 focus:bg-[#333] focus:text-red-300">
+                      <LogOut className="h-4 w-4" />
+                      Sign out
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : authState === "unauthenticated" ? (
+                <Link
+                  href="/login"
+                  className="hidden sm:inline-flex items-center justify-center px-4 py-2 border border-gray-600 text-xs uppercase tracking-wide font-medium text-gray-300 hover:border-white hover:text-white transition-all"
+                >
+                  Sign In
+                </Link>
+              ) : null}
               <button
                 onClick={onGetStarted}
                 className="hidden sm:inline-flex items-center justify-center px-4 py-2 border border-[#C48B60] shadow-sm text-xs uppercase tracking-wide font-medium text-white bg-[#C48B60] hover:bg-[#A8744F] hover:border-[#A8744F] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#C48B60] transition-all"

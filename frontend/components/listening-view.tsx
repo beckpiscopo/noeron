@@ -5,7 +5,7 @@ import type React from "react"
 import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Play, Pause, RotateCcw, RotateCw, Info, Search, Settings, HelpCircle, MessageSquare } from "lucide-react"
+import { Play, Pause, RotateCcw, RotateCw, Info, Search, HelpCircle, MessageSquare } from "lucide-react"
 import { NoeronHeader } from "./noeron-header"
 import { ClaimBookmarkButton } from "./bookmark-button"
 import { AIChatSidebar } from "./ai-chat"
@@ -395,9 +395,6 @@ export function ListeningView({
     <>
       <button className={iconButtonClasses}>
         <Search className="h-4 w-4" />
-      </button>
-      <button className={iconButtonClasses}>
-        <Settings className="h-4 w-4" />
       </button>
       <button className={iconButtonClasses}>
         <HelpCircle className="h-4 w-4" />

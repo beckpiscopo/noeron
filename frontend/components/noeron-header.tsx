@@ -2,17 +2,21 @@
 
 import { ReactNode } from "react"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, Notebook, MoreVertical, Search, Settings, HelpCircle, Moon, Sun } from "lucide-react"
+import Link from "next/link"
+import { ArrowLeft, Notebook, MoreVertical, Search, Settings, HelpCircle, Moon, Sun, User, LogOut } from "lucide-react"
 import { useTheme } from "next-themes"
 import { useIsMobile } from "./ui/use-mobile"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu"
 import { ThemeToggle } from "./theme-toggle"
+import { Button } from "./ui/button"
+import { useAuth } from "@/contexts/auth-context"
 
 interface NoeronHeaderProps {
   onLogoClick?: () => void
@@ -33,6 +37,7 @@ export function NoeronHeader({
   const router = useRouter()
   const isMobile = useIsMobile()
   const { theme, setTheme } = useTheme()
+  const { user, authState, signOut } = useAuth()
 
   const handleLogoClick = () => {
     if (onLogoClick) {
@@ -100,13 +105,24 @@ export function NoeronHeader({
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
+                {authState === "authenticated" && user && (
+                  <>
+                    <DropdownMenuLabel className="font-normal">
+                      <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem className="gap-3" asChild>
+                      <Link href="/settings">
+                        <Settings className="h-4 w-4" />
+                        Settings
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                  </>
+                )}
                 <DropdownMenuItem className="gap-3">
                   <Search className="h-4 w-4" />
                   Search
-                </DropdownMenuItem>
-                <DropdownMenuItem className="gap-3">
-                  <Settings className="h-4 w-4" />
-                  Settings
                 </DropdownMenuItem>
                 <DropdownMenuItem className="gap-3">
                   <HelpCircle className="h-4 w-4" />
@@ -129,6 +145,20 @@ export function NoeronHeader({
                     </>
                   )}
                 </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                {authState === "authenticated" ? (
+                  <DropdownMenuItem className="gap-3 text-destructive" onClick={() => signOut()}>
+                    <LogOut className="h-4 w-4" />
+                    Sign out
+                  </DropdownMenuItem>
+                ) : (
+                  <DropdownMenuItem className="gap-3" asChild>
+                    <Link href="/login">
+                      <User className="h-4 w-4" />
+                      Sign in
+                    </Link>
+                  </DropdownMenuItem>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -158,6 +188,36 @@ export function NoeronHeader({
           )}
           {actions}
           <ThemeToggle />
+          {authState === "authenticated" ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="flex h-9 w-9 items-center justify-center rounded-full text-foreground/70 transition hover:text-foreground hover:bg-muted">
+                  <User className="h-4 w-4" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel className="font-normal">
+                  <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link href="/settings">
+                    <Settings className="h-4 w-4" />
+                    Settings
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem className="text-destructive" onClick={() => signOut()}>
+                  <LogOut className="h-4 w-4" />
+                  Sign out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : authState === "unauthenticated" ? (
+            <Button variant="outline" size="sm" asChild>
+              <Link href="/login">Sign In</Link>
+            </Button>
+          ) : null}
         </div>
       </div>
     </header>

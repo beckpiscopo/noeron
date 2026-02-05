@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Play, Clock, Calendar, FileText, Search, Settings, HelpCircle, Lock } from "lucide-react"
+import { Play, Clock, Calendar, FileText, Search, HelpCircle, Lock } from "lucide-react"
 import { callMcpTool } from "@/lib/api"
 import { NoeronHeader } from "./noeron-header"
 
@@ -77,9 +77,6 @@ export function EpisodeLibrary({ onSelectEpisode }: EpisodeLibraryProps) {
     <>
       <button className={iconButtonClasses}>
         <Search className="h-4 w-4" />
-      </button>
-      <button className={iconButtonClasses}>
-        <Settings className="h-4 w-4" />
       </button>
       <button className={iconButtonClasses}>
         <HelpCircle className="h-4 w-4" />

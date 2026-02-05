@@ -6,7 +6,6 @@ import {
   Clock,
   FileText,
   Search,
-  Settings,
   HelpCircle,
   ArrowLeft,
   Quote,
@@ -45,9 +44,6 @@ export function NotebookLibrary({ onSelectNotebook, onBack }: NotebookLibraryPro
     <>
       <button onClick={onBack} className={iconButtonClasses} title="Back to Library">
         <ArrowLeft className="h-4 w-4" />
-      </button>
-      <button className={iconButtonClasses}>
-        <Settings className="h-4 w-4" />
       </button>
       <button className={iconButtonClasses}>
         <HelpCircle className="h-4 w-4" />

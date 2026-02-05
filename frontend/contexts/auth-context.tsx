@@ -10,7 +10,7 @@ interface AuthContextType {
   user: User | null
   session: Session | null
   authState: AuthState
-  signInWithMagicLink: (email: string) => Promise<{ error: AuthError | null }>
+  signInWithMagicLink: (email: string, redirectTo?: string) => Promise<{ error: AuthError | null }>
   requestAccess: (email: string, name?: string, reason?: string) => Promise<{ error: Error | null; alreadyRequested?: boolean }>
   signOut: () => Promise<void>
   isAllowedEmail: (email: string) => Promise<boolean>
@@ -68,7 +68,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return !!data
   }, [])
 
-  const signInWithMagicLink = useCallback(async (email: string): Promise<{ error: AuthError | null }> => {
+  const signInWithMagicLink = useCallback(async (email: string, redirectTo?: string): Promise<{ error: AuthError | null }> => {
     if (!supabase) {
       return { error: { message: "Supabase not configured", name: "ConfigError" } as AuthError }
     }
@@ -84,15 +84,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    // Get the redirect URL (current origin + callback path)
-    const redirectTo = typeof window !== "undefined"
+    // Build the callback URL with optional redirect param
+    let callbackUrl = typeof window !== "undefined"
       ? `${window.location.origin}/auth/callback`
       : undefined
+
+    if (callbackUrl && redirectTo) {
+      callbackUrl = `${callbackUrl}?next=${encodeURIComponent(redirectTo)}`
+    }
 
     const { error } = await supabase.auth.signInWithOtp({
       email: email.toLowerCase(),
       options: {
-        emailRedirectTo: redirectTo,
+        emailRedirectTo: callbackUrl,
       },
     })
 

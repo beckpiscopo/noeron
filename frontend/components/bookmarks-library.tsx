@@ -6,7 +6,6 @@ import {
   FileText,
   Quote,
   Search,
-  Settings,
   HelpCircle,
   Trash2,
   Brain,
@@ -67,9 +66,6 @@ export function BookmarksLibrary({
     <>
       <button onClick={onBack} className={iconButtonClasses} title="Back">
         <ArrowLeft className="h-4 w-4" />
-      </button>
-      <button className={iconButtonClasses}>
-        <Settings className="h-4 w-4" />
       </button>
       <button className={iconButtonClasses}>
         <HelpCircle className="h-4 w-4" />
