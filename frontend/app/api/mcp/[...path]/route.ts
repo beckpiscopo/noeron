@@ -4,11 +4,11 @@ const FASTMCP_PROXY_TARGET = process.env.MCP_PROXY_TARGET ?? "http://127.0.0.1:8
 
 // Long-running operations need extended timeouts
 const LONG_RUNNING_TOOLS = ["generate_slide_deck", "generate_mini_podcast"]
-const LONG_TIMEOUT_MS = 10 * 60 * 1000 // 10 minutes
+const LONG_TIMEOUT_MS = 5 * 60 * 1000 // 5 minutes (max on Vercel hobby plan)
 const DEFAULT_TIMEOUT_MS = 2 * 60 * 1000 // 2 minutes
 
-// Next.js route segment config - extend max duration
-export const maxDuration = 600 // 10 minutes
+// Next.js route segment config - extend max duration (max 300s on hobby plan)
+export const maxDuration = 300 // 5 minutes
 
 function buildTargetUrl(pathSegments: string[] = []) {
   const path = pathSegments.join("/")
