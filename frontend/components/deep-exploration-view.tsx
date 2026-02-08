@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import {
   ArrowLeft,
   FlaskConical,
@@ -202,6 +202,11 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
 
   // AI Chat sidebar state - auto-open on large screens
   const [chatOpen, setChatOpen] = useState(false)
+  const [sidebarWidth, setSidebarWidth] = useState(0)
+
+  const handleSidebarWidthChange = useCallback((width: number) => {
+    setSidebarWidth(width)
+  }, [])
 
   // Auto-open chat sidebar on large screens
   useEffect(() => {
@@ -508,7 +513,7 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
       {/* Header */}
       <header
         className="sticky top-14 z-40 flex items-center justify-between border-b border-border bg-background/95 backdrop-blur-sm px-6 py-3 lg:px-10 transition-all duration-300 ease-in-out"
-        style={{ marginRight: chatOpen ? '440px' : '0' }}
+        style={{ marginRight: `${sidebarWidth}px` }}
       >
         <div className="flex items-center gap-4">
           <div className="size-6 text-[var(--golden-chestnut)]">
@@ -562,8 +567,8 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
       {/* Main Content - Single Column Tabbed Layout */}
       {!isLoading && !error && contextData && (
         <main
-          className="flex-1 w-full transition-all duration-300 ease-in-out"
-          style={{ marginRight: chatOpen ? '440px' : '0' }}
+          className="flex-1 transition-all duration-300 ease-in-out"
+          style={{ marginRight: `${sidebarWidth}px` }}
         >
           <div className="max-w-6xl mx-auto px-4 lg:px-6 py-6">
             {/* Claim Card */}
@@ -669,6 +674,7 @@ export function DeepExplorationView({ episode, claim, episodeId, onBack, onViewS
           claim_text: claim.title,
         }}
         onViewPaper={onViewSourcePaper}
+        onWidthChange={handleSidebarWidthChange}
       />
 
       {/* API Key Modal for Figure Analysis */}
