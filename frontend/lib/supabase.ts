@@ -485,7 +485,6 @@ async function getCurrentUserId(): Promise<string> {
   const { data: { user }, error } = await supabase.auth.getUser()
 
   if (error) {
-    console.error('Error getting user:', error)
     throw new Error(`Authentication error: ${error.message}`)
   }
 
@@ -714,7 +713,7 @@ export function subscribeToBookmarks(
 
   // Get current user ID asynchronously and set up filtered callback
   let currentUserId: string | null = null
-  getCurrentUserId().then(id => { currentUserId = id })
+  getCurrentUserId().then(id => { currentUserId = id }).catch(() => { /* not authenticated */ })
 
   const channel = supabase
     .channel('bookmarks_changes')

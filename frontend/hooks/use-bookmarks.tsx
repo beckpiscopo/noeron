@@ -88,8 +88,14 @@ export function BookmarkProvider({ children }: { children: ReactNode }) {
       const data = await getBookmarksWithDetails()
       setBookmarks(data)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load bookmarks')
-      console.error('Failed to load bookmarks:', err)
+      const message = err instanceof Error ? err.message : 'Failed to load bookmarks'
+      // Silently handle auth errors - user is just not logged in
+      if (message.includes('Auth session missing') || message.includes('Authentication error')) {
+        setBookmarks([])
+      } else {
+        setError(message)
+        console.error('Failed to load bookmarks:', err)
+      }
     } finally {
       setIsLoading(false)
     }

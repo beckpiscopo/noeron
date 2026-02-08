@@ -109,7 +109,10 @@ export function useAIChat(context: ChatContext | null) {
           }
         }
       } catch (err) {
-        console.error('Failed to load chat session:', err)
+        const message = err instanceof Error ? err.message : ''
+        if (!message.includes('Auth session missing') && !message.includes('Authentication error')) {
+          console.error('Failed to load chat session:', err)
+        }
       } finally {
         setIsLoadingHistory(false)
       }
