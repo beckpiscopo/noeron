@@ -101,6 +101,9 @@ cache/*_v2.json
 # Claude Code local settings
 .claude/settings.local.json
 
+# Large media files
+frontend/public/demo2.mp4
+
 # Debug artifacts
 diagnostic_sample.json
 retry-list.txt

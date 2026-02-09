@@ -898,18 +898,16 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
             3 minute walkthrough
           </p>
 
-          {/* Video placeholder */}
-          <div className="relative aspect-video bg-[#1E1E1E] border border-[#333] rounded-lg mb-12 overflow-hidden group cursor-pointer hover:border-[#C48B60]/50 transition-colors">
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="w-20 h-20 rounded-full bg-[#C48B60]/20 flex items-center justify-center group-hover:bg-[#C48B60]/30 transition-colors">
-                <Play className="w-10 h-10 text-[#C48B60] fill-current ml-1" />
-              </div>
-            </div>
-            <div className="absolute inset-0 bg-gradient-to-t from-[#121212]/80 to-transparent" />
-            <div className="absolute bottom-4 left-4 text-left">
-              <div className="text-xs text-gray-500" style={{ fontFamily: "'Fira Code', monospace" }}>DEMO VIDEO</div>
-              <div className="text-sm text-white">Noeron Research Platform</div>
-            </div>
+          {/* Demo video */}
+          <div className="relative aspect-video bg-[#1E1E1E] border border-[#333] rounded-lg mb-12 overflow-hidden">
+            <video
+              controls
+              preload="metadata"
+              className="w-full h-full object-cover rounded-lg"
+              poster="/demo2-poster.jpg"
+            >
+              <source src="https://lrdfpxvxzqaqbnzcuebj.supabase.co/storage/v1/object/public/public-assets/demo2.mp4" type="video/mp4" />
+            </video>
           </div>
 
           {/* Timestamp markers */}
