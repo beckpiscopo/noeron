@@ -213,7 +213,7 @@ function ConceptDensityAnalysis({ durationSeconds, claimDensity, keyMoments, onS
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
           <span className="text-[var(--golden-chestnut)] text-xs">✧</span>
-          <span className="text-foreground font-semibold mono text-xs tracking-[0.2em] uppercase">
+          <span className="text-foreground font-semibold mono text-sm tracking-[0.2em] uppercase">
             Concept Density Analysis
           </span>
         </div>
@@ -335,7 +335,7 @@ function EpisodeOutlineList({ items, onSeek }: EpisodeOutlineProps) {
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
         <span className="text-[var(--golden-chestnut)] text-xs">▷</span>
-        <span className="text-foreground font-semibold mono text-xs tracking-[0.2em] uppercase">
+        <span className="text-foreground font-semibold mono text-sm tracking-[0.2em] uppercase">
           Episode Outline
         </span>
       </div>
@@ -547,7 +547,7 @@ function ReferenceList({ papers, isLoading, onViewPaper }: ReferenceListProps) {
       <div className="border border-border/50 bg-card/20">
         <div className="flex items-center gap-2 px-4 py-3 border-b border-border/50">
           <Grid3X3 className="w-3 h-3 text-foreground/40" />
-          <span className="text-foreground/50 mono text-xs tracking-[0.2em] uppercase">
+          <span className="text-foreground/50 mono text-sm tracking-[0.2em] uppercase">
             Reference List
           </span>
         </div>
@@ -564,7 +564,7 @@ function ReferenceList({ papers, isLoading, onViewPaper }: ReferenceListProps) {
       <div className="border border-border/50 bg-card/20">
         <div className="flex items-center gap-2 px-4 py-3 border-b border-border/50">
           <Grid3X3 className="w-3 h-3 text-foreground/40" />
-          <span className="text-foreground/50 mono text-xs tracking-[0.2em] uppercase">
+          <span className="text-foreground/50 mono text-sm tracking-[0.2em] uppercase">
             Reference List
           </span>
         </div>
@@ -580,7 +580,7 @@ function ReferenceList({ papers, isLoading, onViewPaper }: ReferenceListProps) {
       {/* Header */}
       <div className="flex items-center gap-2 px-4 py-3 border-b border-border/50">
         <Grid3X3 className="w-3 h-3 text-foreground/40" />
-        <span className="text-foreground/50 mono text-xs tracking-[0.2em] uppercase">
+        <span className="text-foreground/50 mono text-sm tracking-[0.2em] uppercase">
           Reference List
         </span>
       </div>
@@ -644,7 +644,7 @@ function GuestThesisCard({ guest, thesis }: GuestThesisProps) {
       {/* Header */}
       <div className="flex items-center gap-2 px-4 py-3 border-b border-[var(--golden-chestnut)]/10">
         <Circle className="w-2 h-2 text-[var(--golden-chestnut)] fill-current" />
-        <span className="text-foreground/50 mono text-xs tracking-[0.2em] uppercase">
+        <span className="text-foreground/50 mono text-sm tracking-[0.2em] uppercase">
           {guest}'s Core Thesis
         </span>
       </div>
@@ -1136,7 +1136,7 @@ export function EpisodeOverview({ episode, onStartListening, onBack, onBookmarks
             <CornerBrackets className="p-8 bg-card/30">
               {/* Episode Badge & Ref */}
               <div className="flex items-center justify-between mb-6">
-                <span className="mono text-xs text-foreground/40 tracking-[0.15em] px-2 py-1 border border-foreground/20">
+                <span className="mono text-xs text-[var(--golden-chestnut)] tracking-[0.15em] px-2 py-1 border border-[var(--golden-chestnut)]/40">
                   EPISODE #{episodeNumber}
                 </span>
                 <span className="mono text-xs text-foreground/30 tracking-wider">
@@ -1193,7 +1193,7 @@ export function EpisodeOverview({ episode, onStartListening, onBack, onBookmarks
                     <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center gap-3">
                         <span className="text-[var(--golden-chestnut)] text-xs">✧</span>
-                        <span className="text-foreground font-semibold mono text-xs tracking-[0.2em] uppercase">
+                        <span className="text-foreground font-semibold mono text-sm tracking-[0.2em] uppercase">
                           Concept Density Analysis
                         </span>
                       </div>

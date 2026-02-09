@@ -1,6 +1,10 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+#devtools-indicator {
+  display: none !important;
+}
+
 @custom-variant dark (&:is(.dark *));
 
 :root {
