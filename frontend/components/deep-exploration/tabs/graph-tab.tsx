@@ -116,18 +116,6 @@ export function GraphTab({
 
           {kgSubgraph.edges.length > 0 ? (
             <>
-              {/* Matched entities pills */}
-              <div className="flex flex-wrap gap-2 mb-6">
-                {kgSubgraph.matched_entity_names.map((name, idx) => (
-                  <span
-                    key={idx}
-                    className="px-3 py-1.5 bg-[var(--golden-chestnut)]/20 text-[var(--golden-chestnut)] text-sm font-medium rounded-full border border-[var(--golden-chestnut)]/30"
-                  >
-                    {name}
-                  </span>
-                ))}
-              </div>
-
               {/* Interactive Graph - full width */}
               <div className="min-h-[500px]">
                 <ConceptExpansionGraph

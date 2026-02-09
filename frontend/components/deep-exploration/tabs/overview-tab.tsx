@@ -1,5 +1,6 @@
 "use client"
 
+import { useMemo } from "react"
 import {
   Sparkles,
   ExternalLink,
@@ -47,6 +48,33 @@ interface OverviewTabProps {
   onFetchDeepDive: (style: "simplified" | "technical", forceRegenerate?: boolean) => void
   episodeId: string
   onViewSourcePaper: (paperId?: string) => void
+}
+
+interface SynthesisSection {
+  heading: string
+  body: string
+}
+
+function parseSynthesisSections(markdown: string): SynthesisSection[] {
+  // Normalize header patterns to ### headers
+  let processed = markdown
+    .replace(/\*\*(Finding|Why It Matters|Evidence Strength|Key Uncertainties):\*\*\s*/gi, '\n### $1\n')
+    .replace(/\*\*(Finding|Why It Matters|Evidence Strength|Key Uncertainties)\*\*:\s*/gi, '\n### $1\n')
+
+  const parts = processed.split(/^###\s+/m).filter(Boolean)
+  const sections: SynthesisSection[] = []
+
+  for (const part of parts) {
+    const newlineIndex = part.indexOf('\n')
+    if (newlineIndex === -1) continue
+    const heading = part.slice(0, newlineIndex).trim()
+    const body = part.slice(newlineIndex + 1).trim()
+    if (heading && body) {
+      sections.push({ heading, body })
+    }
+  }
+
+  return sections
 }
 
 export function OverviewTab({
@@ -136,19 +164,26 @@ export function OverviewTab({
           {/* Summary Content */}
           {deepDiveSummaries[synthesisMode] && !isLoadingDeepDive[synthesisMode] && !deepDiveErrors[synthesisMode] && (() => {
             const currentSummary = deepDiveSummaries[synthesisMode]!
-            return (
-              <>
-                {/* Metadata bar */}
-                <div className="flex items-center gap-4 text-xs text-foreground/50 pb-3 border-b border-border">
-                  <span>{currentSummary.papers_retrieved} papers analyzed</span>
-                  {currentSummary.cached && (
-                    <span className="px-2 py-0.5 bg-card rounded text-foreground/60">Cached</span>
-                  )}
-                </div>
+            const sections = parseSynthesisSections(currentSummary.summary)
 
-                {/* Render markdown summary */}
-                <MarkdownContent content={currentSummary.summary} variant="synthesis" />
-              </>
+            return (
+              <div className="space-y-4">
+                {sections.map((section, i) => (
+                  <div key={i} className="flex flex-col sm:flex-row sm:items-stretch gap-0">
+                    {/* Section Header — left column */}
+                    <div className="sm:w-44 shrink-0 flex items-center pr-4 py-3">
+                      <h5 className="text-sm font-semibold text-[var(--golden-chestnut)] uppercase tracking-wider">
+                        {section.heading}
+                      </h5>
+                    </div>
+
+                    {/* Section Body — right card */}
+                    <div className="flex-1 bg-card/60 border border-foreground/10 border-l-2 border-l-[var(--golden-chestnut)]/30 p-5">
+                      <MarkdownContent content={section.body} variant="default" />
+                    </div>
+                  </div>
+                ))}
+              </div>
             )
           })()}
 

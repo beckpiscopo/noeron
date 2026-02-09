@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
-import { Play, Pause, Download, ChevronDown, ChevronUp, RefreshCw, Mic } from "lucide-react"
+import { Play, Pause, Download, ChevronDown, ChevronUp, RefreshCw, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
@@ -103,14 +103,13 @@ export function MiniPodcastPlayer({
         <p className="text-sm text-muted-foreground">
           Generate a 3-5 minute AI podcast where two hosts discuss this claim and its supporting research.
         </p>
-        <Button
+        <button
           onClick={onGenerate}
-          className="w-full"
-          variant="outline"
+          className="w-full py-3 font-medium transition-all duration-200 flex items-center justify-center gap-2 rounded-sm bg-foreground/8 text-foreground/60 hover:bg-foreground/15 hover:text-foreground/80"
         >
-          <Mic className="mr-2 h-4 w-4" />
+          <Sparkles className="w-4 h-4" />
           Generate Mini Podcast
-        </Button>
+        </button>
       </div>
     )
   }

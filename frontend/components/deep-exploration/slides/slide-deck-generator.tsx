@@ -839,17 +839,6 @@ export function SlideDeckGenerator({
                       <Check className="w-3 h-3 text-white" />
                     </div>
                   )}
-                  <div
-                    className={`
-                      w-8 h-8 rounded-full flex items-center justify-center mb-3 transition-colors
-                      ${isSelected
-                        ? "bg-[var(--golden-chestnut)]/20 text-[var(--golden-chestnut)]"
-                        : "bg-foreground/5 text-foreground/50 group-hover:bg-foreground/10"
-                      }
-                    `}
-                  >
-                    {option.icon}
-                  </div>
                   <div className="font-medium mb-1">{option.label}</div>
                   <div className="text-xs text-foreground/50 mb-2 leading-relaxed">
                     {option.description}

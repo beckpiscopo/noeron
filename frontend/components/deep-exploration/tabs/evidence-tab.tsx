@@ -66,10 +66,8 @@ function mapStrengthToEvidenceType(strength: string): "foundational" | "supporti
   }
 }
 
-function generateContextSummary(threads: AIEvidenceThread[]): string {
-  if (threads.length === 0) return "No evidence threads available."
-
-  return "This thread tracks the experimental progression of creating Xenobots. It moves from the general concept of computer-designed organisms to the specific laboratory protocol of isolating skin cells, culminating in the discovery of their latent agentic properties."
+function formatThreadType(type: string): string {
+  return type.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase())
 }
 
 export function EvidenceTab({
@@ -88,28 +86,8 @@ export function EvidenceTab({
     return acc
   }, [] as FallbackPaper[])
 
-  // Flatten all milestones from all threads into a single list
-  const allMilestones = aiEvidenceThreads?.threads.flatMap(thread =>
-    thread.milestones.map(milestone => ({
-      ...milestone,
-      strength: thread.strength,
-      threadType: thread.type,
-    }))
-  ) || []
-
   return (
     <div className="py-4">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <GitBranch className="w-5 h-5 text-[var(--golden-chestnut)]" />
-          <h3 className="font-semibold text-lg text-foreground">Evidence Threads</h3>
-        </div>
-        {aiEvidenceThreads && (
-          <span className="text-sm text-foreground/50">{aiEvidenceThreads.papers_analyzed} papers analyzed</span>
-        )}
-      </div>
-
       {/* Loading State */}
       {isLoadingThreads && (
         <div className="flex flex-col items-center justify-center py-16">
@@ -135,67 +113,85 @@ export function EvidenceTab({
       {/* Main Content */}
       {aiEvidenceThreads && !isLoadingThreads && !threadsError && (
         <>
-          {allMilestones.length > 0 ? (
+          {aiEvidenceThreads.threads.length > 0 ? (
             <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
               {/* Left Sidebar */}
               <div className="hidden lg:block">
-                <ThreadContextSidebar
-                  threadCount={aiEvidenceThreads.threads.length}
-                  papersAnalyzed={aiEvidenceThreads.papers_analyzed}
-                  contextSummary={generateContextSummary(aiEvidenceThreads.threads)}
-                />
+                <ThreadContextSidebar />
               </div>
 
-              {/* Right Content - Evidence Cards with Timeline */}
-              <div className="flex-1">
-                {/* Timeline Container */}
-                <div className="relative">
-                  {/* Vertical Timeline Line */}
-                  <div className="absolute left-[7px] top-4 bottom-4 w-px bg-foreground/20" />
+              {/* Right Content - Thread Cards */}
+              <div className="flex-1 space-y-6">
+                {aiEvidenceThreads.threads.map((thread, threadIndex) => (
+                  <div
+                    key={`${thread.name}-${threadIndex}`}
+                    className="bg-card/50 border border-foreground/10 p-5"
+                  >
+                    {/* Thread Header */}
+                    <div className="mb-2">
+                      <h4 className="font-semibold text-xl text-foreground mb-2">{thread.name}</h4>
+                      <span className={`inline-block px-2 py-0.5 text-[10px] font-bold rounded text-white ${
+                        thread.strength === "foundational" ? "bg-[var(--evidence-foundational)]" :
+                        thread.strength === "developing" ? "bg-[var(--evidence-supporting)]" :
+                        "bg-[var(--evidence-speculative)]"
+                      }`}>
+                        {thread.strength.toUpperCase()}
+                      </span>
+                    </div>
 
-                  {/* Timeline Items */}
-                  <div className="space-y-6">
-                    {allMilestones.map((milestone, index) => (
-                      <div key={`${milestone.paper_id}-${index}`} className="relative pl-8">
-                        {/* Timeline Marker */}
-                        <div className="absolute left-0 top-6 flex flex-col items-center">
-                          <div className="w-[14px] h-[14px] rounded-full bg-[var(--golden-chestnut)] border-2 border-background z-10" />
+                    {/* Thread Narrative */}
+                    {thread.narrative && (
+                      <p className="text-sm text-foreground/50 leading-relaxed mb-4">
+                        {thread.narrative}
+                      </p>
+                    )}
+
+                    {/* Milestones Timeline (scoped to this thread) */}
+                    {thread.milestones.length > 0 && (
+                      <div className="relative">
+                        {/* Vertical Timeline Line — aligned with the dot */}
+                        <div className="absolute left-[5px] top-0 bottom-0 w-px bg-foreground/20" />
+
+                        <div className="space-y-4">
+                          {thread.milestones.map((milestone, index) => (
+                            <div key={`${milestone.paper_id}-${index}`} className="flex items-center gap-3">
+                              {/* Year + Dot (left column) */}
+                              <div className="shrink-0 flex items-center gap-2">
+                                <div className="w-[10px] h-[10px] rounded-full bg-[var(--golden-chestnut)] z-10" />
+                                <span className="text-sm font-semibold text-[var(--golden-chestnut)]">
+                                  {milestone.year}
+                                </span>
+                              </div>
+
+                              {/* Evidence Card */}
+                              <div className="flex-1 min-w-0">
+                                <EvidenceCard
+                                  type={mapStrengthToEvidenceType(thread.strength)}
+                                  year={milestone.year}
+                                  title={milestone.paper_title}
+                                  description={milestone.finding}
+                                  citationCount={Math.floor(Math.random() * 2000) + 100}
+                                  topics={[formatThreadType(thread.type)]}
+                                  paperId={milestone.paper_id}
+                                  onViewPaper={(id) => onFetchFigureAnalysis(id)}
+                                  showYear={false}
+                                />
+                              </div>
+                            </div>
+                          ))}
                         </div>
-
-                        {/* Year Label */}
-                        <div className="mb-2 text-xs font-semibold text-[var(--golden-chestnut)]">
-                          {milestone.year}
-                        </div>
-
-                        {/* Evidence Card */}
-                        <EvidenceCard
-                          type={mapStrengthToEvidenceType(milestone.strength)}
-                          year={milestone.year}
-                          journal={milestone.threadType === "experimental_validation" ? "SCIENCE ROBOTICS" :
-                                  milestone.threadType === "mechanism_discovery" ? "PNAS" :
-                                  milestone.threadType === "theoretical_framework" ? "NATURE COMMUNICATIONS" : undefined}
-                          title={milestone.paper_title}
-                          description={milestone.finding}
-                          citationCount={Math.floor(Math.random() * 2000) + 100}
-                          topics={[milestone.threadType.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase())]}
-                          paperId={milestone.paper_id}
-                          onViewPaper={(id) => onFetchFigureAnalysis(id)}
-                          showYear={false}
-                        />
                       </div>
-                    ))}
+                    )}
                   </div>
-                </div>
+                ))}
 
                 {/* Synthesis Report CTA */}
-                <div className="mt-8 pl-8">
-                  <SynthesisReportCTA
-                    papersCount={aiEvidenceThreads.papers_analyzed}
-                    onGenerate={() => {
-                      console.log("Generate synthesis report")
-                    }}
-                  />
-                </div>
+                <SynthesisReportCTA
+                  papersCount={aiEvidenceThreads.papers_analyzed}
+                  onGenerate={() => {
+                    console.log("Generate synthesis report")
+                  }}
+                />
               </div>
             </div>
           ) : uniqueFallbackPapers.length > 0 ? (

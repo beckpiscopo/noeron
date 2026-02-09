@@ -60,46 +60,37 @@ export function EvidenceCard({
 
   return (
     <div
-      className={`group bg-card border-l-4 ${typeStyle.borderColor} p-5 transition-all hover:bg-card/80`}
+      className={`group relative bg-card border-l-4 ${typeStyle.borderColor} p-5 transition-all hover:bg-card/80`}
       onClick={() => paperId && onViewPaper?.(paperId)}
       style={{ cursor: paperId && onViewPaper ? 'pointer' : 'default' }}
     >
-      {/* Header Row */}
-      <div className="flex items-start justify-between gap-3 mb-3">
-        <div className="flex items-center gap-3 flex-wrap">
-          {/* Evidence Type Badge */}
-          <span className={`text-[10px] font-bold px-2 py-1 rounded ${typeStyle.badgeClass}`}>
-            {typeStyle.label}
-          </span>
-          {/* Year and Journal */}
-          {(showYear || journal) && (
-            <span className="text-xs text-foreground/50">
-              {showYear && year}{showYear && journal && " • "}{journal?.toUpperCase()}
-            </span>
-          )}
-        </div>
-
-        {/* Actions */}
-        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          <button
-            onClick={(e) => { e.stopPropagation(); onBookmark?.() }}
-            className="p-1.5 text-foreground/40 hover:text-foreground/70 transition-colors"
-            title="Bookmark"
-          >
-            <Bookmark className="w-4 h-4" />
-          </button>
-          <button
-            onClick={(e) => { e.stopPropagation(); onCopy?.() }}
-            className="p-1.5 text-foreground/40 hover:text-foreground/70 transition-colors"
-            title="Copy citation"
-          >
-            <Copy className="w-4 h-4" />
-          </button>
-        </div>
+      {/* Actions */}
+      <div className="absolute top-3 right-3 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <button
+          onClick={(e) => { e.stopPropagation(); onBookmark?.() }}
+          className="p-1.5 text-foreground/40 hover:text-foreground/70 transition-colors"
+          title="Bookmark"
+        >
+          <Bookmark className="w-4 h-4" />
+        </button>
+        <button
+          onClick={(e) => { e.stopPropagation(); onCopy?.() }}
+          className="p-1.5 text-foreground/40 hover:text-foreground/70 transition-colors"
+          title="Copy citation"
+        >
+          <Copy className="w-4 h-4" />
+        </button>
       </div>
 
+      {/* Year and Journal */}
+      {(showYear || journal) && (
+        <div className="mb-2 text-xs text-foreground/50">
+          {showYear && year}{showYear && journal && " • "}{journal?.toUpperCase()}
+        </div>
+      )}
+
       {/* Title */}
-      <h4 className="font-semibold text-base text-foreground leading-snug mb-2">
+      <h4 className="font-semibold text-lg text-foreground leading-snug mb-2">
         {title}
       </h4>
 

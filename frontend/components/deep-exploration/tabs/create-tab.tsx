@@ -62,28 +62,41 @@ export function CreateTab({
         <h3 className="font-bold text-xl">Create with AI</h3>
       </div>
 
-      {/* Mini Podcast - primary creation tool */}
-      <CornerBrackets className="bg-card/30 p-6">
-        <div className="flex items-center gap-2 mb-4">
-          <Mic className="w-5 h-5 text-[var(--golden-chestnut)]" />
-          <h4 className="font-bold text-lg">Audio Overview</h4>
-        </div>
-        <p className="text-foreground/60 text-sm mb-4">
-          Generate a mini podcast explaining this claim and its evidence
-        </p>
-        <MiniPodcastPlayer
-          podcast={miniPodcast}
-          isLoading={isLoadingPodcast}
-          error={podcastError}
-          onGenerate={onGeneratePodcast}
-          onRegenerate={onRegeneratePodcast}
-          style={synthesisMode === "simplified" ? "casual" : "academic"}
-        />
-      </CornerBrackets>
-
-      {/* Placeholder for future creation options */}
+      {/* Top row: Audio Overview + Slide Deck */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <CornerBrackets className="bg-card/20 p-6 opacity-50">
+        <CornerBrackets className="bg-card/30 p-6 flex flex-col">
+          <div className="flex items-center gap-2 mb-4">
+            <Mic className="w-5 h-5 text-[var(--golden-chestnut)]" />
+            <h4 className="font-bold text-lg">Audio Overview</h4>
+          </div>
+          <p className="text-foreground/60 text-sm mb-4">
+            Generate a mini podcast explaining this claim and its evidence.
+          </p>
+          <div className="flex-1 flex flex-col justify-end">
+            <MiniPodcastPlayer
+              podcast={miniPodcast}
+              isLoading={isLoadingPodcast}
+              error={podcastError}
+              onGenerate={onGeneratePodcast}
+              onRegenerate={onRegeneratePodcast}
+              style={synthesisMode === "simplified" ? "casual" : "academic"}
+            />
+          </div>
+        </CornerBrackets>
+
+        <CornerBrackets className="bg-card/30 p-6 flex flex-col">
+          <SlideDeckGenerator
+            claimId={claimId}
+            episodeId={episodeId}
+            onGenerated={handleSlideGenerated}
+            onShare={handleShareSlides}
+          />
+        </CornerBrackets>
+      </div>
+
+      {/* Bottom row: Study Notes full width + smaller cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <CornerBrackets className="md:col-span-2 bg-card/20 p-6 opacity-50">
           <div className="flex items-center gap-2 mb-2">
             <span className="text-lg">📝</span>
             <h4 className="font-medium">Study Notes</h4>
@@ -97,15 +110,6 @@ export function CreateTab({
             <h4 className="font-medium">Quiz</h4>
           </div>
           <p className="text-foreground/40 text-sm">Coming soon</p>
-        </CornerBrackets>
-
-        <CornerBrackets className="bg-card/30 p-6">
-          <SlideDeckGenerator
-            claimId={claimId}
-            episodeId={episodeId}
-            onGenerated={handleSlideGenerated}
-            onShare={handleShareSlides}
-          />
         </CornerBrackets>
 
         <CornerBrackets className="bg-card/20 p-6 opacity-50">
