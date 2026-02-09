@@ -93,6 +93,7 @@ export interface Claim {
 interface ListeningViewProps {
   episode: ListeningEpisode
   claims: Claim[]
+  accessibleRange?: { start: number; end: number }
   onDiveDeeper: (claimId: string | number) => void
   onViewSource: (claimId: string | number) => void
   onAskQuestion: (question: string) => void
@@ -356,6 +357,7 @@ function PastClaimCard({ claim, relativeTime, isSelected, episodeId, onSelect, o
 export function ListeningView({
   episode,
   claims,
+  accessibleRange,
   onDiveDeeper,
   onViewSource,
   onAskQuestion,
@@ -441,12 +443,19 @@ export function ListeningView({
     setDroppedClaim(null)
   }
 
+  // Clamp a time value to the accessible range (if set)
+  const clampToRange = (time: number) => {
+    if (!accessibleRange) return time
+    return Math.max(accessibleRange.start, Math.min(time, accessibleRange.end))
+  }
+
   // Mobile: seek to specific time
   const handleSeek = (time: number) => {
     const audio = audioRef.current
     if (audio) {
-      audio.currentTime = time
-      onTimeUpdate(time)
+      const clamped = clampToRange(time)
+      audio.currentTime = clamped
+      onTimeUpdate(clamped)
     }
   }
 
@@ -464,7 +473,8 @@ export function ListeningView({
   const handleSkipBack = () => {
     const audio = audioRef.current
     if (audio) {
-      audio.currentTime = Math.max(0, audio.currentTime - 15)
+      const minTime = accessibleRange?.start ?? 0
+      audio.currentTime = Math.max(minTime, audio.currentTime - 15)
       onTimeUpdate(audio.currentTime)
     }
   }
@@ -472,7 +482,8 @@ export function ListeningView({
   const handleSkipForward = () => {
     const audio = audioRef.current
     if (audio) {
-      audio.currentTime = Math.min(episode.durationSeconds, audio.currentTime + 15)
+      const maxTime = accessibleRange?.end ?? episode.durationSeconds
+      audio.currentTime = Math.min(maxTime, audio.currentTime + 15)
       onTimeUpdate(audio.currentTime)
     }
   }
@@ -481,7 +492,8 @@ export function ListeningView({
     const rect = e.currentTarget.getBoundingClientRect()
     const x = e.clientX - rect.left
     const percentage = x / rect.width
-    const newTime = percentage * episode.durationSeconds
+    let newTime = percentage * episode.durationSeconds
+    newTime = clampToRange(newTime)
     const audio = audioRef.current
     if (audio) {
       audio.currentTime = newTime
@@ -506,10 +518,20 @@ export function ListeningView({
   const safeDuration = Math.max(episode.durationSeconds, 1)
   const progressPercentage = Math.min(100, Math.max(0, (episode.currentTime / safeDuration) * 100))
 
+  // Accessible range percentages for progress bar visuals
+  const rangeStartPct = accessibleRange ? (accessibleRange.start / safeDuration) * 100 : 0
+  const rangeEndPct = accessibleRange ? (accessibleRange.end / safeDuration) * 100 : 100
+
   // Filter out claims with invalid timestamps (0:00 or missing)
   const validClaims = claims.filter(claim => {
     const claimStartMs = claim.start_ms ?? 0
-    return claimStartMs > 0 // Must have a valid start time
+    if (claimStartMs <= 0) return false
+    // Filter to accessible range if set
+    if (accessibleRange) {
+      const claimTimeSec = claimStartMs / 1000
+      return claimTimeSec >= accessibleRange.start && claimTimeSec <= accessibleRange.end
+    }
+    return true
   })
   
   // Sort claims by start time
@@ -582,7 +604,12 @@ export function ListeningView({
     const handleLoadedMetadata = () => {
       // Use the ref value captured at mount, not the prop which may have been updated by timeupdate events
       const targetTime = initialResumeTimeRef.current
-      const safeTime = Math.max(0, Math.min(episode.durationSeconds, targetTime))
+      let safeTime = Math.max(0, Math.min(episode.durationSeconds, targetTime))
+      // Clamp to accessible range
+      if (accessibleRange) {
+        if (safeTime < accessibleRange.start) safeTime = accessibleRange.start
+        if (safeTime > accessibleRange.end) safeTime = accessibleRange.end
+      }
       console.log(`[Audio Load] loadedmetadata fired - targetTime (from ref)=${targetTime.toFixed(2)}s, episode.durationSeconds=${episode.durationSeconds}, safeTime=${safeTime.toFixed(2)}s`)
       audio.currentTime = safeTime
       hasCompletedInitialSeekRef.current = true
@@ -594,6 +621,16 @@ export function ListeningView({
       // This prevents the audio's initial 0 position from overwriting the resume time
       if (!hasCompletedInitialSeekRef.current) {
         return
+      }
+      // Enforce accessible range boundaries
+      if (accessibleRange) {
+        if (audio.currentTime >= accessibleRange.end) {
+          audio.pause()
+          audio.currentTime = accessibleRange.end
+          setIsPlaying(false)
+        } else if (audio.currentTime < accessibleRange.start) {
+          audio.currentTime = accessibleRange.start
+        }
       }
       onTimeUpdate(audio.currentTime)
     }
@@ -610,7 +647,7 @@ export function ListeningView({
       audio.removeEventListener("timeupdate", handleTimeUpdate)
       audio.removeEventListener("ended", handleEnded)
     }
-  }, [onTimeUpdate, episode.currentTime, episode.durationSeconds])
+  }, [onTimeUpdate, episode.currentTime, episode.durationSeconds, accessibleRange])
 
   useEffect(() => {
     const audio = audioRef.current
@@ -753,6 +790,7 @@ export function ListeningView({
           currentTime={episode.currentTime}
           duration={episode.durationSeconds}
           episodeTitle={episode.title}
+          accessibleRange={accessibleRange}
           onPlayPause={handlePlayPause}
           onSeek={handleSeek}
           onSkipBack={handleSkipBack}
@@ -864,16 +902,22 @@ export function ListeningView({
               <div className="flex items-end justify-between gap-[2px] h-16 mb-2">
                 {Array.from({ length: 40 }).map((_, i) => {
                   const height = 30 + Math.random() * 70
+                  const barPct = (i / 40) * 100
                   const isActive = i < (progressPercentage / 100) * 40
+                  const isLocked = accessibleRange && (barPct < rangeStartPct || barPct > rangeEndPct)
                   return (
                     <div
                       key={i}
                       className={`w-[3px] rounded-full transition-all duration-150 ${
-                        isActive ? "bg-[var(--golden-chestnut)]" : "bg-foreground/20"
+                        isLocked
+                          ? "bg-foreground/10"
+                          : isActive
+                            ? "bg-[var(--golden-chestnut)]"
+                            : "bg-foreground/20"
                       }`}
                       style={{
                         height: `${height}%`,
-                        animation: isPlaying ? `wave 1s ease-in-out infinite ${i * 0.05}s` : "none",
+                        animation: isPlaying && !isLocked ? `wave 1s ease-in-out infinite ${i * 0.05}s` : "none",
                       }}
                     />
                   )
@@ -885,15 +929,33 @@ export function ListeningView({
                 className="group relative h-1.5 cursor-pointer overflow-hidden rounded-full bg-foreground/10 mb-2"
                 onClick={handleProgressClick}
               >
+                {/* Locked region overlays */}
+                {accessibleRange && (
+                  <>
+                    <div
+                      className="absolute inset-y-0 left-0 bg-foreground/30 rounded-l-full z-10 pointer-events-none"
+                      style={{ width: `${rangeStartPct}%` }}
+                    />
+                    <div
+                      className="absolute inset-y-0 right-0 bg-foreground/30 rounded-r-full z-10 pointer-events-none"
+                      style={{ width: `${100 - rangeEndPct}%` }}
+                    />
+                  </>
+                )}
                 <div
                   className="absolute inset-y-0 left-0 bg-[var(--golden-chestnut)] transition-all"
                   style={{ width: `${progressPercentage}%` }}
                 />
               </div>
 
-              {/* Time Display */}
+              {/* Time Display + Preview label */}
               <div className="flex justify-between text-xs mono text-foreground/50">
                 <span>{formatTime(episode.currentTime)}</span>
+                {accessibleRange && (
+                  <span className="text-foreground/40 text-[10px]">
+                    Preview: {formatTime(accessibleRange.start)} – {formatTime(accessibleRange.end)}
+                  </span>
+                )}
                 <span>{formatTime(episode.durationSeconds)}</span>
               </div>
             </div>

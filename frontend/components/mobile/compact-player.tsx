@@ -9,6 +9,7 @@ interface CompactPlayerProps {
   currentTime: number
   duration: number
   episodeTitle: string
+  accessibleRange?: { start: number; end: number }
   onPlayPause: () => void
   onSeek: (time: number) => void
   onSkipBack: () => void
@@ -31,6 +32,7 @@ export function CompactPlayer({
   currentTime,
   duration,
   episodeTitle,
+  accessibleRange,
   onPlayPause,
   onSeek,
   onSkipBack,
@@ -44,6 +46,8 @@ export function CompactPlayer({
 
   const safeDuration = Math.max(duration, 1)
   const progressPercentage = Math.min(100, Math.max(0, (currentTime / safeDuration) * 100))
+  const rangeStartPct = accessibleRange ? (accessibleRange.start / safeDuration) * 100 : 0
+  const rangeEndPct = accessibleRange ? (accessibleRange.end / safeDuration) * 100 : 100
 
   // Check if title needs marquee scrolling
   useEffect(() => {
@@ -53,12 +57,17 @@ export function CompactPlayer({
     }
   }, [isExpanded, episodeTitle])
 
+  const clampToRange = (time: number) => {
+    if (!accessibleRange) return time
+    return Math.max(accessibleRange.start, Math.min(time, accessibleRange.end))
+  }
+
   const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!progressRef.current) return
     const rect = progressRef.current.getBoundingClientRect()
     const x = e.clientX - rect.left
     const percentage = x / rect.width
-    const newTime = percentage * safeDuration
+    const newTime = clampToRange(percentage * safeDuration)
     onSeek(Math.max(0, Math.min(safeDuration, newTime)))
   }
 
@@ -68,7 +77,7 @@ export function CompactPlayer({
     const touch = e.touches[0]
     const x = touch.clientX - rect.left
     const percentage = x / rect.width
-    const newTime = percentage * safeDuration
+    const newTime = clampToRange(percentage * safeDuration)
     onSeek(Math.max(0, Math.min(safeDuration, newTime)))
   }
 
@@ -128,6 +137,19 @@ export function CompactPlayer({
               }}
               onTouchMove={handleProgressTouch}
             >
+              {/* Locked region overlays */}
+              {accessibleRange && (
+                <>
+                  <div
+                    className="absolute inset-y-0 left-0 bg-foreground/30 rounded-l-full z-10 pointer-events-none"
+                    style={{ width: `${rangeStartPct}%` }}
+                  />
+                  <div
+                    className="absolute inset-y-0 right-0 bg-foreground/30 rounded-r-full z-10 pointer-events-none"
+                    style={{ width: `${100 - rangeEndPct}%` }}
+                  />
+                </>
+              )}
               <div
                 className="absolute inset-y-0 left-0 bg-[var(--golden-chestnut)] rounded-full"
                 style={{ width: `${progressPercentage}%` }}
@@ -214,6 +236,19 @@ export function CompactPlayer({
             onClick={handleProgressClick}
             onTouchMove={handleProgressTouch}
           >
+            {/* Locked region overlays */}
+            {accessibleRange && (
+              <>
+                <div
+                  className="absolute inset-y-0 left-0 bg-foreground/30 rounded-l-full z-10 pointer-events-none"
+                  style={{ width: `${rangeStartPct}%` }}
+                />
+                <div
+                  className="absolute inset-y-0 right-0 bg-foreground/30 rounded-r-full z-10 pointer-events-none"
+                  style={{ width: `${100 - rangeEndPct}%` }}
+                />
+              </>
+            )}
             <div
               className="absolute inset-y-0 left-0 bg-[var(--golden-chestnut)] rounded-full"
               style={{ width: `${progressPercentage}%` }}
@@ -225,9 +260,14 @@ export function CompactPlayer({
             />
           </div>
 
-          {/* Time display */}
+          {/* Time display + Preview label */}
           <div className="flex justify-between text-xs mono text-foreground/50">
             <span>{formatTime(currentTime)}</span>
+            {accessibleRange && (
+              <span className="text-foreground/40 text-[10px]">
+                Preview: {formatTime(accessibleRange.start)} – {formatTime(accessibleRange.end)}
+              </span>
+            )}
             <span>{formatTime(duration)}</span>
           </div>
         </div>

@@ -90,6 +90,7 @@ export interface EpisodeOverviewData {
 
 interface EpisodeOverviewProps {
   episode: EpisodeOverviewData
+  accessibleRange?: { start: number; end: number }
   onStartListening: (timestamp?: number) => void
   onBack: () => void
   onBookmarksClick?: () => void
@@ -1050,7 +1051,7 @@ function EpisodeClusterExplorer({ episodeId, onSeek }: EpisodeClusterExplorerPro
 // MAIN COMPONENT
 // =============================================================================
 
-export function EpisodeOverview({ episode, onStartListening, onBack, onBookmarksClick, onViewPaper }: EpisodeOverviewProps) {
+export function EpisodeOverview({ episode, accessibleRange, onStartListening, onBack, onBookmarksClick, onViewPaper }: EpisodeOverviewProps) {
   const [chatOpen, setChatOpen] = useState(false)
   const [chatWidth, setChatWidth] = useState(440)
 
@@ -1109,6 +1110,10 @@ export function EpisodeOverview({ episode, onStartListening, onBack, onBookmarks
   }
 
   const handleSeek = (timestamp: number) => {
+    // Clamp to accessible range if set
+    if (accessibleRange) {
+      timestamp = Math.max(accessibleRange.start, Math.min(timestamp, accessibleRange.end))
+    }
     onStartListening(timestamp)
   }
 
@@ -1125,7 +1130,7 @@ export function EpisodeOverview({ episode, onStartListening, onBack, onBookmarks
       >
         {/* Mobile-only Begin Listening CTA - shown at top on mobile */}
         <div className="lg:hidden mb-6">
-          <BeginListeningCTA onStart={() => onStartListening()} />
+          <BeginListeningCTA onStart={() => onStartListening(accessibleRange?.start)} />
         </div>
 
         {/* Two Column Layout */}
@@ -1232,7 +1237,7 @@ export function EpisodeOverview({ episode, onStartListening, onBack, onBookmarks
           <div className="space-y-6">
             {/* Begin Listening CTA - hidden on mobile (shown at top instead) */}
             <div className="hidden lg:block">
-              <BeginListeningCTA onStart={() => onStartListening()} />
+              <BeginListeningCTA onStart={() => onStartListening(accessibleRange?.start)} />
             </div>
 
             {/* Research Territory Coverage */}

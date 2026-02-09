@@ -69,6 +69,12 @@ function parseDurationLabelToSeconds(label: string): number {
   return total
 }
 
+// Accessible audio range per episode (for copyright compliance)
+// Only episodes listed here will be restricted; all others play in full.
+const ACCESSIBLE_RANGES: Record<string, { start: number; end: number }> = {
+  lex_325: { start: 69 * 60, end: 74 * 60 }, // 69:00 – 74:00 (4140s – 4440s)
+}
+
 const getPlaybackStorageKey = (episodeId: string) => `playback_position:${episodeId}`
 
 const readStoredPlaybackTime = (episodeId: string): number | null => {
@@ -207,7 +213,13 @@ export default function EpisodePage({ params }: EpisodePageProps) {
       const durationSeconds = parseDurationLabelToSeconds(episodeData.duration)
       const storedTime = readStoredPlaybackTime(episodeData.id)
       const safeDuration = Math.max(durationSeconds, 1)
-      const startTime = initialTime ? Number(initialTime) : (storedTime !== null ? Math.max(0, Math.min(storedTime, safeDuration)) : 0)
+      let startTime = initialTime ? Number(initialTime) : (storedTime !== null ? Math.max(0, Math.min(storedTime, safeDuration)) : 0)
+      // Clamp to accessible range
+      const range = ACCESSIBLE_RANGES[episodeData.id]
+      if (range) {
+        if (startTime < range.start) startTime = range.start
+        if (startTime > range.end) startTime = range.end
+      }
       setCurrentTime(startTime)
     }
   }, [id, initialTime])
@@ -292,6 +304,7 @@ export default function EpisodePage({ params }: EpisodePageProps) {
   }
 
   const durationSeconds = parseDurationLabelToSeconds(episode.duration)
+  const accessibleRange = ACCESSIBLE_RANGES[episode.id] // undefined for unrestricted episodes
   const episodeJsonData = (episodesData as any[]).find((ep: any) => ep.id === episode.id)
   const audioUrl = episodeJsonData?.audioUrl || `/api/audio/${episode.id}`
 
@@ -299,10 +312,16 @@ export default function EpisodePage({ params }: EpisodePageProps) {
   const handleStartListening = (timestamp?: number) => {
     const params = new URLSearchParams()
     params.set("view", "listening")
-    if (timestamp !== undefined) {
-      params.set("t", String(timestamp))
-      setCurrentTime(timestamp)
-      persistPlaybackTime(episode.id, timestamp)
+    let t = timestamp
+    // Clamp to accessible range when present
+    if (accessibleRange) {
+      if (t === undefined || t < accessibleRange.start) t = accessibleRange.start
+      if (t > accessibleRange.end) t = accessibleRange.end
+    }
+    if (t !== undefined) {
+      params.set("t", String(t))
+      setCurrentTime(t)
+      persistPlaybackTime(episode.id, t)
     }
     router.push(`/episode/${id}?${params.toString()}`)
   }
@@ -341,7 +360,10 @@ export default function EpisodePage({ params }: EpisodePageProps) {
 
   const handleTimeUpdate = (time: number) => {
     const safeDuration = Math.max(durationSeconds, 1)
-    const clampedTime = Math.max(0, Math.min(time, safeDuration))
+    let clampedTime = Math.max(0, Math.min(time, safeDuration))
+    if (accessibleRange) {
+      clampedTime = Math.max(accessibleRange.start, Math.min(clampedTime, accessibleRange.end))
+    }
     setCurrentTime(clampedTime)
     persistPlaybackTime(episode.id, clampedTime)
   }
@@ -368,6 +390,7 @@ export default function EpisodePage({ params }: EpisodePageProps) {
         <ListeningView
           episode={listeningEpisode}
           claims={claims}
+          accessibleRange={accessibleRange}
           onDiveDeeper={handleDiveDeeper}
           onViewSource={handleDiveDeeper}
           onAskQuestion={(q) => console.log("User asked:", q)}
@@ -484,6 +507,7 @@ export default function EpisodePage({ params }: EpisodePageProps) {
       return (
         <EpisodeOverview
           episode={overviewData}
+          accessibleRange={accessibleRange}
           onStartListening={handleStartListening}
           onBack={handleBackToLibrary}
           onBookmarksClick={handleGoToNotebookLibrary}
