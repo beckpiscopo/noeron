@@ -525,13 +525,7 @@ export function ListeningView({
   // Filter out claims with invalid timestamps (0:00 or missing)
   const validClaims = claims.filter(claim => {
     const claimStartMs = claim.start_ms ?? 0
-    if (claimStartMs <= 0) return false
-    // Filter to accessible range if set
-    if (accessibleRange) {
-      const claimTimeSec = claimStartMs / 1000
-      return claimTimeSec >= accessibleRange.start && claimTimeSec <= accessibleRange.end
-    }
-    return true
+    return claimStartMs > 0 // Must have a valid start time
   })
   
   // Sort claims by start time
