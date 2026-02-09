@@ -405,10 +405,10 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
                 >
                   Start Researching
                 </button>
-                <button className="inline-flex items-center justify-center px-8 py-3 text-xs uppercase tracking-wide font-medium border border-gray-600 text-gray-300 bg-transparent hover:bg-[#C48B60] hover:border-[#C48B60] hover:text-white md:py-4 md:text-sm transition-all group">
+                <a href="#demo" className="inline-flex items-center justify-center px-8 py-3 text-xs uppercase tracking-wide font-medium border border-gray-600 text-gray-300 bg-transparent hover:bg-[#C48B60] hover:border-[#C48B60] hover:text-white md:py-4 md:text-sm transition-all group">
                   <Play className="w-4 h-4 mr-2 text-[#C48B60] group-hover:text-white transition-colors fill-current" />
                   Watch Demo
-                </button>
+                </a>
               </div>
             </div>
 

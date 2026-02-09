@@ -72,7 +72,7 @@ Noeron showcases Gemini 3's unique capabilities for scientific reasoning:
 - Knowledge cartography showing research territory coverage
 - Mobile-responsive listening experience
 
-**Try it yourself:** [Live Demo](https://noeron.app) (requires Gemini API key)
+**Try it yourself:** [Live Demo](https://www.noeron.io) (requires Gemini API key)
 
 ## Hackathon Submission
 
