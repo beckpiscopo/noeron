@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { readFile } from "fs/promises"
-import { join } from "path"
+import { resolve } from "path"
 
 export async function GET(
   request: NextRequest,
@@ -9,19 +9,15 @@ export async function GET(
   const { path } = await params
   const imagePath = path.join("/")
 
-  // Security: only allow paths within data/figure_images
-  if (!imagePath.startsWith("data/figure_images/")) {
-    return new NextResponse("Not found", { status: 404 })
-  }
+  // Resolve canonical paths to prevent traversal via encoded sequences
+  const allowedDir = resolve(process.cwd(), "..", "data", "figure_images")
+  const fullPath = resolve(process.cwd(), "..", imagePath)
 
-  // Prevent path traversal
-  if (imagePath.includes("..")) {
+  if (!fullPath.startsWith(allowedDir + "/")) {
     return new NextResponse("Invalid path", { status: 400 })
   }
 
   try {
-    // Go up from frontend directory to project root
-    const fullPath = join(process.cwd(), "..", imagePath)
     const data = await readFile(fullPath)
 
     return new NextResponse(data, {

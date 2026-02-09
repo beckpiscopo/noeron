@@ -16,3 +16,13 @@ if [ -n "$blocked_paths" ]; then
   echo "Remove them from the commit and try again."
   exit 1
 fi
+
+# Scan staged diffs for common API key patterns
+secrets=$(git diff --cached -U0 | grep -E '^\+' | grep -Ei '(sk-[a-zA-Z0-9]{20,}|AIza[a-zA-Z0-9_-]{35}|ghp_[a-zA-Z0-9]{36}|AKIA[A-Z0-9]{16}|sb_secret_[a-zA-Z0-9_-]+)' || true)
+
+if [ -n "$secrets" ]; then
+  echo "ERROR: Possible API key or secret detected in staged changes:"
+  echo "$secrets"
+  echo "Remove the secret and try again."
+  exit 1
+fi

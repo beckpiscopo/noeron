@@ -22,10 +22,17 @@ async def _set_gemini_key_from_header(request: Request):
 
 app = FastAPI(dependencies=[Depends(_set_gemini_key_from_header)])
 
-# Add CORS middleware
+# Add CORS middleware — restrict origins to trusted frontends
+import os
+
+_CORS_ALLOWED_ORIGINS = os.getenv(
+    "CORS_ALLOWED_ORIGINS",
+    "http://localhost:3000,http://localhost:3001"
+).split(",")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_CORS_ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -52,7 +59,7 @@ async def http_list_episodes(request: Request):
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return JSONResponse({"error": str(e)}, status_code=500)
+        return JSONResponse({"error": "Internal server error"}, status_code=500)
 
 @app.post("/tools/get_episode_claims/execute")
 async def http_get_episode_claims(request: Request):
@@ -115,7 +122,7 @@ async def http_get_episode_claims(request: Request):
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return JSONResponse({"error": str(e)}, status_code=500)
+        return JSONResponse({"error": "Internal server error"}, status_code=500)
 
 @app.post("/tools/get_claim_context/execute")
 async def http_get_claim_context(request: Request):
@@ -328,7 +335,7 @@ async def http_get_claim_context(request: Request):
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return JSONResponse({"error": str(e)}, status_code=500)
+        return JSONResponse({"error": "Internal server error"}, status_code=500)
 
 
 @app.post("/tools/generate_deep_dive_summary/execute")
@@ -489,7 +496,7 @@ async def http_generate_deep_dive_summary(request: Request):
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return JSONResponse({"error": str(e)}, status_code=500)
+        return JSONResponse({"error": "Internal server error"}, status_code=500)
 
 
 @app.post("/tools/analyze_paper_figures/execute")
@@ -508,7 +515,7 @@ async def http_analyze_paper_figures(request: Request):
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return JSONResponse({"error": str(e)}, status_code=500)
+        return JSONResponse({"error": "Internal server error"}, status_code=500)
 
 
 @app.post("/tools/generate_evidence_threads/execute")
@@ -681,7 +688,7 @@ async def http_generate_evidence_threads(request: Request):
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return JSONResponse({"error": str(e)}, status_code=500)
+        return JSONResponse({"error": "Internal server error"}, status_code=500)
 
 
 @app.post("/tools/get_paper/execute")
@@ -755,7 +762,7 @@ async def http_get_paper(request: Request):
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return JSONResponse({"error": str(e)}, status_code=500)
+        return JSONResponse({"error": "Internal server error"}, status_code=500)
 
 
 @app.post("/tools/get_relevant_kg_subgraph/execute")
@@ -898,7 +905,7 @@ async def http_get_relevant_kg_subgraph(request: Request):
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return JSONResponse({"error": str(e)}, status_code=500)
+        return JSONResponse({"error": "Internal server error"}, status_code=500)
 
 
 @app.post("/tools/chat_with_context/execute")
@@ -1139,7 +1146,7 @@ Provide a helpful, accurate response based on the context above. Reference speci
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return JSONResponse({"error": str(e)}, status_code=500)
+        return JSONResponse({"error": "Internal server error"}, status_code=500)
 
 
 @app.post("/tools/chat_with_context/stream")
@@ -1414,7 +1421,7 @@ async def http_generate_image_with_context(request: Request):
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return JSONResponse({"error": str(e)}, status_code=500)
+        return JSONResponse({"error": "Internal server error"}, status_code=500)
 
 
 @app.post("/tools/generate_mini_podcast/execute")
@@ -1450,7 +1457,7 @@ async def http_generate_mini_podcast(request: Request):
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return JSONResponse({"error": str(e)}, status_code=500)
+        return JSONResponse({"error": "Internal server error"}, status_code=500)
 
 
 @app.post("/tools/text_to_speech/execute")
@@ -1481,7 +1488,7 @@ async def http_text_to_speech(request: Request):
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return JSONResponse({"error": str(e)}, status_code=500)
+        return JSONResponse({"error": "Internal server error"}, status_code=500)
 
 
 @app.post("/tools/get_episode_summary/execute")
@@ -1668,7 +1675,7 @@ IMPORTANT: Return ONLY valid JSON. No markdown, no explanation text."""
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return JSONResponse({"error": str(e)}, status_code=500)
+        return JSONResponse({"error": "Internal server error"}, status_code=500)
 
 
 @app.post("/tools/generate_notebook_synthesis/execute")
@@ -1817,7 +1824,7 @@ Respond ONLY with the JSON object, no markdown formatting or additional text."""
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return JSONResponse({"error": str(e)}, status_code=500)
+        return JSONResponse({"error": "Internal server error"}, status_code=500)
 
 
 @app.post("/tools/get_paper_figures/execute")
@@ -1836,7 +1843,7 @@ async def http_get_paper_figures(request: Request):
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return JSONResponse({"error": str(e)}, status_code=500)
+        return JSONResponse({"error": "Internal server error"}, status_code=500)
 
 
 @app.get("/tools/papers_with_figures")
@@ -1867,7 +1874,7 @@ async def http_get_claim_figures(request: Request):
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return JSONResponse({"error": str(e)}, status_code=500)
+        return JSONResponse({"error": "Internal server error"}, status_code=500)
 
 
 @app.post("/tools/generate_slide_deck/execute")
@@ -1901,7 +1908,7 @@ async def http_generate_slide_deck(request: Request):
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return JSONResponse({"error": str(e)}, status_code=500)
+        return JSONResponse({"error": "Internal server error"}, status_code=500)
 
 
 @app.post("/tools/get_community_slides/execute")
@@ -1950,7 +1957,7 @@ async def http_get_community_slides(request: Request):
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return JSONResponse({"error": str(e), "slides": [], "count": 0}, status_code=500)
+        return JSONResponse({"error": "Internal server error", "slides": [], "count": 0}, status_code=500)
 
 
 @app.post("/tools/update_slide_sharing/execute")
@@ -1993,7 +2000,7 @@ async def http_update_slide_sharing(request: Request):
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return JSONResponse({"error": str(e), "success": False}, status_code=500)
+        return JSONResponse({"error": "Internal server error", "success": False}, status_code=500)
 
 
 @app.post("/tools/get_user_slides/execute")
@@ -2049,7 +2056,7 @@ async def http_get_user_slides(request: Request):
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return JSONResponse({"error": str(e), "slides": {}, "styles_created": []}, status_code=500)
+        return JSONResponse({"error": "Internal server error", "slides": {}, "styles_created": []}, status_code=500)
 
 
 def run_server(host=None, port=None):

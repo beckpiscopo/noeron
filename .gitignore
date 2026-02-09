@@ -42,17 +42,8 @@ htmlcov/
 # Checkpoints (episode ingestion pipeline)
 .checkpoints/
 
-# Data (but keep the directory structure)
-data/papers_collection.json
-data/cleaned_papers/*.json
-data/*.pdf
-data/temp/
-data/pdfs/*.pdf
-data/grobid_fulltext/*.json
-data/cleaned_texts/*.json
-data/chunks/*.json
-data/podcasts/raw/
-data/vectorstore/
+# Data (entire directory - contains research papers, transcripts, and derived data)
+data/
 # Logs
 *.log
 
@@ -75,3 +66,24 @@ node_modules/
 frontend/.env.local
 frontend/.env.*.local
 supabase/.temp/
+
+# Cache (all generated data)
+cache/
+
+# Security - key/cert files
+*.pem
+*.key
+*.cert
+*.p12
+*.pfx
+
+# Database files
+*.sqlite
+*.db
+
+# Claude Code local settings
+.claude/settings.local.json
+
+# Debug artifacts
+diagnostic_sample.json
+retry-list.txt

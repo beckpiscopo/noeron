@@ -43,27 +43,31 @@ function parseRange(rangeHeader: string | null, fileSize: number) {
   return { start, end }
 }
 
+const isDev = process.env.NODE_ENV === "development"
+
 export async function GET(_request: Request, { params }: { params: Promise<{ episodeId: string }> }) {
   const { episodeId } = await params
-  console.log("[Audio API] Request for episodeId:", episodeId)
-  console.log("[Audio API] AUDIO_DIR:", AUDIO_DIR)
-  console.log("[Audio API] Available files:", AUDIO_FILES)
-  
+  if (isDev) {
+    console.log("[Audio API] Request for episodeId:", episodeId)
+    console.log("[Audio API] AUDIO_DIR:", AUDIO_DIR)
+    console.log("[Audio API] Available files:", AUDIO_FILES)
+  }
+
   const fileName = AUDIO_FILES[episodeId]
   if (!fileName) {
-    console.error("[Audio API] No mapping found for episodeId:", episodeId)
+    if (isDev) console.error("[Audio API] No mapping found for episodeId:", episodeId)
     return NextResponse.json({ error: "Audio not found" }, { status: 404 })
   }
 
   const filePath = path.join(AUDIO_DIR, fileName)
-  console.log("[Audio API] Full file path:", filePath)
+  if (isDev) console.log("[Audio API] Full file path:", filePath)
   let fileStat
   try {
     fileStat = await stat(filePath)
-    console.log("[Audio API] File found! Size:", fileStat.size, "bytes")
+    if (isDev) console.log("[Audio API] File found! Size:", fileStat.size, "bytes")
   } catch (error) {
-    console.error("[Audio API] File not found at path:", filePath, "Error:", error)
-    return NextResponse.json({ error: "Audio file missing", path: filePath }, { status: 404 })
+    if (isDev) console.error("[Audio API] File not found at path:", filePath, "Error:", error)
+    return NextResponse.json({ error: "Audio file missing" }, { status: 404 })
   }
 
   const rangeHeader = _request.headers.get("range")

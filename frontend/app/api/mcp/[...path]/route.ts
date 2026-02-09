@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 
 const FASTMCP_PROXY_TARGET = process.env.MCP_PROXY_TARGET ?? "http://127.0.0.1:8000"
+const isDev = process.env.NODE_ENV === "development"
 
 // Long-running operations need extended timeouts
 const LONG_RUNNING_TOOLS = ["generate_slide_deck", "generate_mini_podcast"]
@@ -26,9 +27,11 @@ async function forwardRequest(request: NextRequest, pathSegments: string[]) {
   const isLongRunning = isLongRunningRequest(pathSegments)
   const timeoutMs = isLongRunning ? LONG_TIMEOUT_MS : DEFAULT_TIMEOUT_MS
 
-  console.log("[MCP Proxy] Target URL:", targetUrl)
-  if (isLongRunning) {
-    console.log("[MCP Proxy] Long-running request, timeout:", timeoutMs / 1000, "seconds")
+  if (isDev) {
+    console.log("[MCP Proxy] Target URL:", targetUrl)
+    if (isLongRunning) {
+      console.log("[MCP Proxy] Long-running request, timeout:", timeoutMs / 1000, "seconds")
+    }
   }
 
   const controller = new AbortController()
@@ -44,7 +47,7 @@ async function forwardRequest(request: NextRequest, pathSegments: string[]) {
     } as RequestInit)
 
     clearTimeout(timeoutId)
-    console.log("[MCP Proxy] MCP server response status:", response.status)
+    if (isDev) console.log("[MCP Proxy] MCP server response status:", response.status)
 
     const headers = new Headers(response.headers)
     headers.delete("content-encoding")
@@ -75,9 +78,9 @@ async function forwardRequest(request: NextRequest, pathSegments: string[]) {
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
   const { path } = await params
-  console.log("[MCP Proxy] Forwarding request to path:", path)
+  if (isDev) console.log("[MCP Proxy] Forwarding request to path:", path)
   const result = await forwardRequest(request, path)
-  console.log("[MCP Proxy] Response status:", result.status)
+  if (isDev) console.log("[MCP Proxy] Response status:", result.status)
   return result
 }
 
