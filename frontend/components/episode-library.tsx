@@ -35,7 +35,7 @@ const fallbackEpisodes: Episode[] = [
     guest: "Michael Levin",
     duration: "3h 42m",
     date: "Oct 12, 2022",
-    papersLinked: 12,
+    papersLinked: 150,
     thumbnail:
       "https://lh3.googleusercontent.com/aida-public/AB6AXuBSXr2NRFQyHckx7EOb7p-v5XeY29QTtJa4gwIiNp2h_BVaHFU2F2wfbRmTvez1GpVNkpGQDUIPcdW0MU_hx4kyDjN8tiYYDzu-oKYa4yNLqMm0wnaA5B55ST3f5VySZTmQWQIQS9bKLPcv68F5jJezZYy0zHLJYlCS2EkUmtWMeHJ4RShQtP7kl47lFWjHV9j0M11_4KJ3fAny-gAPCHOcLQP29Y2S0qdoPuXCBcsksEsbZ9YZnSpWgYTE51dYEah9lan25ybl0OQ",
   },
@@ -47,7 +47,7 @@ const fallbackEpisodes: Episode[] = [
     guest: "Michael Levin",
     duration: "2h 18m",
     date: "Feb 14, 2023",
-    papersLinked: 4,
+    papersLinked: 150,
     thumbnail:
       "https://lh3.googleusercontent.com/aida-public/AB6AXuDW9snz5fYeB2yLE_8jtpSz_11mpIfpSndnmbL_PYgbnt16oupG77F3cLxyuise3ZULKpcgM-__fUkUCeEY9E5mZvnj7sq9t4EmG6FTiaORvUD_M9rVl5JE_raLNnkpEcoia20PTreB19XatdNuzSnVUu_35NeAh8n514eAM3G5bFCsLQ-KrOTD4PpEUAuDyUwhKr0MP8vNrn6A7CB-Uulx8pWkoRNZZinMa-Yd_KKSLuuj6KN-dumoX75va5j9Bfk_BqhCGZ7Axvg",
   },
@@ -59,7 +59,7 @@ const fallbackEpisodes: Episode[] = [
     guest: "Michael Levin",
     duration: "2h 15m",
     date: "Jun 05, 2021",
-    papersLinked: 8,
+    papersLinked: 150,
     thumbnail:
       "https://lh3.googleusercontent.com/aida-public/AB6AXuD5tffHIm8aP_Tc_WChwbDuKUx63FqzZdt-kn31dn1bdZmtq-gVCdLsCV3_cSsRw9sUp9DxyAODkkonKgHDK41xB_qpHy4F3Q-rcVgivQVI-surpGKgD7JUNklBlBiEgBikziDH3JhtJ1NVOt1ZSqcJmEUukj6-ABU49GaPrAFd1ij6AOvcmoPKfcr3BgfRwrl-nR4Qj0iFjrpES6WtBSMARieaxCpfZjjp-bNS998a08H5hTKb-KTQfsVYHpf-Du9r13mLCKxr5T0",
   },
