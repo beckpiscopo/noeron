@@ -1,11 +1,13 @@
 "use client"
 
+import { useState, useEffect, useRef } from "react"
 import {
   GitBranch,
   Loader2,
   BookOpen,
   AlertCircle,
 } from "lucide-react"
+import { callMcpTool } from "@/lib/api"
 import { ThreadContextSidebar } from "../thread-context-sidebar"
 import { EvidenceCard } from "../evidence-card"
 import { SynthesisReportCTA } from "../synthesis-report-cta"
@@ -78,6 +80,39 @@ export function EvidenceTab({
   onFetchFigureAnalysis,
   fallbackPapers = [],
 }: EvidenceTabProps) {
+  const [citationCounts, setCitationCounts] = useState<Record<string, number>>({})
+  const fetchedRef = useRef<Set<string>>(new Set())
+
+  // Fetch real citation counts for all papers in threads
+  useEffect(() => {
+    if (!aiEvidenceThreads?.threads) return
+
+    const paperIds = aiEvidenceThreads.threads
+      .flatMap(t => t.milestones.map(m => m.paper_id))
+      .filter((id, i, arr) => id && arr.indexOf(id) === i && !fetchedRef.current.has(id))
+
+    if (paperIds.length === 0) return
+
+    paperIds.forEach(id => fetchedRef.current.add(id))
+
+    Promise.all(
+      paperIds.map(async (paperId) => {
+        try {
+          const data = await callMcpTool<{ paper_id: string; citation_count: number }>("get_paper", { paper_id: paperId })
+          return { paperId, count: data.citation_count }
+        } catch {
+          return { paperId, count: 0 }
+        }
+      })
+    ).then(results => {
+      const counts: Record<string, number> = {}
+      for (const r of results) {
+        if (r.count > 0) counts[r.paperId] = r.count
+      }
+      setCitationCounts(prev => ({ ...prev, ...counts }))
+    })
+  }, [aiEvidenceThreads])
+
   // Deduplicate fallback papers by paper_id
   const uniqueFallbackPapers = fallbackPapers.reduce((acc, paper) => {
     if (!acc.find(p => p.paper_id === paper.paper_id)) {
@@ -170,7 +205,7 @@ export function EvidenceTab({
                                   year={milestone.year}
                                   title={milestone.paper_title}
                                   description={milestone.finding}
-                                  citationCount={Math.floor(Math.random() * 2000) + 100}
+                                  citationCount={citationCounts[milestone.paper_id]}
                                   topics={[formatThreadType(thread.type)]}
                                   paperId={milestone.paper_id}
                                   onViewPaper={(id) => onFetchFigureAnalysis(id)}
