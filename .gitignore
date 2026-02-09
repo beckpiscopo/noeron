@@ -42,8 +42,22 @@ htmlcov/
 # Checkpoints (episode ingestion pipeline)
 .checkpoints/
 
-# Data (entire directory - contains research papers, transcripts, and derived data)
-data/
+# Data - ignore raw/sensitive content, but keep runtime files the app needs
+data/pdfs/
+data/cleaned_papers/
+data/cleaned_texts/
+data/grobid_fulltext/
+data/chunks/
+data/podcasts/raw/
+data/transcripts/
+data/temp/
+data/vectorstore/
+data/scraped/
+data/*.pdf
+data/agentic_vision_test_results.json
+data/chunks.json
+data/window_segments.json
+data/transcript_sentences.txt
 # Logs
 *.log
 
@@ -67,8 +81,11 @@ frontend/.env.local
 frontend/.env.*.local
 supabase/.temp/
 
-# Cache (all generated data)
-cache/
+# Cache - ignore generated/scratch files, but keep runtime files the app needs
+cache/concept_expansions.json
+cache/*_backup.json
+cache/*_fixed.json
+cache/*_v2.json
 
 # Security - key/cert files
 *.pem
