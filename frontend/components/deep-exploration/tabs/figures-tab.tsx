@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import {
   Image as ImageIcon,
   Sparkles,
@@ -55,6 +55,8 @@ export function FiguresTab({
   pendingFigurePaperId,
   onViewSourcePaper,
 }: FiguresTabProps) {
+  const aiAnalysisRef = useRef<HTMLDivElement>(null)
+
   // Claim figures state (auto-loaded from evidence papers)
   const [claimFigures, setClaimFigures] = useState<ClaimFiguresResponse | null>(null)
   const [isLoadingClaimFigures, setIsLoadingClaimFigures] = useState(false)
@@ -102,6 +104,15 @@ export function FiguresTab({
       cancelled = true
     }
   }, [claimId, episodeId])
+
+  // Scroll to AI analysis section when loading starts
+  useEffect(() => {
+    if (isLoadingFigures || figureAnalysis) {
+      setTimeout(() => {
+        aiAnalysisRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+      }, 100)
+    }
+  }, [isLoadingFigures, figureAnalysis])
 
   // Show top 5 figures initially, expand to show all
   const INITIAL_DISPLAY_LIMIT = 5
@@ -274,7 +285,7 @@ export function FiguresTab({
 
       {/* AI Analysis Section (when user clicks "Analyze with AI") */}
       {(isLoadingFigures || figuresError || figureAnalysis) && (
-        <div className="pt-6 border-t border-border">
+        <div ref={aiAnalysisRef} className="pt-6 border-t border-border">
           <div className="flex items-center gap-2 mb-4">
             <Sparkles className="w-5 h-5 text-[var(--golden-chestnut)]" />
             <h4 className="font-bold text-lg">AI Analysis</h4>

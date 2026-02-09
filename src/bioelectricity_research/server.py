@@ -66,6 +66,7 @@ EVIDENCE_THREADS_CACHE_PATH = Path(__file__).resolve().parent.parent.parent / "c
 KNOWLEDGE_GRAPH_PATH = Path(__file__).resolve().parent.parent.parent / "data" / "knowledge_graph" / "knowledge_graph.json"
 CLAIM_RELEVANCE_CACHE_PATH = Path(__file__).resolve().parent.parent.parent / "data" / "knowledge_graph" / "claim_entity_relevance.json"
 FIGURES_INDEX_PATH = Path(__file__).resolve().parent.parent.parent / "data" / "figures_metadata.json"
+FIGURE_ANALYSIS_CACHE_PATH = Path(__file__).resolve().parent.parent.parent / "cache" / "figure_analysis.json"
 ROOT_DIR = Path(__file__).resolve().parent.parent.parent
 
 
@@ -418,6 +419,24 @@ def _save_deep_dive_cache(cache: dict) -> None:
     """Save the deep dive summaries cache."""
     DEEP_DIVE_CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
     with DEEP_DIVE_CACHE_PATH.open("w") as fh:
+        json_module.dump(cache, fh, indent=2)
+
+
+def _load_figure_analysis_cache() -> dict:
+    """Load the figure analysis cache."""
+    if not FIGURE_ANALYSIS_CACHE_PATH.exists():
+        return {}
+    try:
+        with FIGURE_ANALYSIS_CACHE_PATH.open() as fh:
+            return json_module.load(fh)
+    except json_module.JSONDecodeError:
+        return {}
+
+
+def _save_figure_analysis_cache(cache: dict) -> None:
+    """Save the figure analysis cache."""
+    FIGURE_ANALYSIS_CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with FIGURE_ANALYSIS_CACHE_PATH.open("w") as fh:
         json_module.dump(cache, fh, indent=2)
 
 
@@ -1850,12 +1869,22 @@ async def _analyze_paper_figures_impl(
     paper_id: str,
     figure_id: str | None = None,
     claim_context: str | None = None,
+    force_regenerate: bool = False,
 ) -> dict[str, Any]:
     """
     Implementation for analyzing figures - called by both MCP tool and HTTP endpoint.
     """
     import base64
     from google.genai import types
+
+    # Check cache first
+    cache_key = f"{paper_id}:{figure_id or 'all'}"
+    if not force_regenerate:
+        cache = _load_figure_analysis_cache()
+        if cache_key in cache:
+            cached = cache[cache_key]
+            cached["cached"] = True
+            return cached
 
     figures = _get_figures_for_paper(paper_id)
 
@@ -1865,8 +1894,8 @@ async def _analyze_paper_figures_impl(
     if figure_id:
         figures = [f for f in figures if f["figure_id"] == figure_id]
 
-    # Limit to first 5 figures that have images
-    figures = [f for f in figures if f.get("image_path")][:5]
+    # Limit to first 5 figures that have images (local path or remote URL)
+    figures = [f for f in figures if f.get("image_path") or f.get("image_url")][:5]
 
     if not figures:
         return {"error": f"No figures with images found for paper {paper_id}", "figures": []}
@@ -1876,13 +1905,25 @@ async def _analyze_paper_figures_impl(
     client = _get_genai_client()
 
     for fig in figures:
-        image_path = ROOT_DIR / fig["image_path"]
-        if not image_path.exists():
-            continue
+        # Try local file first, fall back to remote URL
+        image_data = None
+        image_path = ROOT_DIR / fig["image_path"] if fig.get("image_path") else None
+        if image_path and image_path.exists():
+            with open(image_path, "rb") as f:
+                image_data = base64.standard_b64encode(f.read()).decode("utf-8")
+        elif fig.get("image_url"):
+            try:
+                resp = await asyncio.to_thread(
+                    lambda: httpx.get(fig["image_url"], timeout=15, follow_redirects=True)
+                )
+                if resp.status_code == 200:
+                    image_data = base64.standard_b64encode(resp.content).decode("utf-8")
+            except Exception as e:
+                import logging
+                logging.warning(f"Failed to fetch figure image from URL {fig['image_url']}: {e}")
 
-        # Load and encode image
-        with open(image_path, "rb") as f:
-            image_data = base64.standard_b64encode(f.read()).decode("utf-8")
+        if not image_data:
+            continue
 
         # Build context-aware prompt
         context = f"Caption: {fig.get('caption', 'No caption')}\n"
@@ -1914,7 +1955,7 @@ Keep the analysis concise (2-3 paragraphs) and accessible to non-experts."""
                             data=base64.standard_b64decode(image_data),
                             mime_type="image/png",
                         ),
-                        types.Part.from_text(prompt),
+                        types.Part.from_text(text=prompt),
                     ],
                 )
             ]
@@ -1949,11 +1990,22 @@ Keep the analysis concise (2-3 paragraphs) and accessible to non-experts."""
             import logging
             logging.warning(f"Failed to analyze figure {fig['figure_id']}: {e}")
 
-    return {
+    result = {
         "paper_id": paper_id,
         "figures": results,
         "total_figures": len(results),
+        "cached": False,
     }
+
+    # Cache successful results (only if we got at least one analysis)
+    if results:
+        from datetime import datetime, timezone
+        result["generated_at"] = datetime.now(timezone.utc).isoformat()
+        cache = _load_figure_analysis_cache()
+        cache[cache_key] = result
+        _save_figure_analysis_cache(cache)
+
+    return result
 
 
 @mcp.tool()
