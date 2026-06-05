@@ -18,16 +18,24 @@ dependencies = [
     "beautifulsoup4>=4.12.0",
     "fastapi>=0.104.0",
     "uvicorn>=0.24.0",
-    "pdf2image>=1.17.0",
     "pillow>=12.1.0",
-    "google-genai>=1.60.0",
     "reportlab>=4.4.9",
+    "google-genai>=1.60.0",
+    "supabase>=2.0.0",
+    "python-dotenv>=1.0.0",
+    "tiktoken>=0.5.0",
+    "numpy>=2.0",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0.0",
     "pytest-asyncio>=0.23.0",
+]
+# Local dev only — production uses Supabase pgvector and Gemini text-embedding-004
+local = [
+    "chromadb>=0.4.0",
+    "sentence-transformers>=2.2.0",
 ]
 
 [project.scripts]

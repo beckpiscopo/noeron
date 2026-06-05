@@ -1,8 +1,5 @@
 """Simple HTTP server to expose MCP tools as REST endpoints."""
 
-from dotenv import load_dotenv
-load_dotenv()
-
 import asyncio
 from fastapi import FastAPI, Request, Depends
 from fastapi.responses import JSONResponse, StreamingResponse
@@ -23,12 +20,9 @@ async def _set_gemini_key_from_header(request: Request):
 app = FastAPI(dependencies=[Depends(_set_gemini_key_from_header)])
 
 # Add CORS middleware — restrict origins to trusted frontends
-import os
+from .config import CORS_ALLOWED_ORIGINS, FASTMCP_HOST, FASTMCP_PORT
 
-_CORS_ALLOWED_ORIGINS = os.getenv(
-    "CORS_ALLOWED_ORIGINS",
-    "http://localhost:3000,http://localhost:3001"
-).split(",")
+_CORS_ALLOWED_ORIGINS = CORS_ALLOWED_ORIGINS
 
 app.add_middleware(
     CORSMiddleware,
@@ -2066,12 +2060,10 @@ def run_server(host=None, port=None):
     - HOST: Default "0.0.0.0" for production, "127.0.0.1" for local
     - PORT: Default 8000
     """
-    import os
-
     if host is None:
-        host = os.getenv("HOST", "0.0.0.0")
+        host = FASTMCP_HOST
     if port is None:
-        port = int(os.getenv("PORT", "8000"))
+        port = FASTMCP_PORT
 
     print(f"Starting server on {host}:{port}")
     uvicorn.run(app, host=host, port=port)

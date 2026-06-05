@@ -13,8 +13,7 @@ import os
 from pathlib import Path
 from typing import Dict, List, Optional
 
-# Data source toggle - set to True to use Supabase pgvector
-USE_SUPABASE = os.getenv("USE_SUPABASE", "true").lower() == "true"
+from .config import USE_SUPABASE, GEMINI_API_KEY
 
 # Gemini embedding model - 768 dimensions
 GEMINI_EMBEDDING_MODEL = "text-embedding-004"
@@ -28,7 +27,7 @@ def _get_gemini_client():
     global _GEMINI_CLIENT
     if _GEMINI_CLIENT is None:
         from google import genai
-        api_key = os.environ.get("GEMINI_API_KEY")
+        api_key = GEMINI_API_KEY
         if not api_key:
             raise RuntimeError("GEMINI_API_KEY environment variable is required for embeddings")
         _GEMINI_CLIENT = genai.Client(api_key=api_key)
@@ -279,6 +278,10 @@ def get_vectorstore(persist_dir: str = "data/vectorstore") -> VectorStore | Supa
         except Exception as e:
             print(f"Warning: Failed to initialize Supabase vector store: {e}")
             print("Falling back to ChromaDB...")
-            return VectorStore(persist_dir)
-    return VectorStore(persist_dir)
+    try:
+        return VectorStore(persist_dir)
+    except ImportError as e:
+        raise RuntimeError(
+            "ChromaDB is not installed. Install it with: pip install 'bioelectricity-research-mcp[local]'"
+        ) from e
 

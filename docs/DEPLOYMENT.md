@@ -171,12 +171,24 @@ Railway uses `requirements.txt` for Python dependencies (not `pyproject.toml`). 
 
 ```
 fastapi>=0.104.0
+fastmcp>=0.2.0
+mcp>=1.0.0
 uvicorn>=0.24.0
-google-genai>=0.6.0
+pydantic>=2.0.0
+httpx>=0.27.0
+python-dotenv>=1.0.0
+google-genai>=1.60.0
 supabase>=2.0.0
-sentence-transformers>=2.2.0
-chromadb>=0.4.0
+tiktoken>=0.5.0
+beautifulsoup4>=4.12.0
+pypdf>=4.0.0
+numpy>=2.0
+arxiv>=2.1.0
+pillow>=12.1.0
+reportlab>=4.4.9
 ```
+
+Note: `chromadb` and `sentence-transformers` are not needed in production — the server uses Supabase pgvector and Gemini text-embedding-004.
 
 If builds fail with import errors, check Railway logs for the missing package and add it to `requirements.txt`.
 

@@ -13,6 +13,8 @@ import json
 import os
 import re
 from datetime import datetime
+
+from .config import UNPAYWALL_EMAIL
 from pathlib import Path
 from typing import Any, Optional
 from urllib.parse import quote
@@ -185,7 +187,7 @@ class PDFParser:
     """Handles PDF downloading and text extraction."""
     
     def __init__(self):
-        email = os.getenv("UNPAYWALL_EMAIL", "your.email@example.com")
+        email = UNPAYWALL_EMAIL
         self.multi_source = MultiSourcePDFGetter(email)
     
     async def download_pdf(self, url: str, paper_id: str) -> Optional[Path]:

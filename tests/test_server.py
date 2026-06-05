@@ -24,7 +24,6 @@ async def test_search():
     
     print(f"✓ Server module loaded")
     print(f"✓ MCP server name: {server.mcp.name}")
-    print(f"✓ API base: {server.API_BASE}")
     
     # Test storage import
     storage = PaperStorage()

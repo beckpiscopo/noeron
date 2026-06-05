@@ -21,6 +21,8 @@ from typing import Optional, Any
 from dataclasses import dataclass, field
 from datetime import timedelta
 
+from .config import USE_SUPABASE
+
 # ============================================================================
 # Configuration
 # ============================================================================
@@ -33,9 +35,6 @@ CONTEXT_CARD_REGISTRY_FILE = DATA_DIR / "context_card_registry.json"
 # Window configuration
 TEMPORAL_WINDOW_SIZE_MS = 180_000  # 3 minutes in milliseconds
 EVIDENCE_CARD_LOOKBACK_MS = 300_000  # 5 minutes lookback for active cards
-
-# Data source toggle - set to True to use Supabase
-USE_SUPABASE = os.getenv("USE_SUPABASE", "true").lower() == "true"
 
 # Lazy-loaded Supabase client
 _supabase_client = None
